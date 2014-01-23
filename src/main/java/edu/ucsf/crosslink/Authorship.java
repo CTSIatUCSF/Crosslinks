@@ -31,7 +31,15 @@ public class Authorship {
     	this.setPmid(pmid);
     }
 
-	public String getLastName() {
+    public Authorship(String affiliation, String url, String firstName, String lastName, String pmid) throws JSONException {
+    	this.setAffiliation(affiliation);
+    	this.setFirstName(firstName);
+    	this.setLastName(lastName);
+    	this.setURL(url);
+    	this.setPmid(pmid);
+    }
+
+    public String getLastName() {
 		return lastName;
 	}
 	

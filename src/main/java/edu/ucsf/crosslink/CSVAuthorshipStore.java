@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -51,6 +52,12 @@ public class CSVAuthorshipStore implements AuthorshipPersistance {
 		writer.writeNext(authorship.toStringArray());
 	}
 	
+	public void saveAuthorships(Collection<Authorship> authorships) throws Exception {
+		for (Authorship authorship : authorships) {
+			writer.writeNext(authorship.toStringArray());
+		}
+	}
+
 	public boolean containsAuthor(String url) {
 		return existingEntries.contains(url);
 	}

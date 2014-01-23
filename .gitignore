@@ -11,6 +11,8 @@ MANIFEST.MF
 
 # So we don't grab the output files
 *.csv
+*.xls
+*.xlsx
 
 # output of git svn show-ignore below
 # /

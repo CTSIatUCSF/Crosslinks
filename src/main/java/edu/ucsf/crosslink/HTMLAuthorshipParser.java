@@ -57,7 +57,7 @@ public class HTMLAuthorshipParser implements AuthorshipParser {
         		break;
         	}
         	catch (java.net.SocketTimeoutException ex) {
-        		LOG.info("Tring " + url + " one more time... " + attempts);
+        		LOG.info("Trying " + url + " one more time... " + attempts);
         		Thread.sleep(1000);
         	}
     	}

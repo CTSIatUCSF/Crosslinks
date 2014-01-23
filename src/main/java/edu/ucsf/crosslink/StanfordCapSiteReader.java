@@ -71,7 +71,7 @@ public class StanfordCapSiteReader {
         		break;
         	}
         	catch (java.net.SocketTimeoutException ex) {
-        		LOG.info("Tring " + sitemapUrl + " one more time... " + attempts);
+        		LOG.info("Trying " + sitemapUrl + " one more time... " + attempts);
         		Thread.sleep(1000);
         	}
     	}
@@ -113,7 +113,7 @@ public class StanfordCapSiteReader {
         		break;
         	}
         	catch (java.net.SocketTimeoutException ex) {
-        		LOG.info("Tring " + url + " one more time... " + attempts);
+        		LOG.info("Trying " + url + " one more time... " + attempts);
         		Thread.sleep(1000);
         	}
     	}
@@ -127,13 +127,13 @@ public class StanfordCapSiteReader {
 				    //person = getJSONFromURI(link.attr("abs:href"));
 			    	LOG.info("PMID = " + pmid);
 			    	if (pmid != null) {
-			    		authorships.add(new Authorship(affiliation, url, personName[1], personName[0], pmid));
+			    		authorships.add(new Authorship(affiliation, url, personName[0], personName[1], null, pmid));
 			    	}
 		    	}
 	        }
 	    	if (personName != null && authorships.isEmpty()) {
 	    		// add a blank one just so we know we've processed this person
-	        	authorships.add(new Authorship(affiliation, url, personName[1], personName[0], null));
+	        	authorships.add(new Authorship(affiliation, url, personName[0], personName[1], null, null));
 	    	}
 		}
     	return authorships;
@@ -148,7 +148,7 @@ public class StanfordCapSiteReader {
         		break;
         	}
         	catch (java.net.SocketTimeoutException ex) {
-        		LOG.info("Tring " + url + " one more time... " + attempts);
+        		LOG.info("Trying " + url + " one more time... " + attempts);
         		Thread.sleep(1000);
         	}
     	}

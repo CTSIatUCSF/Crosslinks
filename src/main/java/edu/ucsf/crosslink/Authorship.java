@@ -8,10 +8,11 @@ public class Authorship {
 	private String affiliation;
 	private String lastName;
 	private String firstName;
+	private String middleName;
 	private String URL;
 	private String pmid;  // keep as string so we can handle NULL 
 	
-	public static String[] ColumnNames = {"Affiliation", "LastName", "FirstName", "URL", "PMID"};
+	public static String[] ColumnNames = {"Affiliation", "LastName", "FirstName", "MiddleName", "URL", "PMID"};
 	
 	public Authorship() {
 	}
@@ -20,21 +21,24 @@ public class Authorship {
 		this.affiliation = entry[0];
 		this.lastName = entry[1];
 		this.firstName = entry[2];
-		this.URL = entry[3];
-		this.pmid = entry[4];
+		this.middleName = entry[3];
+		this.URL = entry[4];
+		this.pmid = entry[5];
 	}
 
     public Authorship(String url, JSONObject person, String pmid) throws JSONException {
     	this.setFirstName(person.getString("firstName"));
+    	this.setMiddleName(person.getString("middleName"));
     	this.setLastName(person.getString("lastName"));
     	this.setURL(url);
     	this.setPmid(pmid);
     }
 
-    public Authorship(String affiliation, String url, String firstName, String lastName, String pmid) throws JSONException {
+    public Authorship(String affiliation, String url, String lastName, String firstName, String middleName, String pmid) throws JSONException {
     	this.setAffiliation(affiliation);
-    	this.setFirstName(firstName);
     	this.setLastName(lastName);
+    	this.setFirstName(firstName);
+    	this.setMiddleName(middleName);
     	this.setURL(url);
     	this.setPmid(pmid);
     }
@@ -51,10 +55,18 @@ public class Authorship {
 		return firstName;
 	}
 	
+	public void setMiddleName(String middleName) {
+		this.middleName = middleName;
+	}
+	
+	public String getMiddleName() {
+		return middleName;
+	}
+	
 	public void setFirstName(String firstName) {
 		this.firstName = firstName;
 	}
-	
+
 	public String getAffiliation() {
 		return affiliation;
 	}
@@ -84,7 +96,7 @@ public class Authorship {
 	}
 	
 	public String[] toStringArray() {
-		String[] retval = {affiliation, lastName, firstName, URL, pmid};
+		String[] retval = {affiliation, lastName, firstName, middleName, URL, pmid};
 		return retval;
 	}
 

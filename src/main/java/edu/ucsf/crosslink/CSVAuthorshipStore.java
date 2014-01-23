@@ -29,7 +29,7 @@ public class CSVAuthorshipStore implements AuthorshipPersistance {
 			CSVReader reader = new CSVReader(new FileReader(file));
 			List<String[]> entries = reader.readAll();
 			for (String[] entry : entries) {
-				if ("PMID".equalsIgnoreCase(entry[4])) {
+				if ("PMID".equalsIgnoreCase(entry[5])) {
 					continue;
 				}
 				Authorship authorship = new Authorship(entry);

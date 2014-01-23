@@ -9,6 +9,9 @@
 target
 MANIFEST.MF
 
+# So we don't grab the output files
+*.csv
+
 # output of git svn show-ignore below
 # /
 /target

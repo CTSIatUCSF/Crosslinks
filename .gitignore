@@ -1,0 +1,14 @@
+*~
+*.swp
+
+# By Eric
+.settings
+.svn
+.project
+.classpath
+target
+MANIFEST.MF
+
+# output of git svn show-ignore below
+# /
+/target

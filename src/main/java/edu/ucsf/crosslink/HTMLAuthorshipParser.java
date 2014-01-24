@@ -18,13 +18,12 @@ import com.github.jsonldjava.core.Options;
 import com.github.jsonldjava.impl.JenaRDFParser;
 import com.github.jsonldjava.utils.JSONUtils;
 
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 
-public class HTMLAuthorshipParser implements AuthorshipParser {
+public class HTMLAuthorshipParser extends HTMLReader implements AuthorshipParser {
 
 	private static final Logger LOG = Logger.getLogger(HTMLAuthorshipParser.class.getName());
 
@@ -49,18 +48,7 @@ public class HTMLAuthorshipParser implements AuthorshipParser {
     
     public Collection<Authorship> getAuthorshipsFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
     	Set<Authorship> authorships = new HashSet<Authorship>();
-    	int attempts = 0;
-    	Document doc = null;
-    	while (attempts++ < 10) {
-        	try {
-        		doc = Jsoup.connect(url).timeout(10000).get();
-        		break;
-        	}
-        	catch (java.net.SocketTimeoutException ex) {
-        		LOG.info("Trying " + url + " one more time... " + attempts);
-        		Thread.sleep(1000);
-        	}
-    	}
+    	Document doc = getDocument(url);
 		if (doc != null) {
 			JSONObject person = null;
 			Elements links = doc.select("a[href]");	

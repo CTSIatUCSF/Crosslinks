@@ -1,9 +1,13 @@
 package edu.ucsf.crosslink;
 
+import java.util.logging.Logger;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
 public class Authorship {
+
+	private static final Logger LOG = Logger.getLogger(Authorship.class.getName());
 	
 	private String affiliation;
 	private String lastName;
@@ -28,7 +32,12 @@ public class Authorship {
 
     public Authorship(String url, JSONObject person, String pmid) throws JSONException {
     	this.setFirstName(person.getString("firstName"));
-    	this.setMiddleName(person.getString("middleName"));
+    	try {
+    		this.setMiddleName(person.getString("middleName"));
+    	}
+    	catch (JSONException e) {
+    		LOG.info(url + " does not have a middle name");
+    	}
     	this.setLastName(person.getString("lastName"));
     	this.setURL(url);
     	this.setPmid(pmid);

@@ -50,11 +50,17 @@ public class CSVAuthorshipStore implements AuthorshipPersistance {
 	
 	public void saveAuthorship(Authorship authorship) throws Exception {
 		writer.writeNext(authorship.toStringArray());
+		if (!existingEntries.contains(authorship.getURL())) {
+			existingEntries.add(authorship.getURL());
+		}
 	}
 	
 	public void saveAuthorships(Collection<Authorship> authorships) throws Exception {
 		for (Authorship authorship : authorships) {
 			writer.writeNext(authorship.toStringArray());
+			if (!existingEntries.contains(authorship.getURL())) {
+				existingEntries.add(authorship.getURL());
+			}
 		}
 	}
 

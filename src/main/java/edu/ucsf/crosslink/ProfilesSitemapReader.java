@@ -9,9 +9,9 @@ import net.sourceforge.sitemaps.Sitemap;
 import net.sourceforge.sitemaps.SitemapParser;
 import net.sourceforge.sitemaps.SitemapUrl;
 
-public class ProfilesSiteReader {
+public class ProfilesSitemapReader {
 
-	private static final Logger LOG = Logger.getLogger(ProfilesSiteReader.class.getName());
+	private static final Logger LOG = Logger.getLogger(ProfilesSitemapReader.class.getName());
 
 	private String affiliation;
 	
@@ -22,7 +22,7 @@ public class ProfilesSiteReader {
 		try  {
 			
 			AuthorshipParser parser = null;
-			ProfilesSiteReader psr = null;
+			ProfilesSitemapReader psr = null;
 			AuthorshipPersistance store = null;
 			String siteMapURL = null;
 			
@@ -34,7 +34,7 @@ public class ProfilesSiteReader {
 			}
 			
 			if (args.length == 3 ) {
-			    psr = new ProfilesSiteReader(args[1]);
+			    psr = new ProfilesSitemapReader(args[1]);
 			    store = new CSVAuthorshipStore(args[1] + ".csv");	
 			    siteMapURL = args[2];			    		
 			}
@@ -61,7 +61,7 @@ public class ProfilesSiteReader {
 		System.out.println("HTML | RDF, affiliation, url");
 	}
 	
-    public ProfilesSiteReader(String affiliation) {
+    public ProfilesSitemapReader(String affiliation) {
     	this.affiliation = affiliation;
     }
     

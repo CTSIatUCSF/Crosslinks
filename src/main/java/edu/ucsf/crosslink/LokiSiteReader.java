@@ -14,12 +14,12 @@ import org.jsoup.select.Elements;
 
 import com.github.jsonldjava.core.JSONLDProcessingError;
 
-public class StanfordCapSiteReader extends HTMLReader {
+public class LokiSiteReader extends HTMLReader {
 
-	private static final Logger LOG = Logger.getLogger(StanfordCapSiteReader.class.getName());
+	private static final Logger LOG = Logger.getLogger(LokiSiteReader.class.getName());
 
-	private static String affiliation = "Stanford";
-	private static String profilelisturl = "http://med.stanford.edu/profiles/frdActionServlet?choiceId=showFacByName&tab=all";
+	private static String affiliation = "Iowa";
+	private static String profilelisturl = "https://www.icts.uiowa.edu/Loki/research/browseResearch.jsp";
 	
 	/**
 	 * @param args
@@ -27,7 +27,7 @@ public class StanfordCapSiteReader extends HTMLReader {
 	public static void main(String[] args) {		// TODO Auto-generated method stub		
 		try  {
 			
-			StanfordCapSiteReader psr = new StanfordCapSiteReader();
+			LokiSiteReader psr = new LokiSiteReader();
 			AuthorshipPersistance store = new CSVAuthorshipStore(affiliation + ".csv");	;
 			String siteMapURL = profilelisturl;
 			
@@ -67,19 +67,33 @@ public class StanfordCapSiteReader extends HTMLReader {
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {
-		    	if ( link.attr("abs:href").startsWith("http://med.stanford.edu/profiles/")) {
+		    	if ( link.attr("abs:href").startsWith("https://www.icts.uiowa.edu/Loki/research/browseResearch.jsp?browse=") && link.attr("abs:href").length() == "https://www.icts.uiowa.edu/Loki/research/browseResearch.jsp?browse=".length() + 1) {
+		    		print(" * a: <%s>  (%s)", link.attr("abs:href"), trim(link.text(), 35));
+		    		parsePartialSiteMap(link.attr("abs:href"), store);
+		    	}
+	        }
+		}
+    }
+
+    private void parsePartialSiteMap(String sitemapUrl, AuthorshipPersistance store) throws Exception {
+    	Document doc = getDocument(sitemapUrl);
+		if (doc != null) {
+			Elements links = doc.select("a[href]");	
+			
+		    for (Element link : links) {
+		    	if ( link.attr("abs:href").startsWith("https://www.icts.uiowa.edu/Loki/research/browseResearch.jsp?") && link.attr("abs:href").contains("id=")) {
 		    		try {
 			    		print(" * a: <%s>  (%s)", link.attr("abs:href"), trim(link.text(), 35));
 			    		String[] personName = link.text().split(", ");
 		    			LOG.info(personName[0] + ":" + personName[1]);
-		    			String url = link.attr("abs:href");
-		    			url = url.contains(";") ? url.split(";")[0] : url;
+		    			String url = "https://www.icts.uiowa.edu/Loki/research/browseResearch.jsp?id=" + link.attr("abs:href").split("&id=")[1];
 		    			// skip it if we already have it
 		    			if (store.containsAuthor(url)) {
 			    			LOG.info("Skipping " + personName[0] + ":" + personName[1] + " :" + url);
 		    				continue;
 		    			}
-		    			
+		    			LOG.info(url);
+
 		    			Collection<Authorship> authorships = getAuthorshipsFromHTML(personName, url);
 		    			store.saveAuthorships(authorships);
 		    		}
@@ -93,19 +107,13 @@ public class StanfordCapSiteReader extends HTMLReader {
 
     public Collection<Authorship> getAuthorshipsFromHTML(String[] personName, String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
     	Set<Authorship> authorships = new HashSet<Authorship>();
-    	Document doc = getDocument(url);
+    	Document doc = getDocument(url + "&hitCount=500");
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {
-		    	if ( link.attr("abs:href").startsWith("http://med.stanford.edu/profiles/") && link.attr("abs:href").contains("pubid=")) {
-		    		print(" * a: <%s>  (%s)", link.attr("abs:href"), trim(link.text(), 35));
-		    		String pmid = getPMIDFromHTML(link.attr("abs:href"));
-				    //person = getJSONFromURI(link.attr("abs:href"));
-			    	LOG.info("PMID = " + pmid);
-			    	if (pmid != null) {
-			    		authorships.add(new Authorship(affiliation, url, personName[0], personName[1], null, pmid));
-			    	}
+		    	if ( link.attr("abs:href").startsWith("http://www.ncbi.nlm.nih.gov/pubmed/")) {
+		    		authorships.add(new Authorship(affiliation, url, personName[0], personName[1], null, link.attr("abs:href").substring("http://www.ncbi.nlm.nih.gov/pubmed/".length())));
 		    	}
 	        }
 	    	if (personName != null && authorships.isEmpty()) {
@@ -116,17 +124,4 @@ public class StanfordCapSiteReader extends HTMLReader {
     	return authorships;
     }
 
-    public String getPMIDFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
-    	Document doc = getDocument(url);
-		if (doc != null) {
-			Elements links = doc.select("a[href]");	
-			
-		    for (Element link : links) {
-		    	if ( link.attr("abs:href").startsWith("http://www.ncbi.nlm.nih.gov/pubmed/")) {
-		    		return link.attr("abs:href").substring("http://www.ncbi.nlm.nih.gov/pubmed/".length());
-		    	}
-	        }
-		}
-    	return null;
-    }
 }

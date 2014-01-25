@@ -17,14 +17,18 @@ public class ProfilesSearchReader extends HTMLReader implements SiteReader {
 		int page = 1;
 		String firstUrlInPriorSet = null;
 		boolean findingSamePeople = false;
+		String searchRequest = null; // for most instances of profiles, this is needed in the URL to maintain state for pagination
 		do {
-			Document doc = getDocument(siteRoot + suffix + page++);
+			Document doc = getDocument(siteRoot + suffix + page++ + (searchRequest != null ? "&searchrequest=" + searchRequest : ""));
 			if (doc != null) {
 				Elements links = doc.select("input[type=hidden]");	
 				boolean firstlink = true;
 				
 			    for (Element link : links) {
-			    	if ( link.attr("id").startsWith(siteRoot + "/profile/")) {
+			    	if (searchRequest == null && link.attr("id").equals("txtSearchRequest")) {
+			    		searchRequest = link.val();
+			    	}
+			    	else if ( link.attr("id").startsWith(siteRoot + "/profile/")) {
 			    		String url = link.attr("id");
 			    		if (firstlink ) {
 			    			firstlink = false;

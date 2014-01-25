@@ -12,34 +12,26 @@ public class Crosslinks {
 	public static void main(String[] args) {
 		try  {
 			Properties prop = new Properties();
-			prop.load( new FileReader(new File(args[0] + ".properties")));
-
+			File file = new File(args[0]);
+			prop.load( new FileReader(file));
 			AuthorshipParser parser = new HTMLAuthorshipParser(); // RDF Parser is too slow
 			String siteRoot = prop.getProperty("BaseURL");
-			String affiliation = prop.getProperty("Affiliation"); 
-			AuthorshipPersistance store = null;
-			
-			// should use a real dependency injection framework someday for this
-			if ("CVSAuthorshipStore".equals(prop.getProperty("AuthorshipPersistance"))) {
-			    store = new CSVAuthorshipStore(args[0] + ".csv");					
-			}
-			else {
-				showUse();
-				return;
-			}
-			
+			String affiliation = prop.getProperty("Affiliation");
+
+			// should use a real dependency injection framework someday for this			
+			AuthorshipPersistance store = (AuthorshipPersistance)Class.forName(prop.getProperty("AuthorshipPersistance")).getConstructor(String.class).newInstance(file.getName().split("\\.")[0] + ".csv");
 			SiteReader reader = (SiteReader)Class.forName(prop.getProperty("Reader")).getConstructor().newInstance();			
 			reader.readSite(affiliation, siteRoot, store, parser);
 			store.close();
 		}
 		catch (Exception e) {
 			e.printStackTrace();
-		}
-		
+			showUse();
+		}		
 	}
 	
 	private static void showUse() {
-		System.out.println("Pass in the root name of the properties file");
+		System.out.println("Pass in the name of the properties file");
 	}
 	
 

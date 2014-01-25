@@ -39,7 +39,7 @@ public class Crosslinks {
 	}
 	
 	private static void showUse() {
-		System.out.println("Pass in the name of the properties file");
+		System.out.println("Pass in the root name of the properties file");
 	}
 	
 

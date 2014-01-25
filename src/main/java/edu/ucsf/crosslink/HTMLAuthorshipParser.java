@@ -31,17 +31,6 @@ public class HTMLAuthorshipParser extends HTMLReader implements AuthorshipParser
 	private static final String PUBMED_PREFIX = "http://www.ncbi.nlm.nih.gov/pubmed/";
 	
 	
-    private static void print(String msg, Object... args) {
-        System.out.println(String.format(msg, args));
-    }
-
-    private static String trim(String s, int width) {
-        if (s.length() > width)
-            return s.substring(0, width-1) + ".";
-        else
-            return s;
-    }
-    
     public HTMLAuthorshipParser() {
     	JSONLD.registerRDFParser(RDFXML, new JenaRDFParser());		    	
     }

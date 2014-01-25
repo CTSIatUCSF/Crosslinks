@@ -9,65 +9,13 @@ import net.sourceforge.sitemaps.Sitemap;
 import net.sourceforge.sitemaps.SitemapParser;
 import net.sourceforge.sitemaps.SitemapUrl;
 
-public class ProfilesSitemapReader {
+public class ProfilesSitemapReader implements SiteReader {
 
 	private static final Logger LOG = Logger.getLogger(ProfilesSitemapReader.class.getName());
-
-	private String affiliation;
-	
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args) {		// TODO Auto-generated method stub		
-		try  {
-			
-			AuthorshipParser parser = null;
-			ProfilesSitemapReader psr = null;
-			AuthorshipPersistance store = null;
-			String siteMapURL = null;
-			
-			if ("RDF".equalsIgnoreCase(args[0])) {
-				parser = new RDFAuthorshipParser();
-			}
-			else if ("HTML".equalsIgnoreCase(args[0])) {
-				parser = new HTMLAuthorshipParser();
-			}
-			
-			if (args.length == 3 ) {
-			    psr = new ProfilesSitemapReader(args[1]);
-			    store = new CSVAuthorshipStore(args[1] + ".csv");	
-			    siteMapURL = args[2];			    		
-			}
-			else {
-				showUse();
-			}
-			
-			if (parser != null && psr != null && store != null && siteMapURL != null) {
-				psr.parseSiteMap(siteMapURL, store, parser);
-				store.close();
-			}
-			else {
-				showUse();
-			}
-			
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-	}
-	
-	private static void showUse() {
-		System.out.println("HTML | RDF, affiliation, url");
-	}
-	
-    public ProfilesSitemapReader(String affiliation) {
-    	this.affiliation = affiliation;
-    }
     
-    public void parseSiteMap(String sitemapUrl, AuthorshipPersistance store, AuthorshipParser parser) throws Exception {
+    public void readSite(String affiliation, String siteRoot, AuthorshipPersistance store, AuthorshipParser parser) throws Exception {
 		SitemapParser smp = new SitemapParser();
-		smp.processSitemap(new URL(sitemapUrl));
+		smp.processSitemap(new URL(siteRoot + "/sitemap.xml"));
 		Sitemap sitemap = smp.getSitemap();
 		
 		Collection<SitemapUrl> urls = sitemap.getUrlList();

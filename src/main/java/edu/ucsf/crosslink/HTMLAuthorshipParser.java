@@ -28,7 +28,7 @@ public class HTMLAuthorshipParser implements AuthorshipParser {
 	private static final Logger LOG = Logger.getLogger(HTMLAuthorshipParser.class.getName());
 
 	private static final String RDFXML = "application/rdf+xml";
-	private static final String PUBMED_PREFIX = "http://www.ncbi.nlm.nih.gov/pubmed/";
+	private static final String PUBMED_SECTION = "//www.ncbi.nlm.nih.gov/pubmed/";
 	
 	
     public HTMLAuthorshipParser() {
@@ -46,8 +46,8 @@ public class HTMLAuthorshipParser implements AuthorshipParser {
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {
-		    	if (link.attr("abs:href").startsWith(PUBMED_PREFIX)) {
-		    		String pmid = link.attr("abs:href").substring(PUBMED_PREFIX.length());
+		    	if (link.attr("abs:href").contains(PUBMED_SECTION)) { // this way it works with http and https
+		    		String pmid = link.attr("abs:href").split(PUBMED_SECTION)[1];
 		    		LOG.info("PMID = " + pmid);
 		        	authorships.add(new Authorship(url, person, pmid));
 		    	}

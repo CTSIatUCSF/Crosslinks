@@ -9,13 +9,17 @@ import net.sourceforge.sitemaps.Sitemap;
 import net.sourceforge.sitemaps.SitemapParser;
 import net.sourceforge.sitemaps.SitemapUrl;
 
-public class ProfilesSitemapReader implements SiteReader {
+public class ProfilesSitemapReader extends SiteReader {
 
 	private static final Logger LOG = Logger.getLogger(ProfilesSitemapReader.class.getName());
+	
+	public ProfilesSitemapReader(String affiliation, String siteRoot) {
+		super(affiliation, siteRoot);
+	}
     
-    public void readSite(String affiliation, String siteRoot, AuthorshipPersistance store, AuthorshipParser parser) throws Exception {
+    public void readSite(AuthorshipPersistance store, AuthorshipParser parser) throws Exception {
 		SitemapParser smp = new SitemapParser();
-		smp.processSitemap(new URL(siteRoot + "/sitemap.xml"));
+		smp.processSitemap(new URL(getSiteRoot() + "/sitemap.xml"));
 		Sitemap sitemap = smp.getSitemap();
 		
 		Collection<SitemapUrl> urls = sitemap.getUrlList();
@@ -26,10 +30,10 @@ public class ProfilesSitemapReader implements SiteReader {
 				continue;
 			}
 			try {
-				Collection<Authorship> authorships = parser.getAuthorshipsFromHTML(url.getUrl().toString());
+				Collection<Authorship> authorships = parser.getAuthorshipsFromHTML(this, url.getUrl().toString());
 				for (Authorship authorship : authorships) {
 					LOG.info("Authorship -- " + authorship.toString());
-					authorship.setAffiliation(affiliation);
+					authorship.setAffiliation(getAffiliation());
 					store.saveAuthorship(authorship);
 				}
 				store.flush();
@@ -39,5 +43,4 @@ public class ProfilesSitemapReader implements SiteReader {
 			}
 		}
     }
-    
 }

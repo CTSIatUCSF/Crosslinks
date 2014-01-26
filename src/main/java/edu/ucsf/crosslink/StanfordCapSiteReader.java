@@ -14,22 +14,21 @@ import org.jsoup.select.Elements;
 
 import com.github.jsonldjava.core.JSONLDProcessingError;
 
-public class StanfordCapSiteReader extends HTMLReader implements SiteReader {
+public class StanfordCapSiteReader extends SiteReader {
 
 	private static final Logger LOG = Logger.getLogger(StanfordCapSiteReader.class.getName());
 
-	private String affiliation;
-	private String siteRoot;
+	public StanfordCapSiteReader(String affiliation, String siteRoot) {
+		super(affiliation, siteRoot);
+	}
 	
-    public void readSite(String affiliation, String siteRoot, AuthorshipPersistance store, AuthorshipParser parser) throws Exception {
-    	this.affiliation = affiliation;
-    	this.siteRoot = siteRoot;
-    	Document doc = getDocument(siteRoot + "/frdActionServlet?choiceId=showFacByName&tab=all");
+    public void readSite(AuthorshipPersistance store, AuthorshipParser parser) throws Exception {
+    	Document doc = getDocument(getSiteRoot() + "/frdActionServlet?choiceId=showFacByName&tab=all");
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {
-		    	if ( link.attr("abs:href").startsWith(siteRoot + "/")) {
+		    	if ( link.attr("abs:href").startsWith(getSiteRoot() + "/")) {
 		    		try {
 			    		print(" * a: <%s>  (%s)", link.attr("abs:href"), trim(link.text(), 35));
 			    		String[] personName = link.text().split(", ");
@@ -60,19 +59,19 @@ public class StanfordCapSiteReader extends HTMLReader implements SiteReader {
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {
-		    	if ( link.attr("abs:href").startsWith(siteRoot + "/") && link.attr("abs:href").contains("pubid=")) {
+		    	if ( link.attr("abs:href").startsWith(getSiteRoot() + "/") && link.attr("abs:href").contains("pubid=")) {
 		    		print(" * a: <%s>  (%s)", link.attr("abs:href"), trim(link.text(), 35));
 		    		String pmid = getPMIDFromHTML(link.attr("abs:href"));
 				    //person = getJSONFromURI(link.attr("abs:href"));
 			    	LOG.info("PMID = " + pmid);
 			    	if (pmid != null) {
-			    		authorships.add(new Authorship(affiliation, url, personName[0], personName[1], null, pmid));
+			    		authorships.add(new Authorship(getAffiliation(), url, personName[0], personName[1], null, pmid));
 			    	}
 		    	}
 	        }
 	    	if (personName != null && authorships.isEmpty()) {
 	    		// add a blank one just so we know we've processed this person
-	        	authorships.add(new Authorship(affiliation, url, personName[0], personName[1], null, null));
+	        	authorships.add(new Authorship(getAffiliation(), url, personName[0], personName[1], null, null));
 	    	}
 		}
     	return authorships;

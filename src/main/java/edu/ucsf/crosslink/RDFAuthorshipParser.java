@@ -65,7 +65,7 @@ public class RDFAuthorshipParser implements AuthorshipParser {
 			if (store.containsAuthor(url.getUrl().toString())) {
 				continue;
 			}
-			Collection<Authorship> authorships = getAuthorshipsFromHTML(url.getUrl().toString());
+			Collection<Authorship> authorships = getAuthorshipsFromHTML(null, url.getUrl().toString());
 			for (Authorship authorship : authorships) {
 				LOG.info("Authorship -- " + authorship.toString());
 				store.saveAuthorship(authorship);
@@ -74,7 +74,7 @@ public class RDFAuthorshipParser implements AuthorshipParser {
 		}
     }
     
-    public Collection<Authorship> getAuthorshipsFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+    public Collection<Authorship> getAuthorshipsFromHTML(SiteReader siteReader, String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
     	Set<Authorship> authorships = new HashSet<Authorship>();
     	int attempts = 0;
     	String uri = null;

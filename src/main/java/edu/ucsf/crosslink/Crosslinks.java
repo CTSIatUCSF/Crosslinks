@@ -20,8 +20,8 @@ public class Crosslinks {
 
 			// should use a real dependency injection framework someday for this			
 			AuthorshipPersistance store = (AuthorshipPersistance)Class.forName(prop.getProperty("AuthorshipPersistance")).getConstructor(String.class).newInstance(file.getName().split("\\.")[0] + ".csv");
-			SiteReader reader = (SiteReader)Class.forName(prop.getProperty("Reader")).getConstructor().newInstance();			
-			reader.readSite(affiliation, siteRoot, store, parser);
+			SiteReader reader = (SiteReader)Class.forName(prop.getProperty("Reader")).getConstructor(String.class, String.class).newInstance(affiliation, siteRoot);			
+			reader.readSite(store, parser);
 			store.close();
 		}
 		catch (Exception e) {

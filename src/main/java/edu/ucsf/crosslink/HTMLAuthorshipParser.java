@@ -23,7 +23,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 
-public class HTMLAuthorshipParser extends HTMLReader implements AuthorshipParser {
+public class HTMLAuthorshipParser implements AuthorshipParser {
 
 	private static final Logger LOG = Logger.getLogger(HTMLAuthorshipParser.class.getName());
 
@@ -35,20 +35,18 @@ public class HTMLAuthorshipParser extends HTMLReader implements AuthorshipParser
     	JSONLD.registerRDFParser(RDFXML, new JenaRDFParser());		    	
     }
     
-    public Collection<Authorship> getAuthorshipsFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+    public Collection<Authorship> getAuthorshipsFromHTML(SiteReader siteReader, String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
     	Set<Authorship> authorships = new HashSet<Authorship>();
-    	Document doc = getDocument(url);
-		if (doc != null) {
-			JSONObject person = null;
+    	Document doc = siteReader.getDocument(url);
+		if (doc != null) {			
+			String nodeId = url.substring(url.lastIndexOf('/'));
+			JSONObject person = getJSONFromURI(siteReader.getSiteRoot() + "/profile/" + nodeId +"/" + nodeId + ".rdf");
+	    	LOG.info("Person = " + person.toString());
+			
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {
-		    	if ( link.attr("abs:href").endsWith(".rdf")) {
-		    		print(" * a: <%s>  (%s)", link.attr("abs:href"), trim(link.text(), 35));
-				    person = getJSONFromURI(link.attr("abs:href"));
-			    	LOG.info(person.toString());
-		    	}
-		    	else if (link.attr("abs:href").startsWith(PUBMED_PREFIX)) {
+		    	if (link.attr("abs:href").startsWith(PUBMED_PREFIX)) {
 		    		String pmid = link.attr("abs:href").substring(PUBMED_PREFIX.length());
 		    		LOG.info("PMID = " + pmid);
 		        	authorships.add(new Authorship(url, person, pmid));

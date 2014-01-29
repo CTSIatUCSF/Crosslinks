@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink;
+package edu.ucsf.crosslink.sitereader;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -10,6 +10,9 @@ import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.Connection.Response;
 import org.jsoup.nodes.Document;
+
+import edu.ucsf.crosslink.author.AuthorParser;
+import edu.ucsf.crosslink.author.AuthorPersistance;
 
 public abstract class SiteReader {
 	
@@ -57,7 +60,7 @@ public abstract class SiteReader {
             return s;
     }
 	
-    public abstract void readSite(AuthorshipPersistance store, AuthorshipParser parser) throws Exception;
+    public abstract void readSite(AuthorPersistance store, AuthorParser parser) throws Exception;
     
     public String getAffiliation() {
     	return affiliation;

@@ -8,7 +8,7 @@
   <name>Crosslinks</name>
 
     <build>
-        <finalName>CrosslinksWeb</finalName>
+        <finalName>crosslinks</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

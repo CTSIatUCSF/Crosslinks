@@ -1,14 +1,10 @@
-package edu.ucsf.crosslink;
-
-import java.util.logging.Logger;
+package edu.ucsf.crosslink.author;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class Authorship {
+class Authorship {
 
-	private static final Logger LOG = Logger.getLogger(Authorship.class.getName());
-	
 	private String affiliation;
 	private String lastName;
 	private String firstName;
@@ -18,32 +14,10 @@ public class Authorship {
 	
 	public static String[] ColumnNames = {"Affiliation", "LastName", "FirstName", "MiddleName", "URL", "PMID"};
 	
-	public Authorship() {
+	Authorship() {
 	}
 	
-	public Authorship(String[] entry) {
-		this.affiliation = entry[0];
-		this.lastName = entry[1];
-		this.firstName = entry[2];
-		this.middleName = entry[3];
-		this.URL = entry[4];
-		this.pmid = entry[5];
-	}
-
-    public Authorship(String url, JSONObject person, String pmid) throws JSONException {
-    	this.setFirstName(person.getString("firstName"));
-    	try {
-    		this.setMiddleName(person.getString("middleName"));
-    	}
-    	catch (JSONException e) {
-    		LOG.info(url + " does not have a middle name");
-    	}
-    	this.setLastName(person.getString("lastName"));
-    	this.setURL(url);
-    	this.setPmid(pmid);
-    }
-
-    public Authorship(String affiliation, String url, String lastName, String firstName, String middleName, String pmid) throws JSONException {
+    Authorship(String affiliation, String lastName, String firstName, String middleName, String url, String pmid) {
     	this.setAffiliation(affiliation);
     	this.setLastName(lastName);
     	this.setFirstName(firstName);
@@ -52,11 +26,19 @@ public class Authorship {
     	this.setPmid(pmid);
     }
 
+	Authorship(String[] entry) {
+		this(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]);
+	}
+
+    Authorship(Author author, String pmid) {
+    	this(author.getAffiliation(), author.getLastName(), author.getFirstName(), author.getMiddleName(), author.getURL(), pmid);
+    }
+
     public String getLastName() {
 		return lastName;
 	}
 	
-	public void setLastName(String lastName) {
+    private void setLastName(String lastName) {
 		this.lastName = lastName;
 	}
 	
@@ -64,7 +46,7 @@ public class Authorship {
 		return firstName;
 	}
 	
-	public void setMiddleName(String middleName) {
+	private void setMiddleName(String middleName) {
 		this.middleName = middleName;
 	}
 	
@@ -72,7 +54,7 @@ public class Authorship {
 		return middleName;
 	}
 	
-	public void setFirstName(String firstName) {
+	private void setFirstName(String firstName) {
 		this.firstName = firstName;
 	}
 
@@ -80,7 +62,7 @@ public class Authorship {
 		return affiliation;
 	}
 	
-	public void setAffiliation(String affiliation) {
+	private void setAffiliation(String affiliation) {
 		this.affiliation = affiliation;
 	}
 	
@@ -88,7 +70,7 @@ public class Authorship {
 		return URL;
 	}
 	
-	public void setURL(String uRL) {
+	private void setURL(String uRL) {
 		URL = uRL;
 	}
 	
@@ -96,7 +78,7 @@ public class Authorship {
 		return pmid;
 	}
 	
-	public void setPmid(String pmid) {
+	private void setPmid(String pmid) {
 		this.pmid = pmid;
 	}
 	

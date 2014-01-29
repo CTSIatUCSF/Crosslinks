@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink;
+package edu.ucsf.crosslink.author;
 
 import java.io.File;
 import java.io.FileReader;
@@ -13,14 +13,14 @@ import java.util.logging.Logger;
 import au.com.bytecode.opencsv.CSVReader;
 import au.com.bytecode.opencsv.CSVWriter;
 
-public class CSVAuthorshipStore implements AuthorshipPersistance {
+public class CSVAuthorPersistance implements AuthorPersistance {
 
-	private static final Logger LOG = Logger.getLogger(CSVAuthorshipStore.class.getName());
+	private static final Logger LOG = Logger.getLogger(CSVAuthorPersistance.class.getName());
 	
 	private CSVWriter writer;
 	private Set<String> existingEntries;
 	
-	public CSVAuthorshipStore(String filename) throws IOException {
+	public CSVAuthorPersistance(String filename) throws IOException {
 		existingEntries = new HashSet<String>();
 
 		// see if we already have this
@@ -48,14 +48,11 @@ public class CSVAuthorshipStore implements AuthorshipPersistance {
 		}
 	}
 	
-	public void saveAuthorship(Authorship authorship) throws Exception {
-		writer.writeNext(authorship.toStringArray());
-		if (!existingEntries.contains(authorship.getURL())) {
-			existingEntries.add(authorship.getURL());
-		}
+	public void saveAuthor(Author author) throws Exception {
+		this.saveAuthorships(author.getAuthorships());
 	}
 	
-	public void saveAuthorships(Collection<Authorship> authorships) throws Exception {
+	private void saveAuthorships(Collection<Authorship> authorships) throws Exception {
 		for (Authorship authorship : authorships) {
 			writer.writeNext(authorship.toStringArray());
 			if (!existingEntries.contains(authorship.getURL())) {

@@ -1,16 +1,8 @@
-package edu.ucsf.crosslink;
+package edu.ucsf.crosslink.author;
 
 import java.io.IOException;
-import java.net.URL;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import net.sourceforge.sitemaps.Sitemap;
-import net.sourceforge.sitemaps.SitemapParser;
-import net.sourceforge.sitemaps.SitemapUrl;
 
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
@@ -26,13 +18,15 @@ import com.github.jsonldjava.core.Options;
 import com.github.jsonldjava.impl.JenaRDFParser;
 import com.github.jsonldjava.utils.JSONUtils;
 
+import edu.ucsf.crosslink.sitereader.SiteReader;
+
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 
-public class RDFAuthorshipParser implements AuthorshipParser {
+public class RDFAuthorshipParser implements AuthorParser {
 
 	private static final Logger LOG = Logger.getLogger(RDFAuthorshipParser.class.getName());
 
@@ -53,31 +47,10 @@ public class RDFAuthorshipParser implements AuthorshipParser {
     	JSONLD.registerRDFParser(RDFXML, new JenaRDFParser());		    	
     }
     
-    public void parseSiteMap(String sitemapUrl, AuthorshipPersistance store) throws Exception {
-		SitemapParser parser = new SitemapParser();
-		parser.processSitemap(new URL(sitemapUrl));
-		Sitemap sitemap = parser.getSitemap();
-		
-		Collection<SitemapUrl> urls = sitemap.getUrlList();
-
-		for (SitemapUrl url : urls) {
-			LOG.info(url.toString());
-			if (store.containsAuthor(url.getUrl().toString())) {
-				continue;
-			}
-			Collection<Authorship> authorships = getAuthorshipsFromHTML(null, url.getUrl().toString());
-			for (Authorship authorship : authorships) {
-				LOG.info("Authorship -- " + authorship.toString());
-				store.saveAuthorship(authorship);
-			}
-			store.flush();
-		}
-    }
-    
-    public Collection<Authorship> getAuthorshipsFromHTML(SiteReader siteReader, String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
-    	Set<Authorship> authorships = new HashSet<Authorship>();
+    public Author getAuthorFromHTML(SiteReader siteReader, String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
     	int attempts = 0;
     	String uri = null;
+    	Author author = null;
     	while (attempts++ < 10) {
         	try {
         		uri = getPersonRDFURLFromHTMLURL(url);
@@ -92,7 +65,7 @@ public class RDFAuthorshipParser implements AuthorshipParser {
 	    	JSONObject person = getJSONFromURI(uri);
 	    	LOG.info(person.toString());
 	    	LOG.info(person.toString());
-	        
+	        author = new Author(siteReader.getAffiliation(), person, url);
 	    	if ( person.optJSONArray("authorInAuthorship") != null) {
 	    		JSONArray authorInAuthorship = person.optJSONArray("authorInAuthorship");
 		        for (int i = 0; i < (authorInAuthorship).length(); i++) {
@@ -103,7 +76,7 @@ public class RDFAuthorshipParser implements AuthorshipParser {
 			        	LOG.info(publication.toString());
 			        	LOG.info(publication.getString("pmid"));
 			        	
-			        	authorships.add(new Authorship(url, person, publication.getString("pmid")));
+			        	author.addPubMedPublication(publication.getString("pmid"));
 		        	}
 		        	catch (Exception e) {
 		        		LOG.log(Level.WARNING, "Parse failure, moving on...", e);
@@ -118,18 +91,14 @@ public class RDFAuthorshipParser implements AuthorshipParser {
 		        	LOG.info(authorship.toString());
 		        	JSONObject publication = getJSONFromURI(authorship.getString("linkedInformationResource"));
 
-		        	authorships.add(new Authorship(url, person, publication.getString("pmid")));
+		        	author.addPubMedPublication(publication.getString("pmid"));
 	        	}
 	        	catch (Exception e) {
 	        		LOG.log(Level.WARNING, "Parse failure, moving on...", e);
 	        	}
 	    	}
-	    	if (authorships.isEmpty()) {
-	    		// add a blank one just so we know we've processed this person
-	        	authorships.add(new Authorship(url, person, null));
-	    	}
 		}
-    	return authorships;
+    	return author;
     }
 	
     private String getPersonRDFURLFromHTMLURL(String url) throws IOException {

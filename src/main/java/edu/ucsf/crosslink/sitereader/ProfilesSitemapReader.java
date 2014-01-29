@@ -1,9 +1,12 @@
-package edu.ucsf.crosslink;
+package edu.ucsf.crosslink.sitereader;
 
 import java.net.URL;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import edu.ucsf.crosslink.author.AuthorParser;
+import edu.ucsf.crosslink.author.AuthorPersistance;
 
 import net.sourceforge.sitemaps.Sitemap;
 import net.sourceforge.sitemaps.SitemapParser;
@@ -17,7 +20,7 @@ public class ProfilesSitemapReader extends SiteReader {
 		super(affiliation, siteRoot);
 	}
     
-    public void readSite(AuthorshipPersistance store, AuthorshipParser parser) throws Exception {
+    public void readSite(AuthorPersistance store, AuthorParser parser) throws Exception {
 		SitemapParser smp = new SitemapParser();
 		smp.processSitemap(new URL(getSiteRoot() + "/sitemap.xml"));
 		Sitemap sitemap = smp.getSitemap();
@@ -30,12 +33,7 @@ public class ProfilesSitemapReader extends SiteReader {
 				continue;
 			}
 			try {
-				Collection<Authorship> authorships = parser.getAuthorshipsFromHTML(this, url.getUrl().toString());
-				for (Authorship authorship : authorships) {
-					LOG.info("Authorship -- " + authorship.toString());
-					authorship.setAffiliation(getAffiliation());
-					store.saveAuthorship(authorship);
-				}
+				store.saveAuthor(parser.getAuthorFromHTML(this, url.getUrl().toString()));
 				store.flush();
 			}
 			catch (Exception e) {

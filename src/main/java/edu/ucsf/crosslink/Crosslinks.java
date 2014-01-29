@@ -4,6 +4,11 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.Properties;
 
+import edu.ucsf.crosslink.author.AuthorParser;
+import edu.ucsf.crosslink.author.AuthorPersistance;
+import edu.ucsf.crosslink.author.HTMLAuthorshipParser;
+import edu.ucsf.crosslink.sitereader.SiteReader;
+
 public class Crosslinks {
 
 	/**
@@ -14,12 +19,12 @@ public class Crosslinks {
 			Properties prop = new Properties();
 			File file = new File(args[0]);
 			prop.load( new FileReader(file));
-			AuthorshipParser parser = new HTMLAuthorshipParser(); // RDF Parser is too slow
+			AuthorParser parser = new HTMLAuthorshipParser(); // RDF Parser is too slow
 			String siteRoot = prop.getProperty("BaseURL");
 			String affiliation = prop.getProperty("Affiliation");
 
 			// should use a real dependency injection framework someday for this			
-			AuthorshipPersistance store = (AuthorshipPersistance)Class.forName(prop.getProperty("AuthorshipPersistance")).getConstructor(String.class).newInstance(file.getName().split("\\.")[0] + ".csv");
+			AuthorPersistance store = (AuthorPersistance)Class.forName(prop.getProperty("AuthorshipPersistance")).getConstructor(String.class).newInstance(file.getName().split("\\.")[0] + ".csv");
 			SiteReader reader = (SiteReader)Class.forName(prop.getProperty("Reader")).getConstructor(String.class, String.class).newInstance(affiliation, siteRoot);			
 			reader.readSite(store, parser);
 			store.close();

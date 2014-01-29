@@ -1,12 +1,14 @@
-package edu.ucsf.crosslink;
+package edu.ucsf.crosslink.sitereader;
 
-import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+
+import edu.ucsf.crosslink.author.AuthorParser;
+import edu.ucsf.crosslink.author.AuthorPersistance;
 
 public class ProfilesSearchReader extends SiteReader {
 
@@ -16,7 +18,7 @@ public class ProfilesSearchReader extends SiteReader {
 		super(affiliation, siteRoot);
 	}
 
-    public void readSite(AuthorshipPersistance store, AuthorshipParser parser) throws Exception {
+    public void readSite(AuthorPersistance store, AuthorParser parser) throws Exception {
 		String suffix = "/search/default.aspx?searchtype=people&searchfor=&perpage=100&offset=0&sortby=&sortdirection=&showcolumns=1&page=";
 		int page = 1;
 		String firstUrlInPriorSet = null;
@@ -50,12 +52,7 @@ public class ProfilesSearchReader extends SiteReader {
 			    		}
 			    			
 						try {
-							Collection<Authorship> authorships = parser.getAuthorshipsFromHTML(this, url);
-							for (Authorship authorship : authorships) {
-								LOG.info("Authorship -- " + authorship.toString());
-								authorship.setAffiliation(getAffiliation());
-								store.saveAuthorship(authorship);
-							}
+							store.saveAuthor(parser.getAuthorFromHTML(this, url));
 							store.flush();
 						}
 						catch (Exception e) {

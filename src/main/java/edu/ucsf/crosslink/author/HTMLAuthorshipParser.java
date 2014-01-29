@@ -1,9 +1,6 @@
-package edu.ucsf.crosslink;
+package edu.ucsf.crosslink.author;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import org.json.JSONException;
@@ -18,12 +15,14 @@ import com.github.jsonldjava.core.Options;
 import com.github.jsonldjava.impl.JenaRDFParser;
 import com.github.jsonldjava.utils.JSONUtils;
 
+import edu.ucsf.crosslink.sitereader.SiteReader;
+
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 
-public class HTMLAuthorshipParser implements AuthorshipParser {
+public class HTMLAuthorshipParser implements AuthorParser {
 
 	private static final Logger LOG = Logger.getLogger(HTMLAuthorshipParser.class.getName());
 
@@ -35,8 +34,8 @@ public class HTMLAuthorshipParser implements AuthorshipParser {
     	JSONLD.registerRDFParser(RDFXML, new JenaRDFParser());		    	
     }
     
-    public Collection<Authorship> getAuthorshipsFromHTML(SiteReader siteReader, String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
-    	Set<Authorship> authorships = new HashSet<Authorship>();
+    public Author getAuthorFromHTML(SiteReader siteReader, String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+    	Author author = null;
     	Document doc = siteReader.getDocument(url);
 		if (doc != null) {			
 			String nodeId = url.substring(url.lastIndexOf('/'));
@@ -45,19 +44,16 @@ public class HTMLAuthorshipParser implements AuthorshipParser {
 			
 			Elements links = doc.select("a[href]");	
 			
+			author = new Author(siteReader.getAffiliation(), person, url);
 		    for (Element link : links) {
 		    	if (link.attr("abs:href").contains(PUBMED_SECTION)) { // this way it works with http and https
 		    		String pmid = link.attr("abs:href").split(PUBMED_SECTION)[1];
 		    		LOG.info("PMID = " + pmid);
-		        	authorships.add(new Authorship(url, person, pmid));
+		    		author.addPubMedPublication(pmid);
 		    	}
 	        }
-	    	if (person != null && authorships.isEmpty()) {
-	    		// add a blank one just so we know we've processed this person
-	        	authorships.add(new Authorship(url, person, null));
-	    	}
 		}
-    	return authorships;
+    	return author;
     }
 	
     private JSONObject getJSONFromURI(String uri) throws JSONLDProcessingError, JSONException { 

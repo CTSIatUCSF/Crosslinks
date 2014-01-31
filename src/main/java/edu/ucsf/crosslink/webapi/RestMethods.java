@@ -144,7 +144,7 @@ public class RestMethods {
 				pw.println("<li>");				
 				String name = rs.getString(2) + ", " + rs.getString(3) + (rs.getString(4) != null ? " " + rs.getString(4) : "");
 				pw.println("<a href = '" + rs.getString(5) + "'>" + name + " at " + rs.getString(1) + "</a>&nbsp");
-				if (rs.getString(6) != null) {
+				if (rs.getString(6) != null && !rs.getString(6).trim().isEmpty()) {
 					pw.println("<a href = 'http://orcid.org/" + rs.getString(6) + "'>ORCID Profile for " + name + " from " + rs.getString(1) + "</a>&nbsp");
 				}
 				if (rs.getInt(7) > 0) {

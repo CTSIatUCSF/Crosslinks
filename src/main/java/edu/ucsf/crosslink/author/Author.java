@@ -13,18 +13,22 @@ public class Author {
 	private String firstName;
 	private String middleName;
 	private String URL;
+	private String lodURI;
+	private String orcidId;
 	private Collection<Integer> pmids= new HashSet<Integer>();
 
-    public Author(String affiliation, String lastName, String firstName, String middleName, String url) {
+    public Author(String affiliation, String lastName, String firstName, String middleName, String url, String lodURI, String orcidId) {
     	this.setAffiliation(affiliation);
     	this.setLastName(lastName);
     	this.setFirstName(firstName);
     	this.setMiddleName(middleName);
     	this.setURL(url);
+    	this.setLodURI(lodURI);
+    	this.setOrcidId(orcidId);
     }
 
     public Author(String affiliation, JSONObject person, String url) throws JSONException {
-    	this(affiliation, person.getString("lastName"), person.getString("firstName"), person.optString("middleName"), url);
+    	this(affiliation, person.getString("lastName"), person.getString("firstName"), person.optString("middleName"), url, person.getString("@id"), person.optString("orcidId"));
     }
     
     public String getLastName() {
@@ -67,6 +71,22 @@ public class Author {
 		URL = uRL;
 	}
 	
+	public String getLodURI() {
+		return lodURI;
+	}
+	
+	private void setLodURI(String lodURI) {
+		this.lodURI = lodURI;
+	}
+
+	public String getOrcidId() {
+		return orcidId;
+	}
+	
+	public void setOrcidId(String orcidId) {
+		this.orcidId = orcidId;
+	}
+
 	public Collection<Integer> getPubMedPublications() {
 		return pmids;
 	}
@@ -79,7 +99,7 @@ public class Author {
 		addPubMedPublication(Integer.valueOf(pmid));
 	}
 
-	Collection<Authorship> getAuthorships() {
+	public Collection<Authorship> getAuthorships() {
 		HashSet<Authorship> authorships = new HashSet<Authorship>();
 		for (Integer pmid : pmids) {
 			authorships.add(new Authorship(this, String.valueOf(pmid)));

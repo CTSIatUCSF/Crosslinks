@@ -1,37 +1,35 @@
 package edu.ucsf.crosslink.author;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-class Authorship {
+public class Authorship {
 
 	private String affiliation;
 	private String lastName;
 	private String firstName;
 	private String middleName;
 	private String URL;
+	private String lodURI;
+	private String orcidId;
 	private String pmid;  // keep as string so we can handle NULL 
 	
-	public static String[] ColumnNames = {"Affiliation", "LastName", "FirstName", "MiddleName", "URL", "PMID"};
+	public static String[] ColumnNames = {"Affiliation", "LastName", "FirstName", "MiddleName", "URL", "lodURI", "OrcidID", "PMID"};
 	
-	Authorship() {
-	}
-	
-    Authorship(String affiliation, String lastName, String firstName, String middleName, String url, String pmid) {
+    Authorship(String affiliation, String lastName, String firstName, String middleName, String url, String lodURI, String pmid, String orcidId) {
     	this.setAffiliation(affiliation);
     	this.setLastName(lastName);
     	this.setFirstName(firstName);
     	this.setMiddleName(middleName);
     	this.setURL(url);
+    	this.setLodURI(lodURI);
+    	this.setOrcidId(orcidId);
     	this.setPmid(pmid);
     }
 
-	Authorship(String[] entry) {
-		this(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]);
+	public Authorship(String[] entry) {
+		this(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5], entry[6], entry[7]);
 	}
 
     Authorship(Author author, String pmid) {
-    	this(author.getAffiliation(), author.getLastName(), author.getFirstName(), author.getMiddleName(), author.getURL(), pmid);
+    	this(author.getAffiliation(), author.getLastName(), author.getFirstName(), author.getMiddleName(), author.getURL(), author.getLodURI(), author.getOrcidId(), pmid);
     }
 
     public String getLastName() {
@@ -70,10 +68,26 @@ class Authorship {
 		return URL;
 	}
 	
-	private void setURL(String uRL) {
-		URL = uRL;
+	private void setURL(String URL) {
+		this.URL = URL;
 	}
 	
+	public String getLodURI() {
+		return lodURI;
+	}
+	
+	private void setLodURI(String lodURI) {
+		this.lodURI = lodURI;
+	}
+
+	public String getOrcidId() {
+		return orcidId;
+	}
+	
+	private void setOrcidId(String orcidId) {
+		this.orcidId = orcidId;
+	}
+
 	public String getPmid() {
 		return pmid;
 	}
@@ -87,7 +101,7 @@ class Authorship {
 	}
 	
 	public String[] toStringArray() {
-		String[] retval = {affiliation, lastName, firstName, middleName, URL, pmid};
+		String[] retval = {affiliation, lastName, firstName, middleName, URL, lodURI, pmid};
 		return retval;
 	}
 

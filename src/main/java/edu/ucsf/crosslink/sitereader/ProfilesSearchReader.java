@@ -8,7 +8,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import edu.ucsf.crosslink.author.AuthorParser;
-import edu.ucsf.crosslink.author.AuthorPersistance;
+import edu.ucsf.crosslink.io.CrosslinkPersistance;
 
 public class ProfilesSearchReader extends SiteReader {
 
@@ -18,7 +18,7 @@ public class ProfilesSearchReader extends SiteReader {
 		super(affiliation, siteRoot);
 	}
 
-    public void readSite(AuthorPersistance store, AuthorParser parser) throws Exception {
+    public void readSite(CrosslinkPersistance store, AuthorParser parser) throws Exception {
 		String suffix = "/search/default.aspx?searchtype=people&searchfor=&perpage=100&offset=0&sortby=&sortdirection=&showcolumns=1&page=";
 		int page = 1;
 		String firstUrlInPriorSet = null;
@@ -47,13 +47,12 @@ public class ProfilesSearchReader extends SiteReader {
 			    			}
 			    		}
 			    		LOG.info("Person = " + url);
-			    		if (store.containsAuthor(url)) {
+			    		if (store.skipAuthor(url)) {
 			    			continue;
 			    		}
 			    			
 						try {
 							store.saveAuthor(parser.getAuthorFromHTML(this, url));
-							store.flush();
 						}
 						catch (Exception e) {
 							LOG.log(Level.WARNING, "Error parsing " + url, e);

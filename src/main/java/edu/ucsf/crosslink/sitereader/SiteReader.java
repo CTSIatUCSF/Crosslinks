@@ -12,7 +12,7 @@ import org.jsoup.Connection.Response;
 import org.jsoup.nodes.Document;
 
 import edu.ucsf.crosslink.author.AuthorParser;
-import edu.ucsf.crosslink.author.AuthorPersistance;
+import edu.ucsf.crosslink.io.CrosslinkPersistance;
 
 public abstract class SiteReader {
 	
@@ -60,7 +60,7 @@ public abstract class SiteReader {
             return s;
     }
 	
-    public abstract void readSite(AuthorPersistance store, AuthorParser parser) throws Exception;
+    public abstract void readSite(CrosslinkPersistance store, AuthorParser parser) throws Exception;
     
     public String getAffiliation() {
     	return affiliation;

@@ -10,17 +10,20 @@ import java.util.logging.Logger;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+
+import edu.ucsf.crosslink.io.DBUtil;
 
 import au.com.bytecode.opencsv.CSVWriter;
 
 /**
  * Root resource (exposed at "list" path)
  */
-@Path("affiliations")
-public class AffiliationList {
+@Path("researchers")
+public class Researchers {
 
-	private static final Logger LOG = Logger.getLogger(AffiliationList.class.getName());
+	private static final Logger LOG = Logger.getLogger(Researchers.class.getName());
 
     /**
      * Method handling HTTP GET requests. The returned object will be sent
@@ -29,12 +32,15 @@ public class AffiliationList {
      * @return String that will be returned as a text/plain response.
      */
     @GET
+    @Path("coauthors")
     @Produces(MediaType.TEXT_PLAIN)
-    public String getAffiliations() {
-		String sql = "select * from vw_AffiliationList";
+    public String getCoauthors(@QueryParam("authorURL") String authorURL) {
+		String sql = "select affiliationName, lastName, firstName, middleName, URL, orcidId PMID from vw_ExternalCoauthorList where subjectURL = ? " + 
+					 "order by affiliationName, URL";
 		Connection conn = DBUtil.getConnection();
 		try {
 			PreparedStatement ps = conn.prepareStatement(sql);
+			ps.setString(1, authorURL);
 			StringWriter sw = new StringWriter();
 			CSVWriter writer = new CSVWriter(sw);
 			writer.writeAll(ps.executeQuery(), true);

@@ -127,4 +127,15 @@ public class RDFAuthorshipParser implements AuthorParser {
         String str = JSONUtils.toString(obj);
         return new JSONObject(str);	
 	}
+    
+    public static void main(String[] args) {
+    	try {
+    		RDFAuthorshipParser parser = new RDFAuthorshipParser();
+    		JSONObject person = parser.getJSONFromURI(args[0]);
+    		System.out.println(person.getString("@id"));
+    	}
+    	catch (Exception e) {
+    		e.printStackTrace();
+    	}
+    }
 }

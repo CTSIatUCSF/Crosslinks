@@ -13,7 +13,7 @@ import com.github.jsonldjava.core.JSONLDProcessingError;
 
 import edu.ucsf.crosslink.author.Author;
 import edu.ucsf.crosslink.author.AuthorParser;
-import edu.ucsf.crosslink.author.AuthorPersistance;
+import edu.ucsf.crosslink.io.CrosslinkPersistance;
 
 public class StanfordCapSiteReader extends SiteReader {
 
@@ -23,7 +23,7 @@ public class StanfordCapSiteReader extends SiteReader {
 		super(affiliation, siteRoot);
 	}
 	
-    public void readSite(AuthorPersistance store, AuthorParser parser) throws Exception {
+    public void readSite(CrosslinkPersistance store, AuthorParser parser) throws Exception {
     	Document doc = getDocument(getSiteRoot() + "/frdActionServlet?choiceId=showFacByName&tab=all");
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	
@@ -37,7 +37,7 @@ public class StanfordCapSiteReader extends SiteReader {
 		    			String url = link.attr("abs:href");
 		    			url = url.contains(";") ? url.split(";")[0] : url;
 		    			// skip it if we already have it
-		    			if (store.containsAuthor(url)) {
+		    			if (store.skipAuthor(url)) {
 			    			LOG.info("Skipping " + personName[0] + ":" + personName[1] + " :" + url);
 		    				continue;
 		    			}
@@ -53,7 +53,7 @@ public class StanfordCapSiteReader extends SiteReader {
     }
 
     public Author getAuthorFromHTML(String[] personName, String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
-    	Author author = new Author(getAffiliation(), personName[0], personName[1], null, url);
+    	Author author = new Author(getAffiliation(), personName[0], personName[1], null, url, null, null);
     	Document doc = getDocument(url);
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	

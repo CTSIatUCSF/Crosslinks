@@ -6,7 +6,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import edu.ucsf.crosslink.author.AuthorParser;
-import edu.ucsf.crosslink.author.AuthorPersistance;
+import edu.ucsf.crosslink.io.CrosslinkPersistance;
 
 import net.sourceforge.sitemaps.Sitemap;
 import net.sourceforge.sitemaps.SitemapParser;
@@ -20,7 +20,7 @@ public class ProfilesSitemapReader extends SiteReader {
 		super(affiliation, siteRoot);
 	}
     
-    public void readSite(AuthorPersistance store, AuthorParser parser) throws Exception {
+    public void readSite(CrosslinkPersistance store, AuthorParser parser) throws Exception {
 		SitemapParser smp = new SitemapParser();
 		smp.processSitemap(new URL(getSiteRoot() + "/sitemap.xml"));
 		Sitemap sitemap = smp.getSitemap();
@@ -29,12 +29,11 @@ public class ProfilesSitemapReader extends SiteReader {
 
 		for (SitemapUrl url : urls) {
 			LOG.info(url.toString());
-			if (store.containsAuthor(url.getUrl().toString())) {
+			if (store.skipAuthor(url.getUrl().toString())) {
 				continue;
 			}
 			try {
 				store.saveAuthor(parser.getAuthorFromHTML(this, url.getUrl().toString()));
-				store.flush();
 			}
 			catch (Exception e) {
 				LOG.log(Level.WARNING, "Error parsing " + url.getUrl(), e);

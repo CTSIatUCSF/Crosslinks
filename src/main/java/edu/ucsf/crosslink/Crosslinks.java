@@ -5,8 +5,8 @@ import java.io.FileReader;
 import java.util.Properties;
 
 import edu.ucsf.crosslink.author.AuthorParser;
-import edu.ucsf.crosslink.author.AuthorPersistance;
 import edu.ucsf.crosslink.author.HTMLAuthorshipParser;
+import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.sitereader.SiteReader;
 
 public class Crosslinks {
@@ -24,7 +24,8 @@ public class Crosslinks {
 			String affiliation = prop.getProperty("Affiliation");
 
 			// should use a real dependency injection framework someday for this			
-			AuthorPersistance store = (AuthorPersistance)Class.forName(prop.getProperty("AuthorshipPersistance")).getConstructor(String.class).newInstance(file.getName().split("\\.")[0] + ".csv");
+			CrosslinkPersistance store = (CrosslinkPersistance)Class.forName(prop.getProperty("AuthorshipPersistance")).getConstructor().newInstance();
+			store.start(affiliation);
 			SiteReader reader = (SiteReader)Class.forName(prop.getProperty("Reader")).getConstructor(String.class, String.class).newInstance(affiliation, siteRoot);			
 			reader.readSite(store, parser);
 			store.close();

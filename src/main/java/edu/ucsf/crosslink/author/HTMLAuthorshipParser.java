@@ -27,7 +27,6 @@ public class HTMLAuthorshipParser implements AuthorParser {
 	private static final Logger LOG = Logger.getLogger(HTMLAuthorshipParser.class.getName());
 
 	private static final String RDFXML = "application/rdf+xml";
-	private static final String PUBMED_SECTION = "//www.ncbi.nlm.nih.gov/pubmed/";
 	
 	
     public HTMLAuthorshipParser() {
@@ -37,19 +36,29 @@ public class HTMLAuthorshipParser implements AuthorParser {
     public Author getAuthorFromHTML(SiteReader siteReader, String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
     	Author author = null;
     	Document doc = siteReader.getDocument(url);
+    	JSONObject person = null;
 		if (doc != null) {			
-			String nodeId = url.substring(url.lastIndexOf('/'));
-			JSONObject person = getJSONFromURI(siteReader.getSiteRoot() + "/profile/" + nodeId +"/" + nodeId + ".rdf");
-	    	LOG.info("Person = " + person.toString());
-			
 			Elements links = doc.select("a[href]");	
-			
+		    for (Element link : links) {
+		    	if (link.attr("abs:href").endsWith(".rdf")) { 
+					person = getJSONFromURI(link.attr("abs:href"));
+					break;
+		    	}
+	        }
+		    if (person == null) {
+		    	return null;
+		    }
 			author = new Author(siteReader.getAffiliation(), person, url);
 		    for (Element link : links) {
 		    	if (link.attr("abs:href").contains(PUBMED_SECTION)) { // this way it works with http and https
 		    		String pmid = link.attr("abs:href").split(PUBMED_SECTION)[1];
 		    		LOG.info("PMID = " + pmid);
 		    		author.addPubMedPublication(pmid);
+		    	}
+		    	else if (link.attr("abs:href").contains(ORCID_SECTION)) { // this way it works with http and https
+		    		String orcidId = link.attr("abs:href").split(ORCID_SECTION)[1];
+		    		LOG.info("OrcidId = " + orcidId);
+		    		author.setOrcidId(orcidId);
 		    	}
 	        }
 		}

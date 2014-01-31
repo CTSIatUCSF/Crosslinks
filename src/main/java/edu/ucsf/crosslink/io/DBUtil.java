@@ -105,7 +105,7 @@ public class DBUtil implements CrosslinkPersistance {
 	        Integer affiliationId = null;
 	        if (rs.next()) {
 	        	affiliationId = rs.getInt(1);
-	        	LOG.info("Starting affiliation " + affiliationName + " affiliationId = " + affiliationId);
+	        	LOG.info("Stopping affiliation " + affiliationName + " affiliationId = " + affiliationId);
 	        }
 	        if (affiliationId == null) {
 	        	throw new Exception("Affiliation " + affiliationName + " not found in the database, shutting down!");

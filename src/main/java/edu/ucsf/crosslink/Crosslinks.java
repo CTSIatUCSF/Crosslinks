@@ -19,11 +19,11 @@ public class Crosslinks {
 			Properties prop = new Properties();
 			File file = new File(args[0]);
 			prop.load( new FileReader(file));
-			AuthorParser parser = new HTMLAuthorshipParser(); // RDF Parser is too slow
 			String siteRoot = prop.getProperty("BaseURL");
 			String affiliation = prop.getProperty("Affiliation");
 
-			// should use a real dependency injection framework someday for this			
+			// should use a real dependency injection framework someday for this	
+			AuthorParser parser = prop.getProperty("AuthorParser") == null ? new HTMLAuthorshipParser() : (AuthorParser)Class.forName(prop.getProperty("AuthorParser")).getConstructor().newInstance();
 			CrosslinkPersistance store = (CrosslinkPersistance)Class.forName(prop.getProperty("AuthorshipPersistance")).getConstructor().newInstance();
 			store.start(affiliation);
 			SiteReader reader = (SiteReader)Class.forName(prop.getProperty("Reader")).getConstructor(String.class, String.class).newInstance(affiliation, siteRoot);			

@@ -64,19 +64,23 @@ public class RDFAuthorshipParser implements AuthorParser {
 		if (uri != null) {
 	    	JSONObject person = getJSONFromURI(uri);
 	    	LOG.info(person.toString());
-	    	LOG.info(person.toString());
-	        author = new Author(siteReader.getAffiliation(), person, url);
+	    	// ugly but necessary
+	    	person = findDataItem(person, "lastName");
+
+	    	author = new Author(siteReader.getAffiliation(), person, url);
 	    	if ( person.optJSONArray("authorInAuthorship") != null) {
 	    		JSONArray authorInAuthorship = person.optJSONArray("authorInAuthorship");
 		        for (int i = 0; i < (authorInAuthorship).length(); i++) {
 		        	try {
 			        	JSONObject authorship = getJSONFromURI(authorInAuthorship.getString(i));
+			        	authorship = findDataItem(authorship, "linkedInformationResource");
 			        	LOG.info(authorship.toString());
 			        	JSONObject publication = getJSONFromURI(authorship.getString("linkedInformationResource"));
+			        	publication = findDataItem(publication, "pmid");
 			        	LOG.info(publication.toString());
-			        	LOG.info(publication.getString("pmid"));
-			        	
-			        	author.addPubMedPublication(publication.getString("pmid"));
+			        	if (!publication.optString("pmid").isEmpty()) {
+			        		author.addPubMedPublication(publication.getString("pmid"));
+			        	}
 		        	}
 		        	catch (Exception e) {
 		        		LOG.log(Level.WARNING, "Parse failure, moving on...", e);
@@ -100,6 +104,23 @@ public class RDFAuthorshipParser implements AuthorParser {
 		}
     	return author;
     }
+    
+    // sometimes the RDF is in this weird @graph item
+    private JSONObject findDataItem(JSONObject container, String hint) throws JSONException {
+    	if (container.optJSONObject("@graph") != null) {
+    		return container.getJSONObject("@graph");	
+    	}
+    	else if (container.optJSONArray("@graph") != null) {	    	  
+	    	// so ugly
+	    	for (int i = 0; i < container.optJSONArray("@graph").length(); i++) {
+	    		JSONObject item = container.optJSONArray("@graph").getJSONObject(i);
+	    		if (!item.optString(hint).isEmpty()) {
+	    			return item;
+	    		}
+	    	}
+    	}
+		return container;
+    }
 	
     private String getPersonRDFURLFromHTMLURL(String url) throws IOException {
     	LOG.log(Level.INFO, "getRDF :" + url );
@@ -113,6 +134,11 @@ public class RDFAuthorshipParser implements AuthorParser {
 	    		uri = link.attr("abs:href");
 	    	}
         }
+	    if (uri == null) {
+	    	// worth a try
+	    	String[] parts = url.split("/");
+	    	uri = url + "/" + parts[parts.length - 1] + ".rdf";
+	    }
 	    return uri;
     }
     

@@ -101,7 +101,7 @@ public class Authorship {
 	}
 	
 	public String[] toStringArray() {
-		String[] retval = {affiliation, lastName, firstName, middleName, URL, lodURI, pmid};
+		String[] retval = {affiliation, lastName, firstName, middleName, URL, lodURI, orcidId, pmid};
 		return retval;
 	}
 

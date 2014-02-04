@@ -103,7 +103,7 @@ public class RestMethods {
 			ps.setString(1, affiliation);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
-				pw.println("<a href = '" + WEB_ROOT + rs.getString(2) + "'>" + rs.getString(1) + " Research Networking Site</a> " + 
+				pw.println("<a href = '" + rs.getString(2) + "'>" + rs.getString(1) + " Research Networking Site</a> " + 
 						rs.getString(3) + " researchers indexed, " + rs.getString(4) + " PUBMED publications found</p>");
 				pw.println("<a href = '" + WEB_ROOT + rs.getString(1) + "/researchers'>Indexed researchers from " + rs.getString(1) + "</a><p>"); 
 				pw.println("<p>Links to help us clean up our data.  Once our data is all clean, these should not return any results.  Today, they return a bunch of results for most affiliations.<p>");				

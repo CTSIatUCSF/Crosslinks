@@ -3,13 +3,12 @@ package edu.ucsf.crosslink.sitereader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.lang.reflect.Type;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jsoup.nodes.Document;
@@ -17,10 +16,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
-import edu.ucsf.crosslink.author.AuthorParser;
-import edu.ucsf.crosslink.io.CrosslinkPersistance;
+import edu.ucsf.crosslink.author.Author;
 
 public class VivoDataserviceReader extends SiteReader {
 
@@ -30,7 +27,8 @@ public class VivoDataserviceReader extends SiteReader {
 		super(affiliation, siteRoot);
 	}
 
-    public void readSite(CrosslinkPersistance store, AuthorParser parser) throws Exception {
+    public List<Author> getAuthors() throws Exception {
+    	List<Author> authors = new ArrayList<Author>();
 		String suffix = "/people";
 		Document doc = getDocument(getSiteRoot() + suffix );
     	Set<VIVOPerson> people = new HashSet<VIVOPerson>();
@@ -38,33 +36,22 @@ public class VivoDataserviceReader extends SiteReader {
 			Elements links = doc.select("a[href]");	
 		    for (Element link : links) {
 		    	if (link.attr("abs:href").contains("#") && !link.attr("abs:href").endsWith("#")) {		    		
-		    		print(" * a: <%s>  (%s)", link.attr("abs:href"), trim(link.text(), 35));
-		    		print(" * a: <%s>  (%s)", link.attr("data-uri"), trim(link.text(), 35));
+		    		//print(" * a: <%s>  (%s)", link.attr("abs:href"), trim(link.text(), 35));
+		    		//print(" * a: <%s>  (%s)", link.attr("data-uri"), trim(link.text(), 35));
 		    		people.addAll(readPeopleOfType(link.attr("data-uri")));
 		    	}
+				LOG.info("Found " + people.size() + " people so far....");
 		    }			
 		}
 		
 		// now grab all the individual URI's
-		Set<String> uris = new HashSet<String>();
 		for (VIVOPerson person : people) {
-			uris.add(person.URI);
+			authors.add(new Author(person.URI));
 		}
-		LOG.info("Found " + uris.size() + " unique URI's");
-		
-		for (String uri : uris) {
-			LOG.info(uri.toString());
-			if (store.skipAuthor(uri)) {
-				continue;
-			}
-			try {
-				store.saveAuthor(parser.getAuthorFromHTML(this, uri));
-			}
-			catch (Exception e) {
-				LOG.log(Level.WARNING, "Error parsing " + uri, e);
-			}
-		}
+		LOG.info("Found " + authors.size() + " unique URI's");
+		return authors;
     }
+
     
     private Set<VIVOPerson> readPeopleOfType(String type) throws Exception {
     	int page = 1;
@@ -77,7 +64,7 @@ public class VivoDataserviceReader extends SiteReader {
     		onLastPage = vpage.isLastPage(page++);
     		LOG.info("Found " + people.size() + " people of type " + type);
     	}
-    	while (false && !onLastPage);
+    	while (!onLastPage);
     	
     	return people;
     }
@@ -98,7 +85,7 @@ public class VivoDataserviceReader extends SiteReader {
     	List<VIVOPerson> individuals;
     	
     	boolean isLastPage(int page) {
-    		return pages.get(pages.size() - 1).index == page;
+    		return pages == null || pages.isEmpty() || pages.get(pages.size() - 1).index == page;
     	}
     	
     	public String toString() {

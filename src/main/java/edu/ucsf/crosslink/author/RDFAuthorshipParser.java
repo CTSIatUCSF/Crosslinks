@@ -20,7 +20,6 @@ import com.github.jsonldjava.utils.JSONUtils;
 
 import edu.ucsf.crosslink.sitereader.SiteReader;
 
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -31,6 +30,8 @@ public class RDFAuthorshipParser implements AuthorParser {
 	private static final Logger LOG = Logger.getLogger(RDFAuthorshipParser.class.getName());
 
 	private static final String RDFXML = "application/rdf+xml";
+	
+	private SiteReader siteReader;
 	
     private static void print(String msg, Object... args) {
         System.out.println(String.format(msg, args));
@@ -43,30 +44,15 @@ public class RDFAuthorshipParser implements AuthorParser {
             return s;
     }
     
-    public RDFAuthorshipParser() {
+    public RDFAuthorshipParser(SiteReader siteReader) {
+    	this.siteReader = siteReader;
     	JSONLD.registerRDFParser(RDFXML, new JenaRDFParser());		    	
     }
     
-    public Author getAuthorFromHTML(SiteReader siteReader, String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
-    	int attempts = 0;
-    	String uri = null;
+    public Author getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
     	Author author = null;
-    	while (attempts++ < 10) {
-        	try {
-        		uri = getPersonRDFURLFromHTMLURL(url);
-        		break;
-        	}
-        	catch (java.net.SocketTimeoutException ex) {
-        		LOG.info("Trying " + url + " one more time... " + attempts);
-        		Thread.sleep(1000);
-        	}
-    	}
-		if (uri != null) {
-	    	JSONObject person = getJSONFromURI(uri);
-	    	LOG.info(person.toString());
-	    	// ugly but necessary
-	    	person = findDataItem(person, "lastName");
-
+    	JSONObject person = getPersonOnlyFromURL(url);
+		if (person != null) {
 	    	author = new Author(siteReader.getAffiliation(), person, url);
 	    	if ( person.optJSONArray("authorInAuthorship") != null) {
 	    		JSONArray authorInAuthorship = person.optJSONArray("authorInAuthorship");
@@ -92,10 +78,14 @@ public class RDFAuthorshipParser implements AuthorParser {
 	    		try {
 		 	    	//  not an array for someone like ME
 		    		JSONObject authorship = getJSONFromURI(person.optString("authorInAuthorship"));
+		        	authorship = findDataItem(authorship, "linkedInformationResource");
 		        	LOG.info(authorship.toString());
 		        	JSONObject publication = getJSONFromURI(authorship.getString("linkedInformationResource"));
-
-		        	author.addPubMedPublication(publication.getString("pmid"));
+		        	publication = findDataItem(publication, "pmid");
+		        	LOG.info(publication.toString());
+		        	if (!publication.optString("pmid").isEmpty()) {
+		        		author.addPubMedPublication(publication.getString("pmid"));
+		        	}
 	        	}
 	        	catch (Exception e) {
 	        		LOG.log(Level.WARNING, "Parse failure, moving on...", e);
@@ -103,6 +93,18 @@ public class RDFAuthorshipParser implements AuthorParser {
 	    	}
 		}
     	return author;
+    }
+    
+    JSONObject getPersonOnlyFromURL(String url) throws IOException, InterruptedException, JSONException, JSONLDProcessingError {
+    	JSONObject person = null;
+    	String uri = getPersonRDFURLFromHTMLURL(url);
+		if (uri != null) {
+	    	person = getJSONFromURI(uri);
+	    	LOG.info(person.toString());
+	    	// ugly but necessary
+	    	person = findDataItem(person, "lastName");
+		}
+		return person;
     }
     
     // sometimes the RDF is in this weird @graph item
@@ -122,9 +124,8 @@ public class RDFAuthorshipParser implements AuthorParser {
 		return container;
     }
 	
-    private String getPersonRDFURLFromHTMLURL(String url) throws IOException {
-    	LOG.log(Level.INFO, "getRDF :" + url );
-		Document doc = Jsoup.connect(url).timeout(10000).get();
+    private String getPersonRDFURLFromHTMLURL(String url) throws IOException, InterruptedException {
+    	Document doc = siteReader.getDocument(url);
 		Elements links = doc.select("a[href]");	
 		
 		String uri = null;
@@ -156,7 +157,7 @@ public class RDFAuthorshipParser implements AuthorParser {
     
     public static void main(String[] args) {
     	try {
-    		RDFAuthorshipParser parser = new RDFAuthorshipParser();
+    		RDFAuthorshipParser parser = new RDFAuthorshipParser(null);
     		JSONObject person = parser.getJSONFromURI(args[0]);
     		System.out.println(person.getString("@id"));
     	}

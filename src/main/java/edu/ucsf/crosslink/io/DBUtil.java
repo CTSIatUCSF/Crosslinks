@@ -7,6 +7,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.thoughtworks.xstream.XStream;
@@ -22,6 +25,7 @@ public class DBUtil implements CrosslinkPersistance {
 	private static final Logger LOG = Logger.getLogger(DBUtil.class.getName());
 	
 	private String affiliationName;
+	private Set<String> recentIndexedAuthors = new HashSet<String>();
 	
 	static {
 		try { 
@@ -51,15 +55,10 @@ public class DBUtil implements CrosslinkPersistance {
 			        .prepareCall("{ call [StartCrawl](?)}");
 	        cs.setString(1, affiliationName);
 	        ResultSet rs = cs.executeQuery();
-	        Integer affiliationId = null;
-	        if (rs.next()) {
-	        	affiliationId = rs.getInt(1);
-	        	LOG.info("Starting affiliation " + affiliationName + " affiliationId = " + affiliationId);
+	        while (rs.next()) {
+	        	recentIndexedAuthors.add(rs.getString(1));
 	        }
-	        if (affiliationId == null) {
-	        	throw new Exception("Affiliation " + affiliationName + " not found in the database, shutting down!");
-	        }
-	        
+        	LOG.info("Starting affiliation " + affiliationName + " found " + recentIndexedAuthors.size() + " recently indexed authors");
 		} 
 		finally {
 			conn.close();
@@ -92,7 +91,34 @@ public class DBUtil implements CrosslinkPersistance {
 	}
 
 	public boolean skipAuthor(String url) {
+		if (recentIndexedAuthors.contains(url)) {
+			try {
+				return touchAuthor(url) != -1;
+			}
+			catch (SQLException e) {
+				LOG.log(Level.WARNING, e.getMessage(), e);
+			}
+		}
 		return false;
+	}
+
+	public int touchAuthor(String url) throws SQLException {
+        Integer authorId = null;
+		Connection conn = getConnection();
+		try {
+	        CallableStatement cs = conn
+			        .prepareCall("{ call [TouchAuthor](?, ?)}");
+	        cs.setString(1, affiliationName);
+	        cs.setString(2, url);
+	        ResultSet rs = cs.executeQuery();
+	        if (rs.next()) {
+	        	authorId = rs.getInt(1);
+	        }
+		} 
+		finally {
+			conn.close();
+		}
+		return authorId != null ? authorId : -1;
 	}
 
 	public void close() throws Exception {

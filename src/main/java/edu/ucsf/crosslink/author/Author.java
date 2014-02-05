@@ -17,18 +17,56 @@ public class Author {
 	private String orcidId;
 	private Collection<Integer> pmids= new HashSet<Integer>();
 
-    public Author(String affiliation, String lastName, String firstName, String middleName, String url, String lodURI, String orcidId) {
+	public Author(String url) {
+		this.setURL(url);
+	}
+	
+	public Author(String affiliation, String lastName, String firstName, String middleName, String url, String lodURI, String orcidId) {
+		this(url);
     	this.setAffiliation(affiliation);
     	this.setLastName(lastName);
     	this.setFirstName(firstName);
     	this.setMiddleName(middleName);
-    	this.setURL(url);
     	this.setLodURI(lodURI);
     	this.setOrcidId(orcidId);
     }
 
     public Author(String affiliation, JSONObject person, String url) throws JSONException {
     	this(affiliation, person.getString("lastName"), person.getString("firstName"), person.optString("middleName"), url, person.getString("@id"), person.optString("orcidId"));
+    }
+    
+    public void merge(Author author) throws Exception {
+    	this.setAffiliation(getMergedValue(this.affiliation, author.affiliation));
+    	this.setLastName(getMergedValue(this.lastName, author.lastName));
+    	this.setFirstName(getMergedValue(this.firstName, author.firstName));
+    	this.setMiddleName(getMergedValue(this.middleName, author.middleName));
+    	this.setURL(getMergedValue(this.URL, author.URL));
+    	this.setLodURI(getMergedValue(this.lodURI, author.lodURI));
+    	this.setOrcidId(getMergedValue(this.orcidId, author.orcidId));
+    	this.pmids.addAll(author.pmids);
+    }
+    
+    private String getMergedValue(String one, String other) throws Exception {
+    	if (one == null) {
+    		return other;
+    	}
+    	else if (other == null) {
+    		return one;
+    	}
+    	else if (one.equalsIgnoreCase(other)) {
+        	return one;  
+    	}
+    	else {
+    		throw new Exception("Confilicting values in merge of " + one + " :AND: " + other);
+    	}
+    }
+    
+    public void setPersonInfo(JSONObject person) throws JSONException {
+    	 this.setLastName(person.getString("lastName"));
+    	 this.setFirstName(person.getString("firstName"));
+    	 this.setMiddleName(person.optString("middleName"));
+    	 this.setLodURI(person.getString("@id"));
+    	 this.setOrcidId(person.optString("orcidId"));
     }
     
     public String getLastName() {
@@ -109,5 +147,9 @@ public class Author {
 			authorships.add(new Authorship(this, null));			
 		}
 		return authorships;
+	}
+	
+	public String toString() {
+		return "" + lastName + ", " + firstName + " : " + URL;
 	}
 }

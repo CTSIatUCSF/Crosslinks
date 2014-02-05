@@ -13,7 +13,7 @@ public class Authorship {
 	
 	public static String[] ColumnNames = {"Affiliation", "LastName", "FirstName", "MiddleName", "URL", "lodURI", "OrcidID", "PMID"};
 	
-    Authorship(String affiliation, String lastName, String firstName, String middleName, String url, String lodURI, String pmid, String orcidId) {
+    Authorship(String affiliation, String lastName, String firstName, String middleName, String url, String lodURI, String orcidId, String pmid) {
     	this.setAffiliation(affiliation);
     	this.setLastName(lastName);
     	this.setFirstName(firstName);

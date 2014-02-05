@@ -1,14 +1,15 @@
 package edu.ucsf.crosslink.sitereader;
 
-import java.util.logging.Level;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Logger;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import edu.ucsf.crosslink.author.AuthorParser;
-import edu.ucsf.crosslink.io.CrosslinkPersistance;
+import edu.ucsf.crosslink.author.Author;
 
 public class ProfilesSearchReader extends SiteReader {
 
@@ -18,7 +19,8 @@ public class ProfilesSearchReader extends SiteReader {
 		super(affiliation, siteRoot);
 	}
 
-    public void readSite(CrosslinkPersistance store, AuthorParser parser) throws Exception {
+    public List<Author> getAuthors() throws IOException, InterruptedException {
+    	List<Author> authors = new ArrayList<Author>();
 		String suffix = "/search/default.aspx?searchtype=people&searchfor=&perpage=100&offset=0&sortby=&sortdirection=&showcolumns=1&page=";
 		int page = 1;
 		String firstUrlInPriorSet = null;
@@ -46,23 +48,14 @@ public class ProfilesSearchReader extends SiteReader {
 			    				break;
 			    			}
 			    		}
-			    		LOG.info("Person = " + url);
-			    		if (store.skipAuthor(url)) {
-			    			continue;
-			    		}
-			    			
-						try {
-							store.saveAuthor(parser.getAuthorFromHTML(this, url));
-						}
-						catch (Exception e) {
-							LOG.log(Level.WARNING, "Error parsing " + url, e);
-						}
+			    		authors.add(new Author(url));
 			    	}
 		        }
 			}
 			
 		}
 		while (!findingSamePeople);
+		LOG.info("Found " + authors.size() + " profile pages");
+    	return authors;    	
     }
-    
 }

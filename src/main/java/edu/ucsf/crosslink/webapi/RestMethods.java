@@ -16,6 +16,8 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
+import com.google.inject.Inject;
+
 import edu.ucsf.crosslink.io.DBUtil;
 
 import au.com.bytecode.opencsv.CSVWriter;
@@ -45,7 +47,11 @@ public class RestMethods {
 								  "(LEFT(a1.firstName, len(a2.firstName)) != LEFT(a2.firstName, len(a2.firstName))) </code><p>" + 
 								  "At some point we want to formally recognize when someone at one affiliation is the same person at another affiliation, and we will " + 
 								  "make that available when we have that data.<p>" +
-								  "Please note that the list of coauthors WILL include any possibleSamePeople and possibleConflicts.";					     
+								  "Please note that the list of coauthors WILL include any possibleSamePeople and possibleConflicts.";
+	
+	// not yet set!
+	private DBUtil dbUtil; 
+	
     /**
      * Method handling HTTP GET requests. The returned object will be sent
      * to the client as "text/plain" media type.
@@ -56,7 +62,7 @@ public class RestMethods {
     @Produces(MediaType.TEXT_HTML)
     public String getAffiliations() {
 		String sql = "select affiliation, researcherCount, PMIDCount from vw_AffiliationList";
-		Connection conn = DBUtil.getConnection();
+		Connection conn = dbUtil.getConnection();
 		try {
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);
@@ -94,7 +100,7 @@ public class RestMethods {
     @Produces(MediaType.TEXT_HTML)
     public String getAffiliationDetail(@PathParam("affiliation") String affiliation) {
 		String sql = "select affiliation, baseURL, researcherCount, PMIDCount from vw_AffiliationList where affiliation = ?";
-		Connection conn = DBUtil.getConnection();
+		Connection conn = dbUtil.getConnection();
 		try {
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);
@@ -131,7 +137,7 @@ public class RestMethods {
     @Produces(MediaType.TEXT_HTML)
     public String getResearchers(@PathParam("affiliation") String affiliation) {
 		String sql = "select affiliationName , LastName , FirstName , MiddleName , URL, orcidId, externalCoauthorCount from vw_ResearcherList where affiliationName = ?";
-		Connection conn = DBUtil.getConnection();
+		Connection conn = dbUtil.getConnection();
 		try {
 			StringWriter sw = new StringWriter();
 			PrintWriter pw = new PrintWriter(sw);
@@ -174,7 +180,7 @@ public class RestMethods {
     public String getConflicts(@PathParam("affiliation") String affiliation) {
 		String sql = "select * from vw_ConflictList where affiliationName = ? " + 
 					 "order by URL, affiliationName2, URL2";
-		Connection conn = DBUtil.getConnection();
+		Connection conn = dbUtil.getConnection();
 		try {
 			PreparedStatement ps = conn.prepareStatement(sql);
 			ps.setString(1, affiliation);
@@ -201,7 +207,7 @@ public class RestMethods {
     public String getSamePeople(@PathParam("affiliation") String affiliation) {
 		String sql = "select * from [vw_SamePersonList] where affiliationName = ? " + 
 					 "order by URL, affiliationName2, URL2";
-		Connection conn = DBUtil.getConnection();
+		Connection conn = dbUtil.getConnection();
 		try {
 			PreparedStatement ps = conn.prepareStatement(sql);
 			ps.setString(1, affiliation);
@@ -228,7 +234,7 @@ public class RestMethods {
     public String getCoauthors(@QueryParam("authorURL") String authorURL) {
 		String sql = "select affiliationName, lastName, firstName, middleName, URL, orcidId, PMID from vw_ExternalCoauthorList where subjectURL = ? " + 
 					 "order by affiliationName, URL";
-		Connection conn = DBUtil.getConnection();
+		Connection conn = dbUtil.getConnection();
 		try {
 			PreparedStatement ps = conn.prepareStatement(sql);
 			ps.setString(1, authorURL);

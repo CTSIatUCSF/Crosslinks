@@ -1,8 +1,6 @@
 package edu.ucsf.crosslink.sitereader;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -12,6 +10,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.github.jsonldjava.core.JSONLDProcessingError;
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.author.Author;
 import edu.ucsf.crosslink.author.AuthorParser;
@@ -20,26 +20,25 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 
 	private static final Logger LOG = Logger.getLogger(LokiSiteReader.class.getName());
 
-	public LokiSiteReader(String affiliation, String siteRoot) {
+	@Inject
+	public LokiSiteReader(@Named("Affiliation") String affiliation, @Named("BaseURL") String siteRoot) {
 		super(affiliation, siteRoot);
 	}
 	
-    public List<Author> getAuthors() throws IOException, InterruptedException  {
-    	List<Author> authors = new ArrayList<Author>();
+    public void collectAuthorURLS() throws IOException, InterruptedException  {
     	Document doc = getDocument(getSiteRoot() + "/research/browseResearch.jsp");
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {
 		    	if ( link.attr("abs:href").startsWith(getSiteRoot() + "/research/browseResearch.jsp?browse=") && link.attr("abs:href").length() == "https://www.icts.uiowa.edu/Loki/research/browseResearch.jsp?browse=".length() + 1) {
-		    		parsePartialSiteMap(link.attr("abs:href"), authors);
+		    		parsePartialSiteMap(link.attr("abs:href"));
 		    	}
 	        }
 		}
-    	return authors;
     }
 
-    private void parsePartialSiteMap(String sitemapUrl, List<Author> authors) throws IOException, InterruptedException {
+    private void parsePartialSiteMap(String sitemapUrl) throws IOException, InterruptedException {
     	Document doc = getDocument(sitemapUrl);
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	
@@ -49,7 +48,7 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 		    		try {
 			    		String[] personName = link.text().split(", ");
 		    			String url = getSiteRoot() + "/research/browseResearch.jsp?id=" + link.attr("abs:href").split("&id=")[1];
-		    			authors.add(new Author(getAffiliation(), personName[0], personName[1], null, url, null, null));
+		    			addAuthor(new Author(getAffiliation(), personName[0], personName[1], null, url, null, null));
 		    		}
 		    		catch (Exception e) {
 						LOG.log(Level.WARNING, "Error parsing " + link.attr("abs:href"), e);		    			

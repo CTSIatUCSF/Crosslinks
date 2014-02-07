@@ -5,7 +5,6 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -16,6 +15,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.gson.Gson;
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.author.Author;
 
@@ -23,12 +24,12 @@ public class VivoDataserviceReader extends SiteReader {
 
 	private static final Logger LOG = Logger.getLogger(VivoDataserviceReader.class.getName());
 	
-	public VivoDataserviceReader(String affiliation, String siteRoot) {
+	@Inject
+	public VivoDataserviceReader(@Named("Affiliation") String affiliation, @Named("BaseURL") String siteRoot) {
 		super(affiliation, siteRoot);
 	}
 
-    public List<Author> getAuthors() throws Exception {
-    	List<Author> authors = new ArrayList<Author>();
+    public void collectAuthorURLS() throws Exception {
 		String suffix = "/people";
 		Document doc = getDocument(getSiteRoot() + suffix );
     	Set<VIVOPerson> people = new HashSet<VIVOPerson>();
@@ -46,10 +47,9 @@ public class VivoDataserviceReader extends SiteReader {
 		
 		// now grab all the individual URI's
 		for (VIVOPerson person : people) {
-			authors.add(new Author(person.URI));
+			addAuthor(new Author(person.URI));
 		}
-		LOG.info("Found " + authors.size() + " unique URI's");
-		return authors;
+		LOG.info("Found " + getAuthors().size() + " unique URI's");
     }
 
     

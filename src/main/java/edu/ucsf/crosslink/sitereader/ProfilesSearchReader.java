@@ -1,26 +1,27 @@
 package edu.ucsf.crosslink.sitereader;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.logging.Logger;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
+
 import edu.ucsf.crosslink.author.Author;
 
 public class ProfilesSearchReader extends SiteReader {
 
 	private static final Logger LOG = Logger.getLogger(ProfilesSearchReader.class.getName());
-	
-	public ProfilesSearchReader(String affiliation, String siteRoot) {
+
+	@Inject
+	public ProfilesSearchReader(@Named("Affiliation") String affiliation, @Named("BaseURL") String siteRoot) {
 		super(affiliation, siteRoot);
 	}
 
-    public List<Author> getAuthors() throws IOException, InterruptedException {
-    	List<Author> authors = new ArrayList<Author>();
+    public void collectAuthorURLS() throws IOException, InterruptedException {
 		String suffix = "/search/default.aspx?searchtype=people&searchfor=&perpage=100&offset=0&sortby=&sortdirection=&showcolumns=1&page=";
 		int page = 1;
 		String firstUrlInPriorSet = null;
@@ -48,14 +49,14 @@ public class ProfilesSearchReader extends SiteReader {
 			    				break;
 			    			}
 			    		}
-			    		authors.add(new Author(url));
+			    		addAuthor(new Author(url));
 			    	}
 		        }
 			}
-			
+			LOG.info("Found " + getAuthors().size() + " profile pages so far onto page " + page);		
 		}
 		while (!findingSamePeople);
-		LOG.info("Found " + authors.size() + " profile pages");
-    	return authors;    	
+		LOG.info("Found " + getAuthors().size() + " profile pages");
     }
+
 }

@@ -7,6 +7,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.github.jsonldjava.core.JSONLDProcessingError;
+import com.google.inject.Inject;
 
 import edu.ucsf.crosslink.sitereader.SiteReader;
 
@@ -22,6 +23,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
 	private SiteReader siteReader;
 	private RDFAuthorshipParser rdfParser;
 	
+	@Inject
     public HTMLAuthorshipParser(SiteReader siteReader) {
     	this.siteReader = siteReader;
     	this.rdfParser = new RDFAuthorshipParser(siteReader); 		    	

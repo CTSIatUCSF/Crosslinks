@@ -4,10 +4,11 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.logging.Logger;
+
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 
 import edu.ucsf.crosslink.author.Author;
@@ -22,13 +23,12 @@ public class ProfilesSitemapReader extends SiteReader  {
 
 	private static final Logger LOG = Logger.getLogger(ProfilesSitemapReader.class.getName());
 	
-	
-	public ProfilesSitemapReader(String affiliation, String siteRoot) {
+	@Inject
+	public ProfilesSitemapReader(@Named("Affiliation") String affiliation, @Named("BaseURL") String siteRoot) {
 		super(affiliation, siteRoot);
 	}
 
-    public List<Author> getAuthors() throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException {
-    	List<Author> authors = new ArrayList<Author>();
+    public void collectAuthorURLS() throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException {
 		SitemapParser smp = new SitemapParser();
 		smp.processSitemap(new URL(getSiteRoot() + "/sitemap.xml"));
 		Sitemap sitemap = smp.getSitemap();
@@ -36,10 +36,9 @@ public class ProfilesSitemapReader extends SiteReader  {
 		Collection<SitemapUrl> urls = sitemap.getUrlList();
 
 		for (SitemapUrl url : urls) {
-			authors.add(new Author(url.getUrl().toString()));
+			addAuthor(new Author(url.getUrl().toString()));
 		}
-		LOG.info("Found " + authors.size() + " profile pages");
-    	return authors;
+		LOG.info("Found " + getAuthors().size() + " profile pages");
     }
-
+    
 }

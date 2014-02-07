@@ -1,31 +1,21 @@
 package edu.ucsf.crosslink.io;
 
-import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.thoughtworks.xstream.XStream;
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.author.Author;
+public class DBUtil {
 
-public class DBUtil implements CrosslinkPersistance {
-	
-	private static String dbUrl = "jdbc:sqlserver://stage-sql-ctsi.ucsf.edu;instanceName=default;portNumber=1433;databaseName=crosslink";
-	private static String dbUser = "crosslink";
-	private static String dbPassword = "crosslink";
+	private String dbUrl = "jdbc:sqlserver://stage-sql-ctsi.ucsf.edu;instanceName=default;portNumber=1433;databaseName=crosslink";
+	private String dbUser = "crosslink";
+	private String dbPassword = "crosslink";
 
 	private static final Logger LOG = Logger.getLogger(DBUtil.class.getName());
-	
-	private String affiliationName;
-	private Set<String> recentIndexedAuthors = new HashSet<String>();
 	
 	static {
 		try { 
@@ -36,130 +26,22 @@ public class DBUtil implements CrosslinkPersistance {
 		}
 	}
 	
-    public static Connection getConnection() {
+	@Inject
+	public DBUtil(@Named("dbUrl") String dbUrl, @Named("dbUser") String dbUser, @Named("dbPassword") String dbPassword) throws ClassNotFoundException {
+		Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+		this.dbUrl = dbUrl;
+		this.dbUser = dbUser;
+		this.dbPassword = dbPassword;
+	}
+	
+    public Connection getConnection() {
         try {
             Connection conn = DriverManager.getConnection(dbUrl, dbUser,
                     dbPassword);
             return conn;
         } catch (SQLException e) {
-            e.printStackTrace();
+			LOG.log(Level.WARNING, "Can not connect to " + dbUrl, e);
             return null;
         }
     }
-    
-	public void start(String affiliationName) throws Exception {
-		this.affiliationName = affiliationName;
-		Connection conn = getConnection();
-		try {
-	        CallableStatement cs = conn
-			        .prepareCall("{ call [StartCrawl](?)}");
-	        cs.setString(1, affiliationName);
-	        ResultSet rs = cs.executeQuery();
-	        while (rs.next()) {
-	        	recentIndexedAuthors.add(rs.getString(1));
-	        }
-        	LOG.info("Starting affiliation " + affiliationName + " found " + recentIndexedAuthors.size() + " recently indexed authors");
-		} 
-		finally {
-			conn.close();
-		}
-	}    
-    
-	public void saveAuthor(Author author) throws Exception {
-		// check DB
-		Connection conn = getConnection();
-		XStream xstream = new XStream();
-		try {
-	        CallableStatement cs = conn
-			        .prepareCall("{ call [UpsertAuthor](?, ?, ?, ?, ?, ?, ?, ?)}");
-	        cs.setString(1, author.getAffiliation());
-	        cs.setString(2, author.getLastName());
-	        cs.setString(3, author.getFirstName());
-	        cs.setString(4, author.getMiddleName());
-	        cs.setString(5, author.getURL());
-	        cs.setString(6, author.getLodURI());
-	        cs.setString(7, author.getOrcidId());
-	        cs.setString(8, xstream.toXML(author.getPubMedPublications()));
-	        ResultSet rs = cs.executeQuery();
-	        if (rs.next()) {
-	        	LOG.info("Saved authorshipId = " + rs.getInt(1));
-	        }
-		} 
-		finally {
-			conn.close();
-		}
-	}
-
-	public boolean skipAuthor(String url) {
-		if (recentIndexedAuthors.contains(url)) {
-			try {
-				return touchAuthor(url) != -1;
-			}
-			catch (SQLException e) {
-				LOG.log(Level.WARNING, e.getMessage(), e);
-			}
-		}
-		return false;
-	}
-
-	public int touchAuthor(String url) throws SQLException {
-        Integer authorId = null;
-		Connection conn = getConnection();
-		try {
-	        CallableStatement cs = conn
-			        .prepareCall("{ call [TouchAuthor](?, ?)}");
-	        cs.setString(1, affiliationName);
-	        cs.setString(2, url);
-	        ResultSet rs = cs.executeQuery();
-	        if (rs.next()) {
-	        	authorId = rs.getInt(1);
-	        }
-		} 
-		finally {
-			conn.close();
-		}
-		return authorId != null ? authorId : -1;
-	}
-
-	public void close() throws Exception {
-		Connection conn = getConnection();
-		try {
-	        CallableStatement cs = conn
-			        .prepareCall("{ call [EndCrawl](?)}");
-	        cs.setString(1, affiliationName);
-	        ResultSet rs = cs.executeQuery();
-	        Integer affiliationId = null;
-	        if (rs.next()) {
-	        	affiliationId = rs.getInt(1);
-	        	LOG.info("Stopping affiliation " + affiliationName + " affiliationId = " + affiliationId);
-	        }
-	        if (affiliationId == null) {
-	        	throw new Exception("Affiliation " + affiliationName + " not found in the database, shutting down!");
-	        }
-	        
-		} 
-		finally {
-			conn.close();
-		}
-	}
-	
-	public static void main(String[] args) {
-		try {
-			XStream xstream = new XStream();
-			Collection<Integer> pmids = new ArrayList<Integer>();
-			pmids.add(123);
-			pmids.add(456);
-			System.out.println(xstream.toXML(pmids));
-			
-			Author author = new Author("UCSF", "nobody", "nobody", null, "http://stage-profiles.ucsf.edu/profiles200/nobody.nobody", null, null);
-			author.addPubMedPublication(123);
-			author.addPubMedPublication(456);
-			
-			DBUtil db = new DBUtil();
-			db.saveAuthor(author);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
 }

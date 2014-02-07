@@ -5,10 +5,14 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
+
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.author.Author;
 import edu.ucsf.crosslink.author.Authorship;
@@ -23,14 +27,31 @@ public class CSVAuthorPersistance implements CrosslinkPersistance {
 	private CSVWriter writer;
 	private Set<String> existingEntries;
 	
-	public void start(String affiliationName) throws IOException {
+	private String affiliationName;
+	private File propertiesFile;
+	
+	@Inject
+	public CSVAuthorPersistance(@Named("Affiliation") String affiliationName) {
+		this.affiliationName = affiliationName;
+		String filename = affiliationName.replace(' ', '_') + ".csv";
+		this.propertiesFile = new File(filename);
+	}
+	
+	public Date dateOfLastCrawl() {
+		if (propertiesFile.exists()) {
+			return new Date(propertiesFile.lastModified());
+		}
+		return null;
+	}
+
+	
+	public void start() throws IOException {
 		String filename = affiliationName.replace(' ', '_') + ".csv";
 		existingEntries = new HashSet<String>();
 
 		// see if we already have this
-		File file = new File(filename);
-		if (file.exists()) {
-			CSVReader reader = new CSVReader(new FileReader(file));
+		if (propertiesFile.exists()) {
+			CSVReader reader = new CSVReader(new FileReader(propertiesFile));
 			List<String[]> entries = reader.readAll();
 			for (String[] entry : entries) {
 				if ("PMID".equalsIgnoreCase(entry[5])) {

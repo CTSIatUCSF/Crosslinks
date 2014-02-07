@@ -17,6 +17,7 @@ import com.github.jsonldjava.core.JSONLDProcessingError;
 import com.github.jsonldjava.core.Options;
 import com.github.jsonldjava.impl.JenaRDFParser;
 import com.github.jsonldjava.utils.JSONUtils;
+import com.google.inject.Inject;
 
 import edu.ucsf.crosslink.sitereader.SiteReader;
 
@@ -44,6 +45,7 @@ public class RDFAuthorshipParser implements AuthorParser {
             return s;
     }
     
+    @Inject
     public RDFAuthorshipParser(SiteReader siteReader) {
     	this.siteReader = siteReader;
     	JSONLD.registerRDFParser(RDFXML, new JenaRDFParser());		    	

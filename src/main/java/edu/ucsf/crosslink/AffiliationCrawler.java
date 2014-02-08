@@ -15,6 +15,10 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.joda.time.DateTime;
+import org.joda.time.Days;
+import org.joda.time.Minutes;
+
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -46,6 +50,7 @@ public class AffiliationCrawler {
 	private CrosslinkPersistance store;
 	
 	private int errorsToAbort = 5;
+	private int pauseOnAbort = 60;
 	
 	// pass in the name of a configuration file
 	public static void main(String[] args) {
@@ -82,15 +87,17 @@ public class AffiliationCrawler {
 	}
 	
 	@Inject
-	public void setErrorsToAbort(@Named("errorsToAbort") Integer errorsToAbort) {
+	public void setConfiguartion(@Named("errorsToAbort") Integer errorsToAbort, @Named("pauseOnAbort") Integer pauseOnAbort) {
 		this.errorsToAbort = errorsToAbort;
+		this.pauseOnAbort = pauseOnAbort;
 	}
 	
 	public String toString() {
 		// found is dynamic
 		int found = reader.getAuthors().size();
 		return affiliation + " : " + status + " (" + 
-				saved + " + " + skipped + " + " + avoided + " + " + error + " of " + found + ") => (saved + skipped + avoided + error of found)";
+				saved + " + " + skipped + " + " + avoided + " + " + error + " of " + found + ") => (saved + skipped + avoided + error of found) " +
+				" last crawled on " + dateLastCrawled();
 	}
 	
 	public Date dateLastCrawled() {
@@ -102,6 +109,10 @@ public class AffiliationCrawler {
 	}
 	
 	public void crawl() throws Exception {
+		// ugly, but it works
+		if (status.startsWith("Aborting") && Minutes.minutesBetween(new DateTime(started), new DateTime()).getMinutes() < pauseOnAbort) {
+			return;
+		}
 		started = new Date();
 		// Now index the site
 		store.start();

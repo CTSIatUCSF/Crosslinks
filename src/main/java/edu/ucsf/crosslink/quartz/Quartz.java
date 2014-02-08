@@ -2,9 +2,9 @@ package edu.ucsf.crosslink.quartz;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -54,23 +54,27 @@ public class Quartz {
 		scheduler.setJobFactory(jobFactory);
 		
 		try {
-			for (String fileName : getConfigurationFiles()) {
+		    for (String fileName : getConfigurationFiles()) {
 				// define the job and tie it to our HelloJob class
+		    	String prefix = getRootFileName(fileName);
 			    JobDetail job = newJob(AffiliationCrawlerJob.class)
-			        .withIdentity(fileName, "group1")
+			        .withIdentity("job" + prefix, "group1")
 			        .usingJobData("config", fileName)
 			        .build();
 
-			    // Trigger the job to run now, and then repeat every 40 seconds
+			    // Trigger the job to run now, and then repeat 
 			    Trigger trigger = newTrigger()
-			        .withIdentity(fileName, "group1")
+			        .withIdentity("trigger" + prefix, "group1")
 			        .startNow()
 			        .withSchedule(simpleSchedule()
 			        		.withIntervalInMinutes(runInterval)
-			                .repeatForever())            
+			        		//.withIntervalInSeconds(10)
+			                .repeatForever()) 
+			        .forJob(job)
 			        .build();
 
-			    scheduler.scheduleJob(job, trigger);			
+			    LOG.info("Scheduling " + fileName);
+			    scheduler.scheduleJob(job, trigger);
 			}
 		} 
 		catch (IOException e) {
@@ -92,13 +96,18 @@ public class Quartz {
 		}
 	}
 
-	private Set<String> getConfigurationFiles() throws IOException  {
-		Set<String> fileNames = new HashSet<String>();
+	private List<String> getConfigurationFiles() throws IOException  {
+		List<String> fileNames = new ArrayList<String>();
 		for (File file : new File(configurationDirectory).listFiles()) {
 			fileNames.add(file.getAbsolutePath());
 		}
 		return fileNames;
 	}
 	
+	private static String getRootFileName(String absoluteName) {
+		File file = new File(absoluteName);
+		return file.getName().split("\\.")[0];
+	}
+
 
 }

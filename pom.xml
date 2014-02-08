@@ -7,8 +7,14 @@
   <version>0.0.1-SNAPSHOT</version>
   <name>Crosslinks</name>
 
+    <properties>
+        <jersey.version>1.9.1</jersey.version>
+        <guice.version>3.0</guice.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
     <build>
-        <finalName>crosslinks</finalName>
+    	<finalName>crosslinks</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -23,30 +29,7 @@
         </plugins>
     </build>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.glassfish.jersey</groupId>
-                <artifactId>jersey-bom</artifactId>
-                <version>${jersey.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
-
   <dependencies>
-        <dependency>
-            <groupId>org.glassfish.jersey.containers</groupId>
-            <artifactId>jersey-container-servlet-core</artifactId>
-            <!-- use the following artifactId if you don't need servlet 2.x compatibility -->
-            <!-- artifactId>jersey-container-servlet</artifactId -->
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish.jersey.media</groupId>
-            <artifactId>jersey-media-moxy</artifactId>
-        </dependency>
         <dependency>
         	<groupId>com.microsoft.jdbc</groupId>
         	<artifactId>jdbc4</artifactId>
@@ -95,7 +78,7 @@
   	<dependency>
   		<groupId>com.google.inject</groupId>
   		<artifactId>guice</artifactId>
-  		<version>2.0</version>
+  		<version>${guice.version}</version>
   	</dependency>
   	<dependency>
   		<groupId>joda-time</groupId>
@@ -111,16 +94,27 @@
 	<dependency>
 		<groupId>com.google.inject.extensions</groupId>
 		<artifactId>guice-servlet</artifactId>
-		<version>2.0</version>
+		<version>${guice.version}</version>
 	</dependency>
 	<dependency>
 		<groupId>org.quartz-scheduler</groupId>
 		<artifactId>quartz</artifactId>
 		<version>2.2.1</version>
 	</dependency>
+	<dependency>
+		<groupId>javax.servlet</groupId>
+		<artifactId>jstl</artifactId>
+		<version>1.2</version>
+	</dependency>
+	<dependency>
+        <groupId>com.sun.jersey</groupId>
+        <artifactId>jersey-server</artifactId>
+        <version>${jersey.version}</version>
+    </dependency>
+	<dependency>
+		<groupId>com.sun.jersey.contribs</groupId>
+		<artifactId>jersey-guice</artifactId>
+		<version>${jersey.version}</version>
+	</dependency>
   </dependencies>
-    <properties>
-        <jersey.version>2.5.1</jersey.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
 </project>

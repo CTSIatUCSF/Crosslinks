@@ -19,28 +19,24 @@ import edu.ucsf.crosslink.AffiliationCrawler;
 public class AffiliationCrawlerJob implements Job {
 	
 	private static final Logger LOG = Logger.getLogger(AffiliationCrawlerJob.class.getName());
+	private static List<String> crawlerHistory = new ArrayList<String>();
 
-	private static List<String> crawlerJobHistory = new ArrayList<String>();
-	
 	private AffiliationCrawler crawler;
-	private int pauseOnAbort = 60;
 	private int staleDays = 7;
-
+	
 	public static List<String> getCrawlerJobHistory() {
-		return crawlerJobHistory;
+		return crawlerHistory;
 	}
-		
+
 	@Inject
 	public AffiliationCrawlerJob(AffiliationCrawler crawler) {
 		this.crawler = crawler;
 	}
 
 	@Inject
-	public void setConfiguration(@Named("pauseOnAbort") Integer pauseOnAbort, @Named("staleDays") Integer staleDays) {
-		this.pauseOnAbort = pauseOnAbort;
+	public void setConfiguration(@Named("staleDays") Integer staleDays) {
 		this.staleDays = staleDays;
-	}
-	
+	}	
 
 	@Override
 	public void execute(JobExecutionContext context)
@@ -59,8 +55,7 @@ public class AffiliationCrawlerJob implements Job {
 		catch (Exception e) {
 			throw new JobExecutionException(e);
 		}
-		crawlerJobHistory.add(new Date().toString() + ":" + crawler.toString());
-
+		crawlerHistory.add("" + new Date() + " -> " + crawler.toString());
 	}
 
 }

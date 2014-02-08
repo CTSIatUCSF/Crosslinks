@@ -25,13 +25,16 @@ public class DBAuthorPersistance implements CrosslinkPersistance {
 	
 	private String affiliationName;
 	private String baseURL;
+	private int daysConsideredOld;
 	private DBUtil dbUtil;
 	private Set<String> recentIndexedAuthors = new HashSet<String>();
 	
 	@Inject
-	public DBAuthorPersistance(@Named("Affiliation") String affiliationName, @Named("BaseURL") String baseURL, DBUtil dbUtil) {
+	public DBAuthorPersistance(@Named("Affiliation") String affiliationName, @Named("BaseURL") String baseURL, 
+			@Named("daysConsideredOld") Integer daysConsideredOld, DBUtil dbUtil) {
 		this.affiliationName = affiliationName;
 		this.baseURL = baseURL;
+		this.daysConsideredOld = daysConsideredOld;
 		this.dbUtil = dbUtil;
 	}
 	
@@ -63,9 +66,10 @@ public class DBAuthorPersistance implements CrosslinkPersistance {
 		Connection conn = dbUtil.getConnection();
 		try {
 	        CallableStatement cs = conn
-			        .prepareCall("{ call [StartCrawl](?, ?)}");
+			        .prepareCall("{ call [StartCrawl](?, ?, ?)}");
 	        cs.setString(1, affiliationName);
 	        cs.setString(2, baseURL);
+	        cs.setInt(3, daysConsideredOld);
 	        ResultSet rs = cs.executeQuery();
 	        while (rs.next()) {
 	        	recentIndexedAuthors.add(rs.getString(1));
@@ -167,7 +171,7 @@ public class DBAuthorPersistance implements CrosslinkPersistance {
 			author.addPubMedPublication(123);
 			author.addPubMedPublication(456);
 			
-			DBAuthorPersistance db = new DBAuthorPersistance(null, null, null);
+			DBAuthorPersistance db = new DBAuthorPersistance(null, null, 4, null);
 			db.saveAuthor(author);
 		}
 		catch (Exception e) {

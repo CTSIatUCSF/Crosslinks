@@ -21,7 +21,6 @@ public class QuartzModule extends AbstractModule {
 	protected void configure() {
 		bind(String.class).annotatedWith(Names.named("configurationDirectory")).toInstance(prop.getProperty("configurationDirectory"));
 		
-		bind(Integer.class).annotatedWith(Names.named("pauseOnAbort")).toInstance(Integer.parseInt(prop.getProperty("pauseOnAbort")));
 		bind(Integer.class).annotatedWith(Names.named("staleDays")).toInstance(Integer.parseInt(prop.getProperty("staleDays")));
 		bind(Integer.class).annotatedWith(Names.named("runInterval")).toInstance(Integer.parseInt(prop.getProperty("runInterval")));
 

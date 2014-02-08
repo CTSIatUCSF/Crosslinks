@@ -6,19 +6,27 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 
 import com.google.inject.Inject;
+import com.sun.jersey.api.view.Viewable;
 
+import edu.ucsf.crosslink.AffiliationCrawler;
 import edu.ucsf.crosslink.io.DBUtil;
+import edu.ucsf.crosslink.quartz.AffiliationCrawlerJob;
 
 import au.com.bytecode.opencsv.CSVWriter;
 
@@ -49,53 +57,31 @@ public class RestMethods {
 								  "make that available when we have that data.<p>" +
 								  "Please note that the list of coauthors WILL include any possibleSamePeople and possibleConflicts.";
 	
-	// not yet set!
 	private DBUtil dbUtil; 
 	
-    /**
-     * Method handling HTTP GET requests. The returned object will be sent
-     * to the client as "text/plain" media type.
-     *
-     * @return String that will be returned as a text/plain response.
-     */
-    @GET
-    @Produces(MediaType.TEXT_HTML)
-    public String getAffiliations() {
-		String sql = "select affiliation, researcherCount, PMIDCount from vw_AffiliationList";
-		Connection conn = dbUtil.getConnection();
-		try {
-			StringWriter sw = new StringWriter();
-			PrintWriter pw = new PrintWriter(sw);
-			pw.println(HTML_START);
-			pw.println("<h2>Research Networking Coauthors Unbound</h2><p>");
-			pw.println("<h3>List of indexed affiliations. Click and have fun!</h3><p>");
-			PreparedStatement ps = conn.prepareStatement(sql);
-			ResultSet rs = ps.executeQuery();
-			pw.println("<ul>");
-			while (rs.next()) {
-				pw.println("<li>");				
-				pw.print("<a href = '" + WEB_ROOT + rs.getString(1) + "'>" + rs.getString(1) + "</a>");
-				pw.println(" " + rs.getInt(2) + " indexed researchers and " + rs.getInt(3) + " PMID publications");
-				pw.println("</li>");				
-			}
-			pw.println("</ul>");
-			pw.println("If you would like to find out more about this, please contact <a href='http://profiles.ucsf.edu/eric.meeks'>Eric Meeks</a><p>");
-			pw.println(HTML_END);
-			pw.flush();
-			return sw.toString();
-		}
-		catch (Exception se) {
-	        LOG.log(Level.SEVERE, "Error reading ", se);
-		}
-		finally {
-			try { conn.close(); } catch (SQLException se) {
-		        LOG.log(Level.SEVERE, "Error closing connection", se);
-			}
-		}
-        return "Error";
-    }
+	@Inject
+	public RestMethods(DBUtil dbUtil) {
+		this.dbUtil = dbUtil;
+	}
 
-    @GET
+	@GET
+	@Path("/")
+	public Viewable index(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws Exception {
+		request.setAttribute("affiliations", getAffiliations());
+		return new Viewable("/jsps/index.jsp", null);
+	}
+	
+	@GET
+	@Path("/status")
+	public Viewable status(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws Exception {
+		request.setAttribute("crawlers", AffiliationCrawler.getLiveCrawlers());
+		request.setAttribute("history", AffiliationCrawlerJob.getCrawlerJobHistory());
+		return new Viewable("/jsps/status.jsp", null);
+	}
+
+	@GET
     @Path("{affiliation}")
     @Produces(MediaType.TEXT_HTML)
     public String getAffiliationDetail(@PathParam("affiliation") String affiliation) {
@@ -253,5 +239,50 @@ public class RestMethods {
 			}
 		}
         return "Error";
+    }
+
+    private List<AffiliationData> getAffiliations() {
+    	List<AffiliationData> affiliations = new ArrayList<AffiliationData>();
+		String sql = "select affiliation, researcherCount, PMIDCount from vw_AffiliationList";
+		Connection conn = dbUtil.getConnection();
+		try {
+			PreparedStatement ps = conn.prepareStatement(sql);
+			ResultSet rs = ps.executeQuery();
+			while (rs.next()) {
+				AffiliationData data = new AffiliationData();
+				data.affiliationName = rs.getString(1);
+				data.researcherCount = rs.getInt(2);
+				data.pmidCount = rs.getInt(3);
+				affiliations.add(data);
+			}
+		}
+		catch (Exception se) {
+	        LOG.log(Level.SEVERE, "Error reading ", se);
+		}
+		finally {
+			try { conn.close(); } catch (SQLException se) {
+		        LOG.log(Level.SEVERE, "Error closing connection", se);
+			}
+		}
+        return affiliations;
+    }
+    
+    public class AffiliationData {
+
+    	String affiliationName;
+    	int researcherCount;
+    	int pmidCount;
+
+    	public String getAffiliationName() {
+    		return affiliationName;
+    	}
+    	
+    	public int getResearcherCount() {
+    		return researcherCount;
+    	}
+    	
+    	public int getPmidCount() {
+    		return pmidCount;
+    	}
     }
 }

@@ -24,13 +24,7 @@ public class CrosslinksServletConfig extends GuiceServletContextListener {
 		try {
 			Properties prop = new Properties();
 			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));			
-			injector = Guice.createInjector(new DBModule(prop), new QuartzModule(prop), 
-					new ServletModule() {
-						@Override
-						protected void configureServlets() {
-							serve("/status").with(CrosslinksServlet.class);
-						}
-					});
+			injector = Guice.createInjector(new DBModule(prop), new QuartzModule(prop), new CrosslinksServletModule());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

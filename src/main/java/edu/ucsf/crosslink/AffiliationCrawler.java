@@ -64,7 +64,7 @@ public class AffiliationCrawler {
 	}
 	
 	public enum Status {
-		IDLE, GATHERING_URLS, READING_RESEARCHERS, PAUSED;
+		DISABLED, IDLE, GATHERING_URLS, READING_RESEARCHERS, PAUSED, ERROR;
 	}
 	
 	public static Collection<AffiliationCrawler> getLiveCrawlers() {
@@ -75,12 +75,18 @@ public class AffiliationCrawler {
 		System.out.println("Pass in the name of the properties file");
 	}	
 
-	@Inject
 	public AffiliationCrawler(@Named("Affiliation") String affiliation, SiteReader reader, AuthorParser parser, CrosslinkPersistance store) {
+		this(affiliation, reader, parser, store, true);
+	}
+			
+	@Inject
+	public AffiliationCrawler(@Named("Affiliation") String affiliation, SiteReader reader, AuthorParser parser, CrosslinkPersistance store,
+			@Named("enableCrawling") Boolean enableCrawling) {
 		this.affiliation = affiliation;
 		this.reader = reader;
 		this.parser = parser;
 		this.store = store;
+		this.status = enableCrawling ? Status.IDLE : Status.DISABLED;
 		liveCrawlers.put(affiliation, this);
 	}
 	
@@ -113,6 +119,18 @@ public class AffiliationCrawler {
 		error = 0;
 	}
 	
+	public Status getStatus() {
+		return status;
+	}
+	
+	public boolean isActive() {
+		return Arrays.asList(Status.GATHERING_URLS, Status.READING_RESEARCHERS).contains(status);
+	}
+	
+	public boolean isOk() {
+		return !Arrays.asList(Status.PAUSED, Status.ERROR).contains(status);
+	}
+
 	public void crawl() throws Exception {
 		// ugly, but it works
 		// decisions about if we SHOULD crawl will be made by the job
@@ -120,7 +138,7 @@ public class AffiliationCrawler {
 		if (Status.PAUSED.equals(status) && Minutes.minutesBetween(new DateTime(started), new DateTime()).getMinutes() < pauseOnAbort) {
 			return;
 		}
-		else if (!Arrays.asList(Status.IDLE).contains(status)) {
+		else if (!Status.IDLE.equals(status)) {
 			return;
 		}
 
@@ -164,6 +182,11 @@ public class AffiliationCrawler {
 				}
 			}
 			store.finish();
+		}
+		catch (Exception e) {
+			status = Status.ERROR;
+			LOG.log(Level.SEVERE, e.getMessage(), e);
+			throw e;
 		}
 		finally {
 			store.close();

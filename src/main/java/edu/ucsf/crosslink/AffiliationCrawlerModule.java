@@ -33,6 +33,7 @@ public class AffiliationCrawlerModule extends AbstractModule {
 		bind(String.class).annotatedWith(Names.named("Affiliation")).toInstance(prop.getProperty("Affiliation"));
 		bind(String.class).annotatedWith(Names.named("BaseURL")).toInstance(prop.getProperty("BaseURL"));
 		
+		bind(Boolean.class).annotatedWith(Names.named("enableCrawling")).toInstance(Boolean.parseBoolean(prop.getProperty("enableCrawling")));
 		bind(Integer.class).annotatedWith(Names.named("errorsToAbort")).toInstance(Integer.parseInt(prop.getProperty("errorsToAbort")));
 		bind(Integer.class).annotatedWith(Names.named("pauseOnAbort")).toInstance(Integer.parseInt(prop.getProperty("pauseOnAbort")));
 

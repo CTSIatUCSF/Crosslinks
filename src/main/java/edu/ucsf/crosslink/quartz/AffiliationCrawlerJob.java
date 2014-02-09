@@ -7,6 +7,7 @@ import java.util.logging.Logger;
 
 import org.joda.time.DateTime;
 import org.joda.time.Days;
+import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
@@ -16,6 +17,7 @@ import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.AffiliationCrawler;
 
+@DisallowConcurrentExecution
 public class AffiliationCrawlerJob implements Job {
 	
 	private static final Logger LOG = Logger.getLogger(AffiliationCrawlerJob.class.getName());

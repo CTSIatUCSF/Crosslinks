@@ -25,7 +25,7 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 		super(affiliation, siteRoot);
 	}
 	
-    public void collectAuthorURLS() throws IOException, InterruptedException  {
+    protected void collectAuthorURLS() throws IOException, InterruptedException  {
     	Document doc = getDocument(getSiteRoot() + "/research/browseResearch.jsp");
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	

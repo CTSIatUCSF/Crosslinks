@@ -21,7 +21,7 @@ public class ProfilesSearchReader extends SiteReader {
 		super(affiliation, siteRoot);
 	}
 
-    public void collectAuthorURLS() throws IOException, InterruptedException {
+	protected void collectAuthorURLS() throws IOException, InterruptedException {
 		String suffix = "/search/default.aspx?searchtype=people&searchfor=&perpage=100&offset=0&sortby=&sortdirection=&showcolumns=1&page=";
 		int page = 1;
 		String firstUrlInPriorSet = null;

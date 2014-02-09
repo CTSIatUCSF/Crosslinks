@@ -28,7 +28,7 @@ public class ProfilesSitemapReader extends SiteReader  {
 		super(affiliation, siteRoot);
 	}
 
-    public void collectAuthorURLS() throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException {
+	protected void collectAuthorURLS() throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException {
 		SitemapParser smp = new SitemapParser();
 		smp.processSitemap(new URL(getSiteRoot() + "/sitemap.xml"));
 		Sitemap sitemap = smp.getSitemap();

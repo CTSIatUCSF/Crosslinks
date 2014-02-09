@@ -2,7 +2,6 @@ package edu.ucsf.crosslink.sitereader;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,14 +77,21 @@ public abstract class SiteReader {
         else
             return s;
     }
+    
+    public List<Author> collectAuthors() throws Exception {
+    	authors.clear();
+    	collectAuthorURLS();
+    	return authors;
+    }
+    	
 	
-    public abstract void collectAuthorURLS() throws Exception;
+    protected abstract void collectAuthorURLS() throws Exception;
     
     protected void addAuthor(Author author) {
     	authors.add(author);
     }
     
-    public Collection<Author> getAuthors() {
+    protected List<Author> getAuthors() {
     	return authors;
     }    
     

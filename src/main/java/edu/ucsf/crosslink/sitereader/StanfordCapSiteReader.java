@@ -25,7 +25,7 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 		super(affiliation, siteRoot);
 	}
 	
-    public void collectAuthorURLS() throws IOException, InterruptedException {
+	protected void collectAuthorURLS() throws IOException, InterruptedException {
     	int page = 1;
     	boolean onLastPage = true;// until we know otherwise
     	do {    		

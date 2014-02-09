@@ -29,7 +29,7 @@ public class VivoDataserviceReader extends SiteReader {
 		super(affiliation, siteRoot);
 	}
 
-    public void collectAuthorURLS() throws Exception {
+	protected void collectAuthorURLS() throws Exception {
 		String suffix = "/people";
 		Document doc = getDocument(getSiteRoot() + suffix );
     	Set<VIVOPerson> people = new HashSet<VIVOPerson>();

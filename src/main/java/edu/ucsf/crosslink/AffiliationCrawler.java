@@ -2,10 +2,12 @@ package edu.ucsf.crosslink;
 
 import java.io.File;
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -45,6 +47,8 @@ public class AffiliationCrawler {
 	
 	private int errorsToAbort = 5;
 	private int pauseOnAbort = 60;
+	
+	private List<Author> authors = new ArrayList<Author>();
 	
 	// pass in the name of a configuration file
 	public static void main(String[] args) {
@@ -98,10 +102,10 @@ public class AffiliationCrawler {
 	
 	public String toString() {
 		// found is dynamic
-		int found = reader.getAuthors().size();
+		int found = authors.size();
 		return affiliation + " : " + status + " (" + 
 				saved + " + " + skipped + " + " + avoided + " + " + error + " of " + found + ") => (saved + skipped + avoided + error of found) " +
-				" last crawled on " + dateLastCrawled();
+				" (lastStart, lastStop, lastFinish) : (" + started + ", " + ended + ", " + dateLastCrawled() + ")";
 	}
 	
 	public Date dateLastCrawled() {
@@ -135,23 +139,35 @@ public class AffiliationCrawler {
 		// ugly, but it works
 		// decisions about if we SHOULD crawl will be made by the job
 		// decisions about it we CAN crawl can be made here
-		if (Status.PAUSED.equals(status) && Minutes.minutesBetween(new DateTime(started), new DateTime()).getMinutes() < pauseOnAbort) {
-			return;
-		}
-		else if (!Status.IDLE.equals(status)) {
+		if (!isOk() && Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes() < pauseOnAbort) {
 			return;
 		}
 
-		clearCounts();
-		started = new Date();
-		// Now index the site
-		store.start();
-		status = Status.GATHERING_URLS;
 		try {
-			reader.collectAuthorURLS();
-			Collection<Author> authors = reader.getAuthors();
+			if (Status.IDLE.equals(status)) {
+				// fresh start
+				clearCounts();
+				started = new Date();
+				// Now index the site
+				store.start();
+				status = Status.GATHERING_URLS;
+				try {
+					authors.clear();
+					authors = reader.collectAuthors();
+					LOG.info("Found " + authors.size() + " potential Profile pages for " + affiliation);
+				}
+				catch (Exception e) {
+					status = Status.ERROR;
+					LOG.log(Level.SEVERE, e.getMessage(), e);
+					throw e;
+				}
+				finally {
+					store.close();
+				}
+			}
+	
+			// read authors
 			status = Status.READING_RESEARCHERS;
-			LOG.info("Found " + authors.size() + " potential Profile pages for " + affiliation);
 			for (Author author : authors) {
 				if (store.skipAuthor(author.getURL())) {
 					skipped++;
@@ -182,17 +198,11 @@ public class AffiliationCrawler {
 				}
 			}
 			store.finish();
-		}
-		catch (Exception e) {
-			status = Status.ERROR;
-			LOG.log(Level.SEVERE, e.getMessage(), e);
-			throw e;
+			status = Status.IDLE;
 		}
 		finally {
-			store.close();
+			ended = new Date();
 		}
-		status = Status.IDLE;
-		ended = new Date();
 	}
 		
 }

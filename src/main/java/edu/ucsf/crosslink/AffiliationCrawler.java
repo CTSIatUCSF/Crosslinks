@@ -2,26 +2,20 @@ package edu.ucsf.crosslink;
 
 import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.joda.time.DateTime;
-import org.joda.time.Days;
 import org.joda.time.Minutes;
 
 import com.google.inject.Guice;
 import com.google.inject.Inject;
-import com.google.inject.Injector;
 import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.author.Author;
@@ -36,7 +30,7 @@ public class AffiliationCrawler {
 
 	private static Map<String, AffiliationCrawler> liveCrawlers = new HashMap<String, AffiliationCrawler>();
 	
-	private String status = "Idle";
+	private Status status = Status.IDLE;
 	private int saved = 0;
 	private int skipped = 0;
 	private int avoided = 0;
@@ -67,6 +61,10 @@ public class AffiliationCrawler {
 			e.printStackTrace();
 			showUse();
 		}		
+	}
+	
+	public enum Status {
+		IDLE, GATHERING_URLS, READING_RESEARCHERS, PAUSED;
 	}
 	
 	public static Collection<AffiliationCrawler> getLiveCrawlers() {
@@ -108,19 +106,33 @@ public class AffiliationCrawler {
 		return affiliation;
 	}
 	
+	private void clearCounts() {
+		saved = 0;
+		skipped = 0;
+		avoided = 0;
+		error = 0;
+	}
+	
 	public void crawl() throws Exception {
 		// ugly, but it works
-		if (status.startsWith("Aborting") && Minutes.minutesBetween(new DateTime(started), new DateTime()).getMinutes() < pauseOnAbort) {
+		// decisions about if we SHOULD crawl will be made by the job
+		// decisions about it we CAN crawl can be made here
+		if (Status.PAUSED.equals(status) && Minutes.minutesBetween(new DateTime(started), new DateTime()).getMinutes() < pauseOnAbort) {
 			return;
 		}
+		else if (!Arrays.asList(Status.IDLE).contains(status)) {
+			return;
+		}
+
+		clearCounts();
 		started = new Date();
 		// Now index the site
 		store.start();
-		status = "Gathering researcher URLs";
+		status = Status.GATHERING_URLS;
 		try {
 			reader.collectAuthorURLS();
 			Collection<Author> authors = reader.getAuthors();
-			status = "Reading researchers";
+			status = Status.READING_RESEARCHERS;
 			LOG.info("Found " + authors.size() + " potential Profile pages for " + affiliation);
 			for (Author author : authors) {
 				if (store.skipAuthor(author.getURL())) {
@@ -145,17 +157,19 @@ public class AffiliationCrawler {
 						error++;
 						LOG.log(Level.WARNING, "Error reading page for " + author.getURL(), e);
 						if (error > errorsToAbort) {
-							status = "Aborting because we have " + error + " errors";
-							throw new Exception(status);
+							status = Status.PAUSED;
+							throw new Exception(status.toString() + " because of too many errors: " + error);
 						}
 					}
 				}
 			}
+			store.finish();
 		}
 		finally {
 			store.close();
 		}
-		status = "Finished";
+		status = Status.IDLE;
 		ended = new Date();
 	}
+		
 }

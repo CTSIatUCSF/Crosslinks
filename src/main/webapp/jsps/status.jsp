@@ -7,7 +7,10 @@
 		<c:if test="${fn:containsIgnoreCase(i, 'Idle')}">
 		   <c:out value="${i}"/><p>
 		</c:if>
-		<c:if test="${not fn:containsIgnoreCase(i, 'Idle')}">
+		<c:if test="${fn:containsIgnoreCase(i, 'ING_')}">
+		   <span style="color:##00FF00"><c:out value="${i}"/></span><p>
+		</c:if>
+		<c:if test="${not fn:containsIgnoreCase(i, 'Abort')}">
 		   <span style="color:#ff0000"><c:out value="${i}"/></span><p>
 		</c:if>
 	</c:forEach>

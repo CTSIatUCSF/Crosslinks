@@ -137,7 +137,7 @@ public class DBAuthorPersistance implements CrosslinkPersistance {
 		return authorId != null ? authorId : -1;
 	}
 
-	public void close() throws Exception {
+	public void finish() throws Exception {
 		Connection conn = dbUtil.getConnection();
 		try {
 	        CallableStatement cs = conn
@@ -157,6 +157,10 @@ public class DBAuthorPersistance implements CrosslinkPersistance {
 		finally {
 			conn.close();
 		}
+	}
+	
+	public void close() {
+		// no need to do anything, no resource are open
 	}
 	
 	public static void main(String[] args) {

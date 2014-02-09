@@ -14,6 +14,9 @@ public interface CrosslinkPersistance {
 	Date dateOfLastCrawl();
 
 	boolean skipAuthor(String url);
-
+	
 	void close()  throws Exception;
+
+	// only call this when things are good, not during an abort
+	void finish()  throws Exception;
 }

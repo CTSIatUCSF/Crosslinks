@@ -97,6 +97,10 @@ public class CSVAuthorPersistance implements CrosslinkPersistance {
 		writer.close();
 	}
 	
+	public void finish() throws IOException {
+		close();
+	}
+
 	private void flush() throws IOException {
 		writer.flush();
 	}

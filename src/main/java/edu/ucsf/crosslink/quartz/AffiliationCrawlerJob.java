@@ -1,7 +1,7 @@
 package edu.ucsf.crosslink.quartz;
 
-import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -19,7 +19,7 @@ import edu.ucsf.crosslink.AffiliationCrawler;
 public class AffiliationCrawlerJob implements Job {
 	
 	private static final Logger LOG = Logger.getLogger(AffiliationCrawlerJob.class.getName());
-	private static List<String> crawlerHistory = new ArrayList<String>();
+	private static LinkedList<String> crawlerHistory = new LinkedList<String>();
 
 	private AffiliationCrawler crawler;
 	private int staleDays = 7;
@@ -55,7 +55,7 @@ public class AffiliationCrawlerJob implements Job {
 		catch (Exception e) {
 			throw new JobExecutionException(e);
 		}
-		crawlerHistory.add("" + new Date() + " -> " + crawler.toString());
+		crawlerHistory.addFirst("" + new Date() + " -> " + crawler.toString());
 	}
 
 }

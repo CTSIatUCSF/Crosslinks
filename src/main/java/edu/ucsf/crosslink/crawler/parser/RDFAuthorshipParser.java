@@ -1,8 +1,9 @@
-package edu.ucsf.crosslink.author;
+package edu.ucsf.crosslink.crawler.parser;
 
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
@@ -19,7 +20,8 @@ import com.github.jsonldjava.impl.JenaRDFParser;
 import com.github.jsonldjava.utils.JSONUtils;
 import com.google.inject.Inject;
 
-import edu.ucsf.crosslink.sitereader.SiteReader;
+import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
+import edu.ucsf.crosslink.model.Researcher;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -51,11 +53,11 @@ public class RDFAuthorshipParser implements AuthorParser {
     	JSONLD.registerRDFParser(RDFXML, new JenaRDFParser());		    	
     }
     
-    public Author getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
-    	Author author = null;
+    public Researcher getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+    	Researcher author = null;
     	JSONObject person = getPersonOnlyFromURL(url);
 		if (person != null) {
-	    	author = new Author(siteReader.getAffiliation(), person, url);
+	    	author = new Researcher(siteReader.getAffiliation(), person, url);
 	    	if ( person.optJSONArray("authorInAuthorship") != null) {
 	    		JSONArray authorInAuthorship = person.optJSONArray("authorInAuthorship");
 		        for (int i = 0; i < (authorInAuthorship).length(); i++) {

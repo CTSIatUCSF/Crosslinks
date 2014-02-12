@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink.sitereader;
+package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
+
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -18,7 +19,8 @@ import com.google.gson.Gson;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.author.Author;
+import edu.ucsf.crosslink.model.Researcher;
+
 
 public class VivoDataserviceReader extends SiteReader {
 
@@ -47,7 +49,7 @@ public class VivoDataserviceReader extends SiteReader {
 		
 		// now grab all the individual URI's
 		for (VIVOPerson person : people) {
-			addAuthor(new Author(person.URI));
+			addAuthor(new Researcher(person.URI));
 		}
 		LOG.info("Found " + getAuthors().size() + " unique URI's");
     }

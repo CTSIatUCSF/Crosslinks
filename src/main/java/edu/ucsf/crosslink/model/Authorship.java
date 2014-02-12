@@ -1,4 +1,5 @@
-package edu.ucsf.crosslink.author;
+package edu.ucsf.crosslink.model;
+
 
 public class Authorship {
 
@@ -7,19 +8,19 @@ public class Authorship {
 	private String firstName;
 	private String middleName;
 	private String URL;
-	private String lodURI;
+	private String imageURL;
 	private String orcidId;
 	private String pmid;  // keep as string so we can handle NULL 
 	
-	public static String[] ColumnNames = {"Affiliation", "LastName", "FirstName", "MiddleName", "URL", "lodURI", "OrcidID", "PMID"};
+	public static String[] ColumnNames = {"Affiliation", "LastName", "FirstName", "MiddleName", "URL", "imageURL", "OrcidID", "PMID"};
 	
-    Authorship(String affiliation, String lastName, String firstName, String middleName, String url, String lodURI, String orcidId, String pmid) {
+    Authorship(String affiliation, String lastName, String firstName, String middleName, String url, String imageURL, String orcidId, String pmid) {
     	this.setAffiliation(affiliation);
     	this.setLastName(lastName);
     	this.setFirstName(firstName);
     	this.setMiddleName(middleName);
     	this.setURL(url);
-    	this.setLodURI(lodURI);
+    	this.setImageURL(imageURL);
     	this.setOrcidId(orcidId);
     	this.setPmid(pmid);
     }
@@ -28,8 +29,8 @@ public class Authorship {
 		this(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5], entry[6], entry[7]);
 	}
 
-    Authorship(Author author, String pmid) {
-    	this(author.getAffiliation(), author.getLastName(), author.getFirstName(), author.getMiddleName(), author.getURL(), author.getImageURL(), author.getOrcidId(), pmid);
+    Authorship(Researcher author, String pmid) {
+    	this(author.getAffiliationName(), author.getLastName(), author.getFirstName(), author.getMiddleName(), author.getURL(), author.getImageURL(), author.getOrcidId(), pmid);
     }
 
     public String getLastName() {
@@ -72,12 +73,12 @@ public class Authorship {
 		this.URL = URL;
 	}
 	
-	public String getLodURI() {
-		return lodURI;
+	public String getImageURL() {
+		return imageURL;
 	}
 	
-	private void setLodURI(String lodURI) {
-		this.lodURI = lodURI;
+	private void setImageURL(String imageURL) {
+		this.imageURL = imageURL;
 	}
 
 	public String getOrcidId() {
@@ -101,7 +102,7 @@ public class Authorship {
 	}
 	
 	public String[] toStringArray() {
-		String[] retval = {affiliation, lastName, firstName, middleName, URL, lodURI, orcidId, pmid};
+		String[] retval = {affiliation, lastName, firstName, middleName, URL, imageURL, orcidId, pmid};
 		return retval;
 	}
 

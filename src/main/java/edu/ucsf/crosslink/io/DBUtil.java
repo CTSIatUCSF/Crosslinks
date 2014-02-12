@@ -17,15 +17,6 @@ public class DBUtil {
 
 	private static final Logger LOG = Logger.getLogger(DBUtil.class.getName());
 	
-	static {
-		try { 
-			Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	
 	@Inject
 	public DBUtil(@Named("dbUrl") String dbUrl, @Named("dbUser") String dbUser, @Named("dbPassword") String dbPassword) throws ClassNotFoundException {
 		Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");

@@ -1,7 +1,8 @@
-package edu.ucsf.crosslink.author;
+package edu.ucsf.crosslink.crawler.parser;
 
 import java.io.IOException;
 import java.util.logging.Logger;
+
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -9,7 +10,8 @@ import org.json.JSONObject;
 import com.github.jsonldjava.core.JSONLDProcessingError;
 import com.google.inject.Inject;
 
-import edu.ucsf.crosslink.sitereader.SiteReader;
+import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
+import edu.ucsf.crosslink.model.Researcher;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -29,8 +31,8 @@ public class HTMLAuthorshipParser implements AuthorParser {
     	this.rdfParser = new RDFAuthorshipParser(siteReader); 		    	
     }
 
-	public Author getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
-    	Author author = null;
+	public Researcher getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+    	Researcher author = null;
     	Document doc = siteReader.getDocument(url);
 		if (doc != null) {			
 	    	JSONObject person = rdfParser.getPersonOnlyFromURL(url);
@@ -39,7 +41,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
 		    }
 
 	    	Elements links = doc.select("a[href]");	
-			author = new Author(siteReader.getAffiliation(), person, url);
+			author = new Researcher(siteReader.getAffiliation(), person, url);
 		    for (Element link : links) {
 		    	if (link.attr("abs:href").contains(PUBMED_SECTION)) { // this way it works with http and https
 		    		String pmid = link.attr("abs:href").split(PUBMED_SECTION)[1];

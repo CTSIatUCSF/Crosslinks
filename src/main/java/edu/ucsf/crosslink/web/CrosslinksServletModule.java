@@ -1,21 +1,26 @@
-package edu.ucsf.crosslink;
+package edu.ucsf.crosslink.web;
 
-import com.google.inject.Scopes;
+import java.util.Properties;
+
+import com.google.inject.name.Names;
 import com.sun.jersey.guice.JerseyServletModule;
 import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
 
-import edu.ucsf.crosslink.webapi.RestMethods;
 
 
 public class CrosslinksServletModule extends JerseyServletModule {
 
+	Properties prop;
+	
+	public CrosslinksServletModule(Properties prop) {
+		this.prop = prop;
+	}
 	
 	@Override
 	protected void configureServlets() {
+		bind(String.class).annotatedWith(Names.named("thumbnailRootURL")).toInstance(prop.getProperty("thumbnailRootURL"));		
 		bind(RestMethods.class);
-		bind(CrosslinksServletFilter.class).in(Scopes.SINGLETON);
 		serve("/*").with(GuiceContainer.class);
-		filter("/*").through(CrosslinksServletFilter.class);
 	}
 
 }

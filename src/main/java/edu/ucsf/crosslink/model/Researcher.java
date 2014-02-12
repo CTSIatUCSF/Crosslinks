@@ -1,33 +1,52 @@
-package edu.ucsf.crosslink.author;
+package edu.ucsf.crosslink.model;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class Author implements Comparable<Author> {
-	private static final Logger LOG = Logger.getLogger(Author.class.getName());
 
-	private String affiliation;
+public class Researcher implements Comparable<Researcher> {
+	private static final Logger LOG = Logger.getLogger(Researcher.class.getName());
+	
+	private int dbId;
+	private String affiliationName;
 	private String lastName;
 	private String firstName;
 	private String middleName;
 	private String URL;
 	private String imageURL;
 	private String orcidId;
+	private int externalCoauthorCount;
+	private String thumbnailRootURL;
 	private int readErrorCount = 0;
 	private Collection<Integer> pmids= new HashSet<Integer>();
 
-	public Author(String url) {
+	public Researcher(String url) {
 		this.setURL(url);
 	}
-	
-	public Author(String affiliation, String lastName, String firstName, String middleName, String url, String imageURL, String orcidId) {
+
+	// for loading from the DB
+	public Researcher(int dbId, Affiliation affiliation, String thumbnailRootURL, String lastName, String firstName, String middleName, String url, String imageURL, String orcidId, int externalCoauthorCount) {		
 		this(url);
-    	this.setAffiliation(affiliation);
+		this.setDbId(dbId);
+    	this.setAffiliationName(affiliation.getName());
+    	this.setLastName(lastName);
+    	this.setFirstName(firstName);
+    	this.setMiddleName(middleName);
+    	this.setImageURL(imageURL);
+    	this.setOrcidId(orcidId);
+    	this.externalCoauthorCount = externalCoauthorCount;
+    	this.thumbnailRootURL = thumbnailRootURL;
+    }
+
+	public Researcher(String affiliationName, String lastName, String firstName, String middleName, String url, String imageURL, String orcidId) {
+		this(url);
+    	this.setAffiliationName(affiliationName);
     	this.setLastName(lastName);
     	this.setFirstName(firstName);
     	this.setMiddleName(middleName);
@@ -35,12 +54,12 @@ public class Author implements Comparable<Author> {
     	this.setOrcidId(orcidId);
     }
 
-    public Author(String affiliation, JSONObject person, String url) throws JSONException {
-    	this(affiliation, person.getString("lastName"), person.getString("firstName"), person.optString("middleName"), url, person.getString("@id"), person.optString("orcidId"));
+    public Researcher(String affiliationName, JSONObject person, String url) throws JSONException {
+    	this(affiliationName, person.getString("lastName"), person.getString("firstName"), person.optString("middleName"), url, person.optString("mainImage"), person.optString("orcidId"));
     }
     
-    public void merge(Author author) throws Exception {
-    	this.setAffiliation(getMergedValue(this.affiliation, author.affiliation));
+    public void merge(Researcher author) throws Exception {
+    	this.setAffiliationName(getMergedValue(this.affiliationName, author.affiliationName));
     	this.setLastName(getMergedValue(this.lastName, author.lastName));
     	this.setFirstName(getMergedValue(this.firstName, author.firstName));
     	this.setMiddleName(getMergedValue(this.middleName, author.middleName));
@@ -65,12 +84,8 @@ public class Author implements Comparable<Author> {
     	}
     }
     
-    public void setPersonInfo(JSONObject person) throws JSONException {
-    	 this.setLastName(person.getString("lastName"));
-    	 this.setFirstName(person.getString("firstName"));
-    	 this.setMiddleName(person.optString("middleName"));
-    	 this.setImageURL(person.getString("mainImage"));
-    	 this.setOrcidId(person.optString("orcidId"));
+    public void setDbId(int dbId) {
+    	this.dbId = dbId;
     }
     
     public String getLastName() {
@@ -86,7 +101,7 @@ public class Author implements Comparable<Author> {
 	}
 	
 	private void setMiddleName(String middleName) {
-		this.middleName = middleName;
+		this.middleName = StringUtils.isEmpty(middleName) ? null : middleName;
 	}
 	
 	public String getMiddleName() {
@@ -97,12 +112,12 @@ public class Author implements Comparable<Author> {
 		this.firstName = firstName;
 	}
 
-	public String getAffiliation() {
-		return affiliation;
+	public String getAffiliationName() {
+		return affiliationName;
 	}
 	
-	private void setAffiliation(String affiliation) {
-		this.affiliation = affiliation;
+	private void setAffiliationName(String affiliationName) {
+		this.affiliationName = affiliationName;
 	}
 	
 	public String getURL() {
@@ -113,12 +128,23 @@ public class Author implements Comparable<Author> {
 		URL = uRL;
 	}
 	
+	public String getThumbnailURLSuffix() {
+		if (URL != null && imageURL != null) {
+			return getAffiliationName() + "/" + ("" + (100 + (dbId % 100))).substring(1) + "/" + dbId + ".jpg";
+		}
+		return null;
+	}
+	
+	public String getThumbnailURL() {
+		return thumbnailRootURL != null && getThumbnailURLSuffix() != null ? (thumbnailRootURL + "/" +  getThumbnailURLSuffix()) : null; 
+	}
+	
 	public String getImageURL() {
 		return imageURL;
 	}
 	
 	public void setImageURL(String imageURL) {
-		this.imageURL = imageURL;
+		this.imageURL = StringUtils.isEmpty(imageURL) ? null : imageURL;
 	}
 
 	public String getOrcidId() {
@@ -126,7 +152,7 @@ public class Author implements Comparable<Author> {
 	}
 	
 	public void setOrcidId(String orcidId) {
-		this.orcidId = orcidId;
+		this.orcidId = StringUtils.isEmpty(orcidId) ? null : orcidId;
 	}
 
 	public Collection<Integer> getPubMedPublications() {
@@ -167,8 +193,16 @@ public class Author implements Comparable<Author> {
 	}
 
 	@Override
-	public int compareTo(Author arg0) {
+	public int compareTo(Researcher arg0) {
 		return this.readErrorCount == arg0.readErrorCount ? 
 					this.toString().compareTo(arg0.toString()) : Integer.compare(this.readErrorCount, arg0.readErrorCount);
 	}
+	
+	public String getName() {
+		return lastName != null ? (lastName + ", " + firstName + (middleName != null ? " " + middleName : "")) : "";
+	}
+	
+	public int getExternalCoauthorCount() {
+		return externalCoauthorCount;
+	}    	 	
 }

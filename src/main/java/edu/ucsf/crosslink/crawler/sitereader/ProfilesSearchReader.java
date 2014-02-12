@@ -1,7 +1,8 @@
-package edu.ucsf.crosslink.sitereader;
+package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.IOException;
 import java.util.logging.Logger;
+
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -10,7 +11,8 @@ import org.jsoup.select.Elements;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.author.Author;
+import edu.ucsf.crosslink.model.Researcher;
+
 
 public class ProfilesSearchReader extends SiteReader {
 
@@ -49,7 +51,7 @@ public class ProfilesSearchReader extends SiteReader {
 			    				break;
 			    			}
 			    		}
-			    		addAuthor(new Author(url));
+			    		addAuthor(new Researcher(url));
 			    	}
 		        }
 			}

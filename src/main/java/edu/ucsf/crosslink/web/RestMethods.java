@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink.webapi;
+package edu.ucsf.crosslink.web;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,10 +25,13 @@ import javax.ws.rs.core.MediaType;
 
 import com.google.gson.stream.JsonWriter;
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import com.sun.jersey.api.view.Viewable;
 
-import edu.ucsf.crosslink.AffiliationCrawler;
+import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.io.DBUtil;
+import edu.ucsf.crosslink.model.Affiliation;
+import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.crosslink.quartz.AffiliationCrawlerJob;
 
 import au.com.bytecode.opencsv.CSVWriter;
@@ -41,11 +45,13 @@ public class RestMethods {
 
 	private static final Logger LOG = Logger.getLogger(RestMethods.class.getName());
 	
-	private DBUtil dbUtil; 
+	private DBUtil dbUtil;
+	private String thumbnailRootURL;
 	
 	@Inject
-	public RestMethods(DBUtil dbUtil) {
+	public RestMethods(DBUtil dbUtil, @Named("thumbnailRootURL") String thumbnailRootURL) {
 		this.dbUtil = dbUtil;
+		this.thumbnailRootURL = thumbnailRootURL;
 	}
 
 	@GET
@@ -75,10 +81,18 @@ public class RestMethods {
 
     @GET
     @Path("{affiliation}/researchers")
-    public Viewable getResearchers(@PathParam("affiliation") String affiliation, @Context HttpServletRequest request,
+    public Viewable getResearchers(@PathParam("affiliation") String affiliationStr, @Context HttpServletRequest request,
 			@Context HttpServletResponse response) {
-		request.setAttribute("affiliation", getAffiliation(affiliation));
-		request.setAttribute("researchers", getResearchers(affiliation));
+    	Affiliation affiliation = getAffiliation(affiliationStr);
+		request.setAttribute("affiliation", affiliation);
+		@SuppressWarnings("unchecked")
+		List<Researcher> researchers = (List<Researcher>)request.getSession().getAttribute(affiliation.getName() + "reseachers");
+		if (researchers == null) {
+			researchers = getResearchers(affiliation);
+			request.getSession().setAttribute(affiliation.getName() + "reseachers", researchers);
+		}
+		
+		request.setAttribute("researchers", researchers);
 		return new Viewable("/jsps/researchers.jsp", null);
     }
 
@@ -104,7 +118,7 @@ public class RestMethods {
     @Path("coauthors")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
     public String getCoauthors(@QueryParam("authorURL") String authorURL, @QueryParam("format") String format) {
-		String sql = "select affiliationName, lastName, firstName, middleName, URL, orcidId, PMID from vw_ExternalCoauthorList where subjectURL = ? " + 
+		String sql = "select affiliationName, lastName, firstName, middleName, URL, imageURL, orcidId, PMID from vw_ExternalCoauthorList where subjectURL = ? " + 
 					 "order by affiliationName, URL";
 		return getSimpleResults(sql, authorURL, format);
     }
@@ -162,20 +176,15 @@ public class RestMethods {
 		return sw.toString();
     }
 
-    private List<AffiliationData> getAffiliations() {
-    	List<AffiliationData> affiliations = new ArrayList<AffiliationData>();
+    private List<Affiliation> getAffiliations() {
+    	List<Affiliation> affiliations = new ArrayList<Affiliation>();
 		String sql = "select affiliation, baseURL, researcherCount, PMIDCount from vw_AffiliationList";
 		Connection conn = dbUtil.getConnection();
 		try {
 			PreparedStatement ps = conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
-				AffiliationData data = new AffiliationData();
-				data.affiliationName = rs.getString(1);
-				data.baseURL = rs.getString(2);
-				data.researcherCount = rs.getInt(3);
-				data.pmidCount = rs.getInt(4);
-				affiliations.add(data);
+				affiliations.add(new Affiliation(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getInt(4)));
 			}
 		}
 		catch (Exception se) {
@@ -189,19 +198,15 @@ public class RestMethods {
         return affiliations;
     }
     
-    public AffiliationData getAffiliation(String affiliation) {
+    public Affiliation getAffiliation(String affiliation) {
 		String sql = "select affiliation, baseURL, researcherCount, PMIDCount from vw_AffiliationList where affiliation = ?";
-		AffiliationData data = new AffiliationData();
 		Connection conn = dbUtil.getConnection();
 		try {
 			PreparedStatement ps = conn.prepareStatement(sql);
 			ps.setString(1, affiliation);
 			ResultSet rs = ps.executeQuery();
 			if (rs.next()) {
-				data.affiliationName = rs.getString(1);
-				data.baseURL = rs.getString(2);
-				data.researcherCount = rs.getInt(3);
-				data.pmidCount = rs.getInt(4);
+				return new Affiliation(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getInt(4));
 			}
 		}
 		catch (Exception se) {
@@ -212,26 +217,19 @@ public class RestMethods {
 		        LOG.log(Level.SEVERE, "Error closing connection", se);
 			}
 		}
-		return data;
+		return null;
     }
     
-    public List<ResearcherData> getResearchers(String affiliation) {
-		String sql = "select LastName , FirstName , MiddleName , URL, orcidId, externalCoauthorCount from vw_ResearcherList where affiliationName = ?";
-    	List<ResearcherData> researchers = new ArrayList<ResearcherData>();
+    public List<Researcher> getResearchers(Affiliation affiliation) {
+		String sql = "select authorshipId, LastName , FirstName , MiddleName , URL, imageURL, orcidId, externalCoauthorCount from vw_ResearcherList where affiliationName = ?";
+    	List<Researcher> researchers = new ArrayList<Researcher>();
 		Connection conn = dbUtil.getConnection();
 		try {
 			PreparedStatement ps = conn.prepareStatement(sql);
-			ps.setString(1, affiliation);
+			ps.setString(1, affiliation.getName());
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
-				ResearcherData data = new ResearcherData();
-				data.lastName = rs.getString(1);
-				data.firstName = rs.getString(2);
-				data.middleName = rs.getString(3);
-				data.URL = rs.getString(4);
-				data.orcidId = rs.getString(5);
-				data.externalCoauthorCount = rs.getInt(6);
-				researchers.add(data);
+				researchers.add( new Researcher(rs.getInt(1), affiliation, thumbnailRootURL, rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getInt(8)) );
 			}
 		}
 		catch (Exception se) {
@@ -242,67 +240,7 @@ public class RestMethods {
 		        LOG.log(Level.SEVERE, "Error closing connection", se);
 			}
 		}
+		Collections.sort(researchers);
 		return researchers;
-    }
-
-    public class AffiliationData {
-
-    	String affiliationName;
-    	String baseURL;
-    	int researcherCount;
-    	int pmidCount;
-
-    	public String getAffiliationName() {
-    		return affiliationName;
-    	}
-    	
-    	public String getBaseURL() {
-    		return baseURL;
-    	}
-
-    	public int getResearcherCount() {
-    		return researcherCount;
-    	}
-    	
-    	public int getPmidCount() {
-    		return pmidCount;
-    	}
-    }
-    
-    public class ResearcherData {
-    	String lastName;
-    	String firstName;
-    	String middleName;
-    	String URL;
-    	String orcidId;
-    	int externalCoauthorCount;
-    	
-		public String getName() {
-			return lastName + ", " + firstName + (middleName != null ? " " + middleName : "");
-		}
-		
-		public String getLastName() {
-			return lastName;
-		}
-		
-		public String getFirstName() {
-			return firstName;
-		}
-		
-		public String getMiddleName() {
-			return middleName;
-		}
-		
-		public String getURL() {
-			return URL;
-		}
-		
-		public String getOrcidId() {
-			return orcidId;
-		}
-		
-		public int getExternalCoauthorCount() {
-			return externalCoauthorCount;
-		}    	    	
     }
 }

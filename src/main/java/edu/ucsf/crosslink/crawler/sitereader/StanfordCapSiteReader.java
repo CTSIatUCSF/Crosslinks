@@ -1,7 +1,8 @@
-package edu.ucsf.crosslink.sitereader;
+package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.IOException;
 import java.util.logging.Logger;
+
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.json.JSONException;
@@ -13,8 +14,8 @@ import com.github.jsonldjava.core.JSONLDProcessingError;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.author.Author;
-import edu.ucsf.crosslink.author.AuthorParser;
+import edu.ucsf.crosslink.crawler.parser.AuthorParser;
+import edu.ucsf.crosslink.model.Researcher;
 
 public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 
@@ -39,7 +40,7 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 			    		onLastPage = false;
 			    	}
 			    	else if ( href.startsWith(getSiteRoot() + "/") && href.length() > getSiteRoot().length() + 1 && !href.contains("?")) {
-		    			addAuthor( new Author(href));
+		    			addAuthor( new Researcher(href));
 			    	}
 		        }
 			    LOG.info("Found " + getAuthors().size() + " profile pages so far, onto page " + page);
@@ -48,17 +49,17 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 	    LOG.info("Found " + getAuthors().size() + " total profile pages");
     }
 
-    public Author getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+    public Researcher getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
     	if (url.endsWith("/browse")) {
     		return null;
     	}
     	Document doc = getDocument(url);
     	// read name from title    	
-    	Author author = null;
+    	Researcher author = null;
 		if (doc != null && doc.title().endsWith(" | Stanford Profiles")) {
 			String fullName = StringEscapeUtils.escapeHtml4(doc.title().split("\\|")[0].split(",")[0]);
 			String[] name = fullName.split(" ");	
-			author = new Author(getAffiliation(), name[name.length - 1], name[0], name.length > 2 ? name[1] : null, url, null, null);
+			author = new Researcher(getAffiliation(), name[name.length - 1], name[0], name.length > 2 ? name[1] : null, url, null, null);
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {

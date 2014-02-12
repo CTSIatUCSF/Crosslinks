@@ -15,7 +15,7 @@ import org.quartz.JobExecutionException;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.AffiliationCrawler;
+import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 
 @DisallowConcurrentExecution
 public class AffiliationCrawlerJob implements Job {

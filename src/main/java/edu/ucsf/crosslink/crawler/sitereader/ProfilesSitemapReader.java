@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink.sitereader;
+package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -10,8 +10,9 @@ import java.util.logging.Logger;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
+import edu.ucsf.crosslink.model.Researcher;
 
-import edu.ucsf.crosslink.author.Author;
+
 
 import net.sourceforge.sitemaps.Sitemap;
 import net.sourceforge.sitemaps.SitemapParser;
@@ -36,7 +37,7 @@ public class ProfilesSitemapReader extends SiteReader  {
 		Collection<SitemapUrl> urls = sitemap.getUrlList();
 
 		for (SitemapUrl url : urls) {
-			addAuthor(new Author(url.getUrl().toString()));
+			addAuthor(new Researcher(url.getUrl().toString()));
 		}
 		LOG.info("Found " + getAuthors().size() + " profile pages");
     }

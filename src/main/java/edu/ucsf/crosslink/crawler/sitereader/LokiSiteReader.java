@@ -1,8 +1,9 @@
-package edu.ucsf.crosslink.sitereader;
+package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 
 import org.json.JSONException;
 import org.jsoup.nodes.Document;
@@ -13,8 +14,8 @@ import com.github.jsonldjava.core.JSONLDProcessingError;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.author.Author;
-import edu.ucsf.crosslink.author.AuthorParser;
+import edu.ucsf.crosslink.crawler.parser.AuthorParser;
+import edu.ucsf.crosslink.model.Researcher;
 
 public class LokiSiteReader extends SiteReader implements AuthorParser {
 
@@ -48,7 +49,7 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 		    		try {
 			    		String[] personName = link.text().split(", ");
 		    			String url = getSiteRoot() + "/research/browseResearch.jsp?id=" + link.attr("abs:href").split("&id=")[1];
-		    			addAuthor(new Author(getAffiliation(), personName[0], personName[1], null, url, null, null));
+		    			addAuthor(new Researcher(getAffiliation(), personName[0], personName[1], null, url, null, null));
 		    		}
 		    		catch (Exception e) {
 						LOG.log(Level.WARNING, "Error parsing " + link.attr("abs:href"), e);		    			
@@ -58,8 +59,8 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 		}
     }
 
-    public Author getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
-    	Author author = new Author(getAffiliation(), null, null, null, url, null, null);
+    public Researcher getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+    	Researcher author = new Researcher(getAffiliation(), null, null, null, url, null, null);
     	Document doc = getDocument(url + "&hitCount=500");
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	

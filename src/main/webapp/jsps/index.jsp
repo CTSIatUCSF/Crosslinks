@@ -6,7 +6,7 @@
 	<ul>
 	<c:forEach var="i" items="${affiliations}">
 		<li>
-		<a href = '<c:out value="${i.affiliationName}"/>'><c:out value="${i.affiliationName}"/></a>
+		<a href = '<c:out value="${i.name}"/>'><c:out value="${i.name}"/></a>
 		<c:out value="${i.researcherCount}"/> indexed researchers and <c:out value="${i.pmidCount}"/> PMID publications
 		</li>
 	</c:forEach>

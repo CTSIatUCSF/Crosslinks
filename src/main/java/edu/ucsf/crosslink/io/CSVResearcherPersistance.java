@@ -11,18 +11,20 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
+
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.author.Author;
-import edu.ucsf.crosslink.author.Authorship;
+import edu.ucsf.crosslink.model.Researcher;
+import edu.ucsf.crosslink.model.Authorship;
+
 
 import au.com.bytecode.opencsv.CSVReader;
 import au.com.bytecode.opencsv.CSVWriter;
 
-public class CSVAuthorPersistance implements CrosslinkPersistance {
+public class CSVResearcherPersistance implements CrosslinkPersistance {
 
-	private static final Logger LOG = Logger.getLogger(CSVAuthorPersistance.class.getName());
+	private static final Logger LOG = Logger.getLogger(CSVResearcherPersistance.class.getName());
 	
 	private CSVWriter writer;
 	private Set<String> existingEntries;
@@ -31,7 +33,7 @@ public class CSVAuthorPersistance implements CrosslinkPersistance {
 	private File propertiesFile;
 	
 	@Inject
-	public CSVAuthorPersistance(@Named("Affiliation") String affiliationName) {
+	public CSVResearcherPersistance(@Named("Affiliation") String affiliationName) {
 		this.affiliationName = affiliationName;
 		String filename = affiliationName.replace(' ', '_') + ".csv";
 		this.propertiesFile = new File(filename);
@@ -75,10 +77,9 @@ public class CSVAuthorPersistance implements CrosslinkPersistance {
 	}
 
 	
-	public int saveAuthor(Author author) throws Exception {
+	public void saveResearcher(Researcher author) throws Exception {
 		this.saveAuthorships(author.getAuthorships());
 		flush();
-		return author.hashCode();
 	}
 	
 	private void saveAuthorships(Collection<Authorship> authorships) throws Exception {
@@ -90,7 +91,7 @@ public class CSVAuthorPersistance implements CrosslinkPersistance {
 		}
 	}
 
-	public boolean skipAuthor(String url) {
+	public boolean skip(String url) {
 		return existingEntries.contains(url);
 	}
 	

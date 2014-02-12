@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink.sitereader;
+package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
 
+
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.Connection.Response;
@@ -17,7 +18,8 @@ import org.jsoup.nodes.Document;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.author.Author;
+import edu.ucsf.crosslink.model.Researcher;
+
 
 public abstract class SiteReader {
 	
@@ -25,8 +27,8 @@ public abstract class SiteReader {
 
 	private String affiliation;
 	private String siteRoot;
-	private List<Author> authors = new ArrayList<Author>();
-	private List<Author> removeList = new ArrayList<Author>();
+	private List<Researcher> authors = new ArrayList<Researcher>();
+	private List<Researcher> removeList = new ArrayList<Researcher>();
 	private Map<String, String> cookies = new HashMap<String, String>();	
 
 	private int getDocumentRetry = 10;
@@ -90,15 +92,15 @@ public abstract class SiteReader {
 	
     protected abstract void collectAuthorURLS() throws Exception;
     
-    protected void addAuthor(Author author) {
+    protected void addAuthor(Researcher author) {
     	authors.add(author);
     }
     
-    public void removeAuthor(Author author) {
+    public void removeAuthor(Researcher author) {
     	removeList.add(author);
     }
     
-    public List<Author> getAuthors() {
+    public List<Researcher> getAuthors() {
     	return authors;
     }
         

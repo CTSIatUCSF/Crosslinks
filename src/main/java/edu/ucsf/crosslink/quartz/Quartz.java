@@ -22,8 +22,8 @@ import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.AffiliationCrawler;
 import edu.ucsf.crosslink.Crosslinks;
+import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.io.DBModule;
 
 public class Quartz {

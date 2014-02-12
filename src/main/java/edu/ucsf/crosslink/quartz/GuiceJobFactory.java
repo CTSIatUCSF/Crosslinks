@@ -19,8 +19,8 @@ import org.quartz.spi.TriggerFiredBundle;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 
-import edu.ucsf.crosslink.AffiliationCrawlerModule;
 import edu.ucsf.crosslink.Crosslinks;
+import edu.ucsf.crosslink.crawler.AffiliationCrawlerModule;
 
 public class GuiceJobFactory implements JobFactory {
 

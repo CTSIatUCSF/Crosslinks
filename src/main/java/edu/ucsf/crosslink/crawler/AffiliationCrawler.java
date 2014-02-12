@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink;
+package edu.ucsf.crosslink.crawler;
 
 import java.io.File;
 import java.io.FileReader;
@@ -11,6 +11,7 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+
 import org.joda.time.DateTime;
 import org.joda.time.Minutes;
 
@@ -18,11 +19,12 @@ import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.author.Author;
-import edu.ucsf.crosslink.author.AuthorParser;
+import edu.ucsf.crosslink.Crosslinks;
+import edu.ucsf.crosslink.crawler.parser.AuthorParser;
+import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.io.DBModule;
-import edu.ucsf.crosslink.sitereader.SiteReader;
+import edu.ucsf.crosslink.model.Researcher;
 
 public class AffiliationCrawler {
 
@@ -48,11 +50,11 @@ public class AffiliationCrawler {
 	private int pauseOnAbort = 60;
 	private int authorReadErrorThreshold = 3;
 	private String latestError = null;
-	private Author currentAuthor = null;
+	private Researcher currentAuthor = null;
 	
 	// pass in the name of a configuration file
 	public static void main(String[] args) {
-		Author author = new Author("UCSF", "Meeks", "Eric", null, "http://profiles.ucsf.edu/eric.meeks", 
+		Researcher author = new Researcher("UCSF", "Meeks", "Eric", null, "http://profiles.ucsf.edu/eric.meeks", 
 				"http://profiles.ucsf.edu/profile/Modules/CustomViewPersonGeneralInfo/PhotoHandler.ashx?NodeID=368698", null);
 		try  {								
 			// get these first
@@ -153,7 +155,7 @@ public class AffiliationCrawler {
 		return !Arrays.asList(Status.PAUSED, Status.ERROR).contains(status);
 	}
 	
-	public Author getCurrentAuthor() {
+	public Researcher getCurrentAuthor() {
 		return currentAuthor;
 	}
 
@@ -187,19 +189,19 @@ public class AffiliationCrawler {
 			// read authors.  This this ugly 0ing mess
 			currentErrorCount = 0;
 			status = Status.READING_RESEARCHERS;
-			for (Author author : reader.getAuthors()) {
+			for (Researcher author : reader.getAuthors()) {
 				currentAuthor = author;
-				if (store.skipAuthor(author.getURL())) {
+				if (store.skip(author.getURL())) {
 					skipped++;
 					LOG.info("Skipping recently processed author :" + author);						
 				}
 				else {
 					try {
-						Author details = parser.getAuthorFromHTML(author.getURL());
+						Researcher details = parser.getAuthorFromHTML(author.getURL());
 						if (details != null) {							
 							author.merge(details);
 							LOG.info("Saving author :" + author);						
-							store.saveAuthor(author);
+							store.saveResearcher(author);
 							saved++;
 						}
 						else {

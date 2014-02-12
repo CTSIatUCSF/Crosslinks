@@ -28,31 +28,8 @@ public class HTMLAuthorshipParser implements AuthorParser {
     	this.siteReader = siteReader;
     	this.rdfParser = new RDFAuthorshipParser(siteReader); 		    	
     }
-    
-    public void getMoreInformation(Author author) throws JSONException, IOException, InterruptedException, JSONLDProcessingError {
-    	Document doc = siteReader.getDocument(author.getURL());
-		if (doc != null) {			
-	    	JSONObject person = rdfParser.getPersonOnlyFromURL(author.getURL());
-		    if (person != null) {
-		    	author.setPersonInfo(person);
-		    	Elements links = doc.select("a[href]");	
-			    for (Element link : links) {
-			    	if (link.attr("abs:href").contains(PUBMED_SECTION)) { // this way it works with http and https
-			    		String pmid = link.attr("abs:href").split(PUBMED_SECTION)[1];
-			    		LOG.info("PMID = " + pmid);
-			    		author.addPubMedPublication(pmid);
-			    	}
-			    	else if (link.attr("abs:href").contains(ORCID_SECTION)) { // this way it works with http and https
-			    		String orcidId = link.attr("abs:href").split(ORCID_SECTION)[1];
-			    		LOG.info("OrcidId = " + orcidId);
-			    		author.setOrcidId(orcidId);
-			    	}
-		        }
-		    }
-		}    	
-    }
-    
-    public Author getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+
+	public Author getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
     	Author author = null;
     	Document doc = siteReader.getDocument(url);
 		if (doc != null) {			

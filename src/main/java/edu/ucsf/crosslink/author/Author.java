@@ -2,32 +2,36 @@ package edu.ucsf.crosslink.author;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class Author {
+public class Author implements Comparable<Author> {
+	private static final Logger LOG = Logger.getLogger(Author.class.getName());
 
 	private String affiliation;
 	private String lastName;
 	private String firstName;
 	private String middleName;
 	private String URL;
-	private String lodURI;
+	private String imageURL;
 	private String orcidId;
+	private int readErrorCount = 0;
 	private Collection<Integer> pmids= new HashSet<Integer>();
 
 	public Author(String url) {
 		this.setURL(url);
 	}
 	
-	public Author(String affiliation, String lastName, String firstName, String middleName, String url, String lodURI, String orcidId) {
+	public Author(String affiliation, String lastName, String firstName, String middleName, String url, String imageURL, String orcidId) {
 		this(url);
     	this.setAffiliation(affiliation);
     	this.setLastName(lastName);
     	this.setFirstName(firstName);
     	this.setMiddleName(middleName);
-    	this.setLodURI(lodURI);
+    	this.setImageURL(imageURL);
     	this.setOrcidId(orcidId);
     }
 
@@ -41,7 +45,7 @@ public class Author {
     	this.setFirstName(getMergedValue(this.firstName, author.firstName));
     	this.setMiddleName(getMergedValue(this.middleName, author.middleName));
     	this.setURL(getMergedValue(this.URL, author.URL));
-    	this.setLodURI(getMergedValue(this.lodURI, author.lodURI));
+    	this.setImageURL(getMergedValue(this.imageURL, author.imageURL));
     	this.setOrcidId(getMergedValue(this.orcidId, author.orcidId));
     	this.pmids.addAll(author.pmids);
     }
@@ -65,7 +69,7 @@ public class Author {
     	 this.setLastName(person.getString("lastName"));
     	 this.setFirstName(person.getString("firstName"));
     	 this.setMiddleName(person.optString("middleName"));
-    	 this.setLodURI(person.getString("@id"));
+    	 this.setImageURL(person.getString("mainImage"));
     	 this.setOrcidId(person.optString("orcidId"));
     }
     
@@ -109,12 +113,12 @@ public class Author {
 		URL = uRL;
 	}
 	
-	public String getLodURI() {
-		return lodURI;
+	public String getImageURL() {
+		return imageURL;
 	}
 	
-	private void setLodURI(String lodURI) {
-		this.lodURI = lodURI;
+	public void setImageURL(String imageURL) {
+		this.imageURL = imageURL;
 	}
 
 	public String getOrcidId() {
@@ -149,7 +153,22 @@ public class Author {
 		return authorships;
 	}
 	
+	public void registerReadException(Exception e) {
+		this.readErrorCount++;
+		LOG.log(Level.WARNING, "Error reading : " + this.toString(), e);
+	}
+	
+	public int getErrorCount() {
+		return readErrorCount;
+	}
+	
 	public String toString() {
-		return "" + lastName + ", " + firstName + " : " + URL;
+		return (lastName != null ? lastName + ", " + firstName + " : " : " ") + URL;
+	}
+
+	@Override
+	public int compareTo(Author arg0) {
+		return this.readErrorCount == arg0.readErrorCount ? 
+					this.toString().compareTo(arg0.toString()) : Integer.compare(this.readErrorCount, arg0.readErrorCount);
 	}
 }

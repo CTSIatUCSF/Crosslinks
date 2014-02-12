@@ -46,7 +46,9 @@ public class AffiliationCrawlerJob implements Job {
 		try {
 			Date lastCrawled = crawler.dateLastCrawled();
 
-			if (lastCrawled == null || Days.daysBetween(new DateTime(lastCrawled), new DateTime()).getDays() > staleDays) {
+			// this is weird.  Need to either put this in the crawler or completely pull it out
+			if (lastCrawled == null || AffiliationCrawler.Mode.FORCED.equals(crawler.getMode()) || 
+					Days.daysBetween(new DateTime(lastCrawled), new DateTime()).getDays() > staleDays) {
 				LOG.info("Starting to crawl " + crawler);
 				crawler.crawl();
 			}

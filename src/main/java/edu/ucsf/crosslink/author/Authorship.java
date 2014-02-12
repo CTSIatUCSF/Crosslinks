@@ -29,7 +29,7 @@ public class Authorship {
 	}
 
     Authorship(Author author, String pmid) {
-    	this(author.getAffiliation(), author.getLastName(), author.getFirstName(), author.getMiddleName(), author.getURL(), author.getLodURI(), author.getOrcidId(), pmid);
+    	this(author.getAffiliation(), author.getLastName(), author.getFirstName(), author.getMiddleName(), author.getURL(), author.getImageURL(), author.getOrcidId(), pmid);
     }
 
     public String getLastName() {

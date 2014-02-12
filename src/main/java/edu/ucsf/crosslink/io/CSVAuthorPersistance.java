@@ -75,9 +75,10 @@ public class CSVAuthorPersistance implements CrosslinkPersistance {
 	}
 
 	
-	public void saveAuthor(Author author) throws Exception {
+	public int saveAuthor(Author author) throws Exception {
 		this.saveAuthorships(author.getAuthorships());
 		flush();
+		return author.hashCode();
 	}
 	
 	private void saveAuthorships(Collection<Authorship> authorships) throws Exception {

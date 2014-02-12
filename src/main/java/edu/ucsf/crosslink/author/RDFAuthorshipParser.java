@@ -137,7 +137,7 @@ public class RDFAuthorshipParser implements AuthorParser {
 	    		uri = link.attr("abs:href");
 	    	}
         }
-	    if (uri == null) {
+	    if (uri == null && url.indexOf('.') == -1) {
 	    	// worth a try
 	    	String[] parts = url.split("/");
 	    	uri = url + "/" + parts[parts.length - 1] + ".rdf";

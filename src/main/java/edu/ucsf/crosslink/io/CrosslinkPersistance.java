@@ -9,7 +9,7 @@ public interface CrosslinkPersistance {
 	
 	void start() throws Exception;
 	
-	void saveAuthor(Author author) throws Exception;
+	int saveAuthor(Author author) throws Exception;
 	
 	Date dateOfLastCrawl();
 

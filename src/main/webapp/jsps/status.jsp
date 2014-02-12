@@ -12,7 +12,10 @@
 		</c:if>
 		<c:if test="${not i.ok}">
 		   <span style="color:#ff0000"><c:out value="${i}"/></span><p>
+		   &nbsp;<span style="color:#ff0000"><c:out value="${i.latestError}"/></span><p>
 		</c:if>
+ 	    &nbsp;<c:out value="${i.currentAuthor}"/><p>
+ 	    <hr>
 	</c:forEach>
 
     <h2>Completed crawlers</h2>

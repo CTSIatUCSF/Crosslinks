@@ -33,9 +33,11 @@ public class AffiliationCrawlerModule extends AbstractModule {
 		bind(String.class).annotatedWith(Names.named("Affiliation")).toInstance(prop.getProperty("Affiliation"));
 		bind(String.class).annotatedWith(Names.named("BaseURL")).toInstance(prop.getProperty("BaseURL"));
 		
-		bind(Boolean.class).annotatedWith(Names.named("enableCrawling")).toInstance(Boolean.parseBoolean(prop.getProperty("enableCrawling")));
+		bind(AffiliationCrawler.Mode.class).toInstance(AffiliationCrawler.Mode.valueOf(prop.getProperty("crawlingMode")));
 		bind(Integer.class).annotatedWith(Names.named("errorsToAbort")).toInstance(Integer.parseInt(prop.getProperty("errorsToAbort")));
 		bind(Integer.class).annotatedWith(Names.named("pauseOnAbort")).toInstance(Integer.parseInt(prop.getProperty("pauseOnAbort")));
+		bind(Integer.class).annotatedWith(Names.named("authorReadErrorThreshold")).toInstance(Integer.parseInt(prop.getProperty("authorReadErrorThreshold")));
+		bind(String.class).annotatedWith(Names.named("thumbnailDir")).toInstance(prop.getProperty("thumbnailDir"));
 
 		try {
 			bind(CrosslinkPersistance.class).to((Class<? extends CrosslinkPersistance>) Class.forName(prop.getProperty("AuthorshipPersistance"))).in(Scopes.SINGLETON);

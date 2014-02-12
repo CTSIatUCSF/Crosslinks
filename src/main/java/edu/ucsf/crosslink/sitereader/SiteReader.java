@@ -2,6 +2,7 @@ package edu.ucsf.crosslink.sitereader;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ public abstract class SiteReader {
 	private String affiliation;
 	private String siteRoot;
 	private List<Author> authors = new ArrayList<Author>();
+	private List<Author> removeList = new ArrayList<Author>();
 	private Map<String, String> cookies = new HashMap<String, String>();	
 
 	private int getDocumentRetry = 10;
@@ -78,10 +80,11 @@ public abstract class SiteReader {
             return s;
     }
     
-    public List<Author> collectAuthors() throws Exception {
+    public void collectAuthors() throws Exception {
     	authors.clear();
+    	removeList.clear();
     	collectAuthorURLS();
-    	return authors;
+    	Collections.sort(authors);
     }
     	
 	
@@ -91,8 +94,17 @@ public abstract class SiteReader {
     	authors.add(author);
     }
     
-    protected List<Author> getAuthors() {
+    public void removeAuthor(Author author) {
+    	removeList.add(author);
+    }
+    
+    public List<Author> getAuthors() {
     	return authors;
+    }
+        
+    public void purgeProcessedAuthors() {
+    	authors.removeAll(removeList);
+    	removeList.clear();
     }    
     
     public String getAffiliation() {

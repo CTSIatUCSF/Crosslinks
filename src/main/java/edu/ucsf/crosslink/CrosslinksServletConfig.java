@@ -8,7 +8,6 @@ import javax.servlet.ServletContextEvent;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.servlet.GuiceServletContextListener;
-import com.google.inject.servlet.ServletModule;
 
 import edu.ucsf.crosslink.io.DBModule;
 import edu.ucsf.crosslink.quartz.Quartz;
@@ -34,6 +33,8 @@ public class CrosslinksServletConfig extends GuiceServletContextListener {
 
 	@Override
 	public void contextDestroyed(ServletContextEvent sce) {
-		quartz.shutdown();
+		if (quartz != null) {
+			quartz.shutdown();
+		}
 	}
 }

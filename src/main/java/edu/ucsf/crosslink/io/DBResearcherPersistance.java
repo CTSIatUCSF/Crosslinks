@@ -32,10 +32,11 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	private String baseURL;
 	private int daysConsideredOld;
 	private DBUtil dbUtil;
-	private String thumbnailDir;
 	private Set<String> recentIndexedAuthors = new HashSet<String>();
 	private Set<String> currentIndexedAuthors = new HashSet<String>();
 	
+	private String thumbnailDir;
+	private String thumbnailRootURL;
 	private int thumbnailWidth = 100;
 	private int thumbnailHeight = 100;
 	
@@ -49,8 +50,10 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	}
 	
 	@Inject
-	public void setThumbnailInformation(@Named("thumbnailDir") String thumbnailDir, @Named("thumbnailWidth") Integer thumbnailWidth, @Named("thumbnailHeight") Integer thumbnailHeight) {
+	public void setThumbnailInformation(@Named("thumbnailDir") String thumbnailDir, @Named("thumbnailRootURL") String thumbnailRootURL, 
+			@Named("thumbnailWidth") Integer thumbnailWidth, @Named("thumbnailHeight") Integer thumbnailHeight) {
 		this.thumbnailDir = thumbnailDir;
+		this.thumbnailRootURL = thumbnailRootURL;
 		this.thumbnailWidth = thumbnailWidth;
 		this.thumbnailHeight = thumbnailHeight;
 		// prove that this works from a user rights perspective
@@ -107,21 +110,21 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 		XStream xstream = new XStream();
 		try {
 	        CallableStatement cs = conn
-			        .prepareCall("{ call [UpsertAuthor](?, ?, ?, ?, ?, ?, ?, ?)}");
+			        .prepareCall("{ call [UpsertAuthor](?, ?, ?, ?, ?, ?, ?, ?, ?)}");
 	        cs.setString(1, researcher.getAffiliationName());
 	        cs.setString(2, researcher.getLastName());
 	        cs.setString(3, researcher.getFirstName());
 	        cs.setString(4, researcher.getMiddleName());
 	        cs.setString(5, researcher.getURL());
 	        cs.setString(6, researcher.getImageURL());
-	        cs.setString(7, researcher.getOrcidId());
-	        cs.setString(8, xstream.toXML(researcher.getPubMedPublications()));
+	        cs.setString(7, saveReseacherThumbnail(researcher));
+	        cs.setString(8, researcher.getOrcidId());
+	        cs.setString(9, xstream.toXML(researcher.getPubMedPublications()));
+	        
 	        ResultSet rs = cs.executeQuery();
 	        if (rs.next()) {
 	        	LOG.info("Saved authorshipId = " + rs.getInt(1));
-	        	researcher.setDbId(rs.getInt(1));
 	        	currentIndexedAuthors.add(researcher.getURL());
-	    		saveReseacherThumbnail(researcher);
 	        }
 		} 
 		finally {
@@ -186,20 +189,22 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 		// no need to do anything, no resources are open
 	}
 	
-	private void saveReseacherThumbnail(Researcher author) {
+	private String saveReseacherThumbnail(Researcher author) {
 		try {
-			String loc = author.getThumbnailURLSuffix();
+			String loc = author.generateThumbnailURLSuffix();
 			if (loc != null) {
 				File thumbnail = new File(thumbnailDir + "/" + loc );
 				new File(thumbnail.getParent()).mkdirs();
 				Thumbnails.of(new URL(author.getImageURL()))
 		        .size(thumbnailWidth, thumbnailHeight)
 		        .toFile(thumbnail);
+				return thumbnailRootURL + "/" + loc;
 			}
 		}
 		catch (Exception e) {
 			LOG.log(Level.WARNING, e.getMessage(), e);
 		}
+		return null;
 	}	
 	
 	public static void main(String[] args) {

@@ -7,6 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,7 +26,6 @@ import javax.ws.rs.core.MediaType;
 
 import com.google.gson.stream.JsonWriter;
 import com.google.inject.Inject;
-import com.google.inject.name.Named;
 import com.sun.jersey.api.view.Viewable;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
@@ -46,12 +46,10 @@ public class RestMethods {
 	private static final Logger LOG = Logger.getLogger(RestMethods.class.getName());
 	
 	private DBUtil dbUtil;
-	private String thumbnailRootURL;
 	
 	@Inject
-	public RestMethods(DBUtil dbUtil, @Named("thumbnailRootURL") String thumbnailRootURL) {
+	public RestMethods(DBUtil dbUtil) {
 		this.dbUtil = dbUtil;
-		this.thumbnailRootURL = thumbnailRootURL;
 	}
 
 	@GET
@@ -121,7 +119,7 @@ public class RestMethods {
 		String sql = "select affiliationName, lastName, firstName, middleName, URL, imageURL, orcidId, PMID from vw_ExternalCoauthorList where subjectURL = ? " + 
 					 "order by affiliationName, URL";
 		return getSimpleResults(sql, authorURL, format);
-    }
+    }    
     
     // expand as needed, this simple two arg is good for now
     private String getSimpleResults(String sql, String param, String format) {
@@ -159,7 +157,12 @@ public class RestMethods {
 		   // loop rs.getResultSetMetadata columns
 		   for (int idx = 1; idx <= rsmd.getColumnCount(); idx++) {
 		     writer.name(rsmd.getColumnLabel(idx)); // write key:value pairs
-		     writer.value(rs.getString(idx));
+		     if (rsmd.getColumnType(idx) == Types.INTEGER) {
+		    	 writer.value(rs.getInt(idx));	
+		     }
+		     else {
+		    	 writer.value(rs.getString(idx));
+		     }
 		   }
 		   writer.endObject();
 		}    
@@ -221,7 +224,7 @@ public class RestMethods {
     }
     
     public List<Researcher> getResearchers(Affiliation affiliation) {
-		String sql = "select authorshipId, LastName , FirstName , MiddleName , URL, imageURL, orcidId, externalCoauthorCount from vw_ResearcherList where affiliationName = ?";
+		String sql = "select LastName, FirstName , MiddleName , URL, imageURL, thumbnailURL, orcidId, externalCoauthorCount from vw_ResearcherList where affiliationName = ?";
     	List<Researcher> researchers = new ArrayList<Researcher>();
 		Connection conn = dbUtil.getConnection();
 		try {
@@ -229,7 +232,7 @@ public class RestMethods {
 			ps.setString(1, affiliation.getName());
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
-				researchers.add( new Researcher(rs.getInt(1), affiliation, thumbnailRootURL, rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getInt(8)) );
+				researchers.add( new Researcher(affiliation, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getInt(8)) );
 			}
 		}
 		catch (Exception se) {

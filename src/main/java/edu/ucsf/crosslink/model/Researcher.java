@@ -13,16 +13,15 @@ import org.json.JSONObject;
 public class Researcher implements Comparable<Researcher> {
 	private static final Logger LOG = Logger.getLogger(Researcher.class.getName());
 	
-	private int dbId;
 	private String affiliationName;
 	private String lastName;
 	private String firstName;
 	private String middleName;
 	private String URL;
 	private String imageURL;
+	private String thumbnailURL;
 	private String orcidId;
 	private int externalCoauthorCount;
-	private String thumbnailRootURL;
 	private int readErrorCount = 0;
 	private Collection<Integer> pmids= new HashSet<Integer>();
 
@@ -31,17 +30,18 @@ public class Researcher implements Comparable<Researcher> {
 	}
 
 	// for loading from the DB
-	public Researcher(int dbId, Affiliation affiliation, String thumbnailRootURL, String lastName, String firstName, String middleName, String url, String imageURL, String orcidId, int externalCoauthorCount) {		
+	public Researcher(Affiliation affiliation,
+			String lastName, String firstName, String middleName, String url, String imageURL, String thumbnailURL, 
+			String orcidId, int externalCoauthorCount) {		
 		this(url);
-		this.setDbId(dbId);
     	this.setAffiliationName(affiliation.getName());
     	this.setLastName(lastName);
     	this.setFirstName(firstName);
     	this.setMiddleName(middleName);
     	this.setImageURL(imageURL);
+    	this.thumbnailURL = thumbnailURL;
     	this.setOrcidId(orcidId);
     	this.externalCoauthorCount = externalCoauthorCount;
-    	this.thumbnailRootURL = thumbnailRootURL;
     }
 
 	public Researcher(String affiliationName, String lastName, String firstName, String middleName, String url, String imageURL, String orcidId) {
@@ -84,10 +84,6 @@ public class Researcher implements Comparable<Researcher> {
     	}
     }
     
-    public void setDbId(int dbId) {
-    	this.dbId = dbId;
-    }
-    
     public String getLastName() {
 		return lastName;
 	}
@@ -128,15 +124,16 @@ public class Researcher implements Comparable<Researcher> {
 		URL = uRL;
 	}
 	
-	public String getThumbnailURLSuffix() {
+	public String generateThumbnailURLSuffix() {
 		if (URL != null && imageURL != null) {
-			return getAffiliationName() + "/" + ("" + (100 + (dbId % 100))).substring(1) + "/" + dbId + ".jpg";
+			int id = URL.toLowerCase().hashCode();
+			return getAffiliationName() + "/" + ("" + (100 + (Math.abs(id) % 100))).substring(1) + "/" + id + ".jpg";
 		}
 		return null;
 	}
 	
 	public String getThumbnailURL() {
-		return thumbnailRootURL != null && getThumbnailURLSuffix() != null ? (thumbnailRootURL + "/" +  getThumbnailURLSuffix()) : null; 
+		return thumbnailURL; 
 	}
 	
 	public String getImageURL() {

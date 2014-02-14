@@ -67,6 +67,12 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 		    		author.addPubMedPublication(link.attr("abs:href").split(PUBMED_SECTION)[1]);
 		    	}
 	        }
+
+		    for (Element src : doc.select("[src]")) {
+		    	   if (src.tagName().equals("img") && src.attr("abs:src").contains("viewImage")) {
+		    		   author.addImageURL(src.attr("abs:src"));
+		    	   }
+			    }
 		}
     	return author;
     }

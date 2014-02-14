@@ -35,7 +35,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
     	Researcher author = null;
     	Document doc = siteReader.getDocument(url);
 		if (doc != null) {			
-	    	JSONObject person = rdfParser.getPersonOnlyFromURL(url);
+	    	JSONObject person = rdfParser.getPersonOnlyFromURL(doc, url);
 		    if (person == null) {
 		    	return null;
 		    }
@@ -54,6 +54,13 @@ public class HTMLAuthorshipParser implements AuthorParser {
 		    		author.setOrcidId(orcidId);
 		    	}
 	        }
+	    	//  try a few more tricks to look for a photo, this particular method works with VIVO
+		    for (Element src : doc.select("[src]")) {
+	    	   if (src.tagName().equals("img") && src.className().equals("individual-photo") && !src.attr("abs:src").contains("unknown") ) { 
+	    		   author.addImageURL(src.attr("abs:src"));
+	    	   }
+		    }
+		    
 		}
     	return author;
     }

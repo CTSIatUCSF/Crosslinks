@@ -55,7 +55,8 @@ public class RDFAuthorshipParser implements AuthorParser {
     
     public Researcher getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
     	Researcher author = null;
-    	JSONObject person = getPersonOnlyFromURL(url);
+    	Document doc = siteReader.getDocument(url);
+    	JSONObject person = getPersonOnlyFromURL(doc, url);
 		if (person != null) {
 	    	author = new Researcher(siteReader.getAffiliation(), person, url);
 	    	if ( person.optJSONArray("authorInAuthorship") != null) {
@@ -95,19 +96,26 @@ public class RDFAuthorshipParser implements AuthorParser {
 	        		LOG.log(Level.WARNING, "Parse failure, moving on...", e);
 	        	}
 	    	}
+	    	//  look for a photo
+		    for (Element src : doc.select("[src]")) {
+	    	   if (src.tagName().equals("img") && src.attr("class").equals("individual_photo")) {
+	    		   author.addImageURL(src.attr("abs:src"));
+	    	   }
+		    }
 		}
     	return author;
     }
     
-    JSONObject getPersonOnlyFromURL(String url) throws IOException, InterruptedException, JSONException, JSONLDProcessingError {
+    JSONObject getPersonOnlyFromURL(Document doc, String url) throws IOException, InterruptedException, JSONException, JSONLDProcessingError {
     	JSONObject person = null;
-    	String uri = getPersonRDFURLFromHTMLURL(url);
+    	String uri = getPersonRDFURLFromHTMLURL(doc, url);
 		if (uri != null) {
 	    	person = getJSONFromURI(uri);
 	    	LOG.info(person.toString());
 	    	// ugly but necessary
 	    	person = findDataItem(person, "lastName");
 		}
+		
 		return person;
     }
     
@@ -128,8 +136,7 @@ public class RDFAuthorshipParser implements AuthorParser {
 		return container;
     }
 	
-    private String getPersonRDFURLFromHTMLURL(String url) throws IOException, InterruptedException {
-    	Document doc = siteReader.getDocument(url);
+    private String getPersonRDFURLFromHTMLURL(Document doc, String url) throws IOException, InterruptedException {
 		Elements links = doc.select("a[href]");	
 		
 		String uri = null;
@@ -139,7 +146,7 @@ public class RDFAuthorshipParser implements AuthorParser {
 	    		uri = link.attr("abs:href");
 	    	}
         }
-	    if (uri == null && url.indexOf('.') == -1) {
+	    if (uri == null) {
 	    	// worth a try
 	    	String[] parts = url.split("/");
 	    	uri = url + "/" + parts[parts.length - 1] + ".rdf";

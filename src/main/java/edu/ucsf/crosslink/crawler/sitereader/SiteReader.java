@@ -104,6 +104,10 @@ public abstract class SiteReader {
     	return authors;
     }
         
+    public int getRemainingAuthorsSize() {
+    	return authors.size() - removeList.size();
+    }
+        
     public void purgeProcessedAuthors() {
     	authors.removeAll(removeList);
     	removeList.clear();

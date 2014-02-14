@@ -1,9 +1,15 @@
 package edu.ucsf.crosslink.model;
 
+import java.io.File;
+import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import net.coobird.thumbnailator.Thumbnails;
 
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
@@ -18,7 +24,7 @@ public class Researcher implements Comparable<Researcher> {
 	private String firstName;
 	private String middleName;
 	private String URL;
-	private String imageURL;
+	private List<String> imageURLs = new ArrayList<String>(); // we allow for grabbing more than one and then test to see if any are valid when saving
 	private String thumbnailURL;
 	private String orcidId;
 	private int externalCoauthorCount;
@@ -38,7 +44,7 @@ public class Researcher implements Comparable<Researcher> {
     	this.setLastName(lastName);
     	this.setFirstName(firstName);
     	this.setMiddleName(middleName);
-    	this.setImageURL(imageURL);
+    	this.addImageURL(imageURL);
     	this.thumbnailURL = thumbnailURL;
     	this.setOrcidId(orcidId);
     	this.externalCoauthorCount = externalCoauthorCount;
@@ -50,7 +56,7 @@ public class Researcher implements Comparable<Researcher> {
     	this.setLastName(lastName);
     	this.setFirstName(firstName);
     	this.setMiddleName(middleName);
-    	this.setImageURL(imageURL);
+    	this.addImageURL(imageURL);
     	this.setOrcidId(orcidId);
     }
 
@@ -64,7 +70,7 @@ public class Researcher implements Comparable<Researcher> {
     	this.setFirstName(getMergedValue(this.firstName, author.firstName));
     	this.setMiddleName(getMergedValue(this.middleName, author.middleName));
     	this.setURL(getMergedValue(this.URL, author.URL));
-    	this.setImageURL(getMergedValue(this.imageURL, author.imageURL));
+    	this.imageURLs.addAll(author.imageURLs);
     	this.setOrcidId(getMergedValue(this.orcidId, author.orcidId));
     	this.pmids.addAll(author.pmids);
     }
@@ -124,24 +130,47 @@ public class Researcher implements Comparable<Researcher> {
 		URL = uRL;
 	}
 	
-	public String generateThumbnailURLSuffix() {
-		if (URL != null && imageURL != null) {
+	// ugly but it works
+	public boolean generateReseacherThumbnail(String thumbnailDir, int thumbnailWidth, int thumbnailHeight, String thumbnailRootURL) {
+		if (URL != null && imageURLs.size() > 0 && thumbnailURL == null) {
 			int id = URL.toLowerCase().hashCode();
-			return getAffiliationName() + "/" + ("" + (100 + (Math.abs(id) % 100))).substring(1) + "/" + id + ".jpg";
+			String loc = getAffiliationName() + "/" + ("" + (100 + (Math.abs(id) % 100))).substring(1) + "/" + id + ".jpg";
+			for (String imageURL : imageURLs) {
+				try {
+					File thumbnail = new File(thumbnailDir + "/" + loc );
+					new File(thumbnail.getParent()).mkdirs();
+					Thumbnails.of(new URL(imageURL))
+			        	.size(thumbnailWidth, thumbnailHeight)
+			        	.toFile(thumbnail);
+					// if we made it here, we are good
+					this.thumbnailURL = thumbnailRootURL + "/" + loc;
+					imageURLs.clear();
+					imageURLs.add(imageURL);
+					return true;
+				}
+				catch (Exception e) {
+					LOG.log(Level.WARNING, e.getMessage(), e);
+				}
+			}
 		}
-		return null;
-	}
+		// if we get here, they are all bad
+		imageURLs.clear();
+		return false;
+	}	
 	
 	public String getThumbnailURL() {
 		return thumbnailURL; 
 	}
 	
 	public String getImageURL() {
-		return imageURL;
+		// If we have more than one, we don't know which is valid so return nothing
+		return imageURLs.size() == 1 ? imageURLs.get(0) : null;
 	}
 	
-	public void setImageURL(String imageURL) {
-		this.imageURL = StringUtils.isEmpty(imageURL) ? null : imageURL;
+	public void addImageURL(String imageURL) {
+		if (!StringUtils.isEmpty(imageURL)) {
+			imageURLs.add(imageURL);
+		}
 	}
 
 	public String getOrcidId() {

@@ -80,9 +80,12 @@ public class RestMethods {
     @GET
     @Path("{affiliation}/researchers")
     public Viewable getResearchers(@PathParam("affiliation") String affiliationStr, @Context HttpServletRequest request,
-			@Context HttpServletResponse response) {
+			@Context HttpServletResponse response, @QueryParam("clearCache") String clearCache) {
     	Affiliation affiliation = getAffiliation(affiliationStr);
 		request.setAttribute("affiliation", affiliation);
+		if ("true".equalsIgnoreCase(clearCache)) {
+			request.getSession().removeAttribute(affiliation.getName() + "reseachers");
+		}
 		@SuppressWarnings("unchecked")
 		List<Researcher> researchers = (List<Researcher>)request.getSession().getAttribute(affiliation.getName() + "reseachers");
 		if (researchers == null) {
@@ -116,7 +119,7 @@ public class RestMethods {
     @Path("coauthors")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
     public String getCoauthors(@QueryParam("authorURL") String authorURL, @QueryParam("format") String format) {
-		String sql = "select affiliationName, lastName, firstName, middleName, URL, imageURL, orcidId, PMID from vw_ExternalCoauthorList where subjectURL = ? " + 
+		String sql = "select affiliationName, lastName, firstName, middleName, URL, imageURL, thumbnailURL, orcidId, PMID from vw_ExternalCoauthorList where subjectURL = ? " + 
 					 "order by affiliationName, URL";
 		return getSimpleResults(sql, authorURL, format);
     }    

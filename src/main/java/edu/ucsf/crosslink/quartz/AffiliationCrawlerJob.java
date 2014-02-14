@@ -22,6 +22,7 @@ public class AffiliationCrawlerJob implements Job {
 	
 	private static final Logger LOG = Logger.getLogger(AffiliationCrawlerJob.class.getName());
 	private static LinkedList<String> crawlerHistory = new LinkedList<String>();
+	private static int historyMaxSize = 100;
 
 	private AffiliationCrawler crawler;
 	private int staleDays = 7;
@@ -59,7 +60,12 @@ public class AffiliationCrawlerJob implements Job {
 		catch (Exception e) {
 			throw new JobExecutionException(e);
 		}
-		crawlerHistory.addFirst("" + new Date() + " -> " + crawler.toString());
+		synchronized (crawlerHistory) {
+			crawlerHistory.addFirst("" + new Date() + " -> " + crawler.toString());
+			if (crawlerHistory.size() > historyMaxSize) {
+				crawlerHistory.removeLast();
+			}
+		}
 	}
 
 }

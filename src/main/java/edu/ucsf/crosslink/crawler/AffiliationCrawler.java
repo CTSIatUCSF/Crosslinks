@@ -114,7 +114,7 @@ public class AffiliationCrawler {
 	
 	public String toString() {
 		// found is dynamic
-		int remaining = reader.getAuthors().size();
+		int remaining = reader.getRemainingAuthorsSize();
 		return affiliation + " : " + status + " (" + 
 				saved + ", " + skipped + ", " + avoided + ", " + currentErrorCount + ", " + remaining + ") => (saved, skipped, avoided, currentErrorCount, remaining) " +
 				" (lastStart, lastStop, lastFinish) : (" + started + ", " + ended + ", " + dateLastCrawled() + ")";

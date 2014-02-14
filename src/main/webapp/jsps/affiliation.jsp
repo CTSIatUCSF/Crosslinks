@@ -2,6 +2,7 @@
 <%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
 <html>
 <body>
+	<a href="../">Home</a><p>	
 	<a href = '<c:out value="${affiliation.baseURL}"/>'><c:out value="${affiliation.name}"/> Research Networking Site</a>  
 						<c:out value="${affiliation.researcherCount}"/> researchers indexed, <c:out value="${affiliation.pmidCount}"/> PUBMED publications found<p>
 	<a href = '<c:out value="${affiliation.name}"/>/researchers'>Indexed researchers from <c:out value="${affiliation.name}"/></a><p> 

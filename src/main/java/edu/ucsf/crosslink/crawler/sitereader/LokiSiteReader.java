@@ -77,7 +77,7 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 		    
 		    for (Element src : doc.select("[src]")) {
 	    	   if (src.tagName().equals("img") && src.attr("abs:src").contains("displayPhoto")) {
-	    		   author.setImageURL(src.attr("abs:src"));
+	    		   author.addImageURL(src.attr("abs:src"));
 	    	   }
 		    }
 		}

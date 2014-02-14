@@ -1,7 +1,6 @@
 package edu.ucsf.crosslink.io;
 
 import java.io.File;
-import java.net.URL;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,8 +13,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import net.coobird.thumbnailator.Thumbnails;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
@@ -105,6 +102,8 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	}    
     
 	public void saveResearcher(Researcher researcher) throws Exception {
+		//  clean up image urls
+		researcher.generateReseacherThumbnail(thumbnailDir, thumbnailWidth, thumbnailHeight, thumbnailRootURL);
 		// check DB
 		Connection conn = dbUtil.getConnection();
 		XStream xstream = new XStream();
@@ -117,7 +116,7 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	        cs.setString(4, researcher.getMiddleName());
 	        cs.setString(5, researcher.getURL());
 	        cs.setString(6, researcher.getImageURL());
-	        cs.setString(7, saveReseacherThumbnail(researcher));
+	        cs.setString(7, researcher.getThumbnailURL());
 	        cs.setString(8, researcher.getOrcidId());
 	        cs.setString(9, xstream.toXML(researcher.getPubMedPublications()));
 	        
@@ -188,24 +187,6 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	public void close() {
 		// no need to do anything, no resources are open
 	}
-	
-	private String saveReseacherThumbnail(Researcher author) {
-		try {
-			String loc = author.generateThumbnailURLSuffix();
-			if (loc != null) {
-				File thumbnail = new File(thumbnailDir + "/" + loc );
-				new File(thumbnail.getParent()).mkdirs();
-				Thumbnails.of(new URL(author.getImageURL()))
-		        .size(thumbnailWidth, thumbnailHeight)
-		        .toFile(thumbnail);
-				return thumbnailRootURL + "/" + loc;
-			}
-		}
-		catch (Exception e) {
-			LOG.log(Level.WARNING, e.getMessage(), e);
-		}
-		return null;
-	}	
 	
 	public static void main(String[] args) {
 		try {

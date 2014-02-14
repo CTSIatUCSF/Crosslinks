@@ -37,7 +37,8 @@
 <html>
 <body>
 	<h2>List of ${fn:length(researchers)} reseachers indexed from <c:out value="${affiliation.name}"/></h2>
-	<ul>
+	<a href="../">Home</a><p>	
+	<a href="?clearCache=true">Refresh results from the database</a><p>	
 
     <%--For displaying Previous link --%>
     <c:if test="${pageNumber gt 1}">
@@ -58,6 +59,7 @@
         <a href="?pageNumber=${pageNumber + 1}">Next</a>
     </c:if>
 
+	<ul>
 	<c:forEach var="r" items="${researchers}" begin="${start}" end="${stop}">
 		<li>
 		<c:if test="${r.thumbnailURL != null}">

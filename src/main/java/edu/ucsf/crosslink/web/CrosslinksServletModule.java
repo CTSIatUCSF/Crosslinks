@@ -19,8 +19,10 @@ public class CrosslinksServletModule extends JerseyServletModule {
 	@Override
 	protected void configureServlets() {
 		bind(String.class).annotatedWith(Names.named("thumbnailRootURL")).toInstance(prop.getProperty("thumbnailRootURL"));		
+		bind(String[].class).annotatedWith(Names.named("administrators")).toInstance(prop.getProperty("administrators").split(","));
 		bind(RestMethods.class);
 		serve("/*").with(GuiceContainer.class);
+		filter("/*").through(CrosslinksServletFilter.class);
 	}
 
 }

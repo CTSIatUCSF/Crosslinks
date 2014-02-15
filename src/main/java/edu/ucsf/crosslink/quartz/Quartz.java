@@ -1,18 +1,17 @@
 package edu.ucsf.crosslink.quartz;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.quartz.JobDetail;
+import org.quartz.JobKey;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.SchedulerFactory;
 import org.quartz.Trigger;
+import org.quartz.UnableToInterruptJobException;
+
 import static org.quartz.JobBuilder.newJob;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
@@ -20,18 +19,24 @@ import static org.quartz.TriggerBuilder.newTrigger;
 
 import com.google.inject.Guice;
 import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.Crosslinks;
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.io.DBModule;
 
+@Singleton
 public class Quartz {
 
 	private static final Logger LOG = Logger.getLogger(Quartz.class.getName());
+	
+	static final String META_JOB = "metaJob";
+	private static final String GROUP = "meta";
+	public static final String JOB_NAME  = "jobName";
+	static final String PROPERTIES_FILE = "propertiesFile";
 
 	private final Scheduler scheduler;
-	private String configurationDirectory;
 
 	public static void main(String[] args) {
 		try {
@@ -47,44 +52,37 @@ public class Quartz {
 	
 	@Inject
 	public Quartz(final SchedulerFactory factory,
-			final GuiceJobFactory jobFactory, @Named("configurationDirectory") String configurationDirectory,
+			final GuiceJobFactory jobFactory,
 			@Named("runInterval") Integer runInterval) throws SchedulerException {
-		this.configurationDirectory = configurationDirectory;
 		scheduler = factory.getScheduler();
 		scheduler.setJobFactory(jobFactory);
 		
-		try {
-		    for (String fileName : getConfigurationFiles()) {
-				// define the job and tie it to our HelloJob class
-		    	String prefix = getRootFileName(fileName);
-			    JobDetail job = newJob(AffiliationCrawlerJob.class)
-			        .withIdentity("job" + prefix, "group1")
-			        .usingJobData("config", fileName)
-			        .build();
+	    JobDetail job = newJob(AffiliationCrawlerJob.class)
+		        .withIdentity(META_JOB, GROUP)
+		        .build();
 
-			    // Trigger the job to run now, and then repeat 
-			    Trigger trigger = newTrigger()
-			        .withIdentity("trigger" + prefix, "group1")
-			        .startNow()
-			        .withSchedule(simpleSchedule()
-			        		.withIntervalInMinutes(runInterval)
-			        		//.withIntervalInSeconds(10)
-			                .repeatForever()) 
-			        .forJob(job)
-			        .build();
+	    // Trigger the job to run now, and then repeat 
+	    Trigger trigger = newTrigger()
+	        .withIdentity("metaTrigger", GROUP)
+	        .startNow()
+	        .withSchedule(simpleSchedule()
+	        		.withIntervalInMinutes(runInterval)
+	        		//.withIntervalInSeconds(10)
+	                .repeatForever()) 
+	        .forJob(job)
+	        .build();
 
-			    LOG.info("Scheduling " + fileName);
-			    scheduler.scheduleJob(job, trigger);
-			}
-		} 
-		catch (IOException e) {
-			throw new SchedulerException(e);
-		}
+	    scheduler.scheduleJob(job, trigger);
+
 		scheduler.start();
 	}
 
 	public final Scheduler getScheduler() {
 		return scheduler;
+	}
+	
+	public void interrupt(String jobName) throws UnableToInterruptJobException {
+		scheduler.interrupt(new JobKey(jobName, GROUP));
 	}
 
 	public void shutdown() {
@@ -95,19 +93,5 @@ public class Quartz {
 			LOG.log(Level.SEVERE, e.getMessage(), e);
 		}
 	}
-
-	private List<String> getConfigurationFiles() throws IOException  {
-		List<String> fileNames = new ArrayList<String>();
-		for (File file : new File(configurationDirectory).listFiles()) {
-			fileNames.add(file.getAbsolutePath());
-		}
-		return fileNames;
-	}
-	
-	private static String getRootFileName(String absoluteName) {
-		File file = new File(absoluteName);
-		return file.getName().split("\\.")[0];
-	}
-
 
 }

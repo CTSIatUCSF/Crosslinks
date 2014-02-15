@@ -2,11 +2,11 @@ package edu.ucsf.crosslink.crawler;
 
 import java.io.File;
 import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.Comparator;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -14,6 +14,7 @@ import java.util.logging.Logger;
 
 import org.joda.time.DateTime;
 import org.joda.time.Minutes;
+import org.quartz.UnableToInterruptJobException;
 
 import com.google.inject.Guice;
 import com.google.inject.Inject;
@@ -25,19 +26,18 @@ import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.io.DBModule;
 import edu.ucsf.crosslink.model.Researcher;
+import edu.ucsf.crosslink.quartz.Quartz;
 
-public class AffiliationCrawler {
+public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 
 	private static final Logger LOG = Logger.getLogger(AffiliationCrawler.class.getName());
 
-	private static Map<String, AffiliationCrawler> liveCrawlers = new HashMap<String, AffiliationCrawler>();
-	
 	private Status status = Status.IDLE;
 	private Mode mode = Mode.ENABLED;
-	private int saved = 0;
-	private int skipped = 0;
-	private int avoided = 0;
-	private int currentErrorCount = 0;
+	private int savedCnt = 0;
+	private int skippedCnt = 0;
+	private List<Researcher> avoided = new ArrayList<Researcher>();
+	private List<Researcher> error = new ArrayList<Researcher>();
 	private Date started;
 	private Date ended;
 
@@ -51,6 +51,9 @@ public class AffiliationCrawler {
 	private int authorReadErrorThreshold = 3;
 	private String latestError = null;
 	private Researcher currentAuthor = null;
+	
+	private Quartz quartz;
+	private String jobName;
 	
 	// pass in the name of a configuration file
 	public static void main(String[] args) {
@@ -72,17 +75,13 @@ public class AffiliationCrawler {
 	}
 	
 	public enum Status {
-		DISABLED, IDLE, GATHERING_URLS, READING_RESEARCHERS, PAUSED, ERROR, FINISHED;
+		GATHERING_URLS, READING_RESEARCHERS, ERROR, PAUSED, FINISHED, IDLE;
 	}
 	
 	public enum Mode {
 		ENABLED, DISABLED, FORCED;
 	}
 	
-	public static Collection<AffiliationCrawler> getLiveCrawlers() {
-		return liveCrawlers.values();
-	}
-
 	private static void showUse() {
 		System.out.println("Pass in the name of the properties file");
 	}	
@@ -99,8 +98,7 @@ public class AffiliationCrawler {
 		this.parser = parser;
 		this.store = store;
 		this.mode = crawlingMode;
-		this.status = Mode.DISABLED.equals(this.mode) ? Status.DISABLED : Status.IDLE;
-		liveCrawlers.put(affiliation, this);
+		this.status = Status.IDLE;
 	}
 	
 	@Inject
@@ -112,15 +110,28 @@ public class AffiliationCrawler {
 		this.authorReadErrorThreshold = authorReadErrorThreshold;
 	}
 	
-	public String toString() {
-		// found is dynamic
-		int remaining = reader.getRemainingAuthorsSize();
-		return affiliation + " : " + status + " (" + 
-				saved + ", " + skipped + ", " + avoided + ", " + currentErrorCount + ", " + remaining + ") => (saved, skipped, avoided, currentErrorCount, remaining) " +
-				" (lastStart, lastStop, lastFinish) : (" + started + ", " + ended + ", " + dateLastCrawled() + ")";
+	@Inject 
+	public void setQuartzItems(Quartz quartz, @Named(Quartz.JOB_NAME) String jobName) {
+		this.quartz = quartz;
+		this.jobName = jobName;
 	}
 	
-	public Date dateLastCrawled() {
+	public String toString() {
+		return affiliation + " : " + getState() + " " + getCounts() + ", " + getDates(); 
+	}
+	
+	public String getCounts() {
+		// found is dynamic
+		int remaining = reader.getRemainingAuthorsSize();
+		return "(saved, skipped, avoided, error, remaining) = > (" + savedCnt + ", " + skippedCnt + ", " + avoided.size() + ", " + error.size() + ", " + remaining + ")";
+	}
+
+	public String getDates() {
+		// found is dynamic
+		return "(lastStart, lastStop, lastFinish) : (" + started + ", " + ended + ", " + getDateLastCrawled() + ")";		
+	}
+	
+	public Date getDateLastCrawled() {
 		return store.dateOfLastCrawl();
 	}
 	
@@ -129,10 +140,20 @@ public class AffiliationCrawler {
 	}
 	
 	private void clearCounts() {
-		saved = 0;
-		skipped = 0;
-		avoided = 0;
-		currentErrorCount = 0;
+		savedCnt = 0;
+		skippedCnt = 0;
+		avoided.clear();
+		error.clear();
+	}
+	
+	public void setMode(String mode) throws UnableToInterruptJobException {
+		this.mode = Mode.valueOf(mode);
+		if (Status.GATHERING_URLS.equals(status) && Mode.DISABLED.equals(this.mode) && quartz != null) {
+			// try and interrupt the job
+			quartz.interrupt(this.jobName);
+			this.status = Status.IDLE;
+		}
+		
 	}
 	
 	public Mode getMode() {
@@ -143,10 +164,22 @@ public class AffiliationCrawler {
 		return status;
 	}
 	
+	public String getState() {
+		return mode.toString() + " " + status.toString();
+	}
+	
 	public String getLatestError() {
 		return latestError;
 	}
 	
+	public List<Researcher> getErrors() {
+		return error;
+	}
+	
+	public List<Researcher> getAvoided() {
+		return avoided;
+	}
+
 	public boolean isActive() {
 		return Arrays.asList(Status.GATHERING_URLS, Status.READING_RESEARCHERS).contains(status);
 	}
@@ -163,7 +196,12 @@ public class AffiliationCrawler {
 		// ugly, but it works
 		// decisions about if we SHOULD crawl will be made by the job
 		// decisions about it we CAN crawl can be made here
-		if (Status.DISABLED.equals(status)) {
+		if (Mode.FORCED.equals(mode)) {
+			// don't leave in forced mode
+			mode = Mode.ENABLED;
+		}
+		
+		if (Mode.DISABLED.equals(mode)) {
 			return;
 		}
 		else if (!isOk() && Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes() < pauseOnAbort) {
@@ -186,13 +224,17 @@ public class AffiliationCrawler {
 				reader.purgeProcessedAuthors();
 			}
 	
-			// read authors.  This this ugly 0ing mess
-			currentErrorCount = 0;
+			int currentErrorCnt = 0;
 			status = Status.READING_RESEARCHERS;
 			for (Researcher author : reader.getAuthors()) {
+				if (Mode.DISABLED.equals(mode)) {
+					status = Status.PAUSED;
+					break;
+				}
 				currentAuthor = author;
 				if (store.skip(author.getURL())) {
-					skipped++;
+					skippedCnt++;
+					reader.removeAuthor(author);
 					LOG.info("Skipping recently processed author :" + author);						
 				}
 				else {
@@ -202,17 +244,25 @@ public class AffiliationCrawler {
 							author.merge(details);
 							LOG.info("Saving author :" + author);						
 							store.saveResearcher(author);
-							saved++;
+							savedCnt++;
 						}
 						else {
-							avoided++;
+							avoided.add(author);
 							LOG.info("Skipping " + author.getURL() + " because it does not appear to be a profile page");
 						}
 						// if we make it here, we've processed the author
 						reader.removeAuthor(author);
 					}
 					catch (Exception e) {
+						// see if it's likely to be a bad page
+						if (isProbablyNotAProfilePage(author.getURL())) {
+							avoided.add(author);
+							LOG.log(Level.INFO, "Skipping " + author.getURL() + " because it does not appear to be a profile page", e);	
+							reader.removeAuthor(author);
+							continue;
+						}
 						if (author != null) {
+							error.add(author);
 							author.registerReadException(e);
 							if (author.getErrorCount() > authorReadErrorThreshold) {
 								// assume this is a bad URL and just move on
@@ -221,7 +271,7 @@ public class AffiliationCrawler {
 						}
 						// important that this next line work with author = null!
 						latestError = "Issue with : " + author + " : " + e.getMessage();
-						if (++currentErrorCount > errorsToAbort) {
+						if (++currentErrorCnt > errorsToAbort) {
 							status = Status.PAUSED;
 							break;
 						}
@@ -243,5 +293,54 @@ public class AffiliationCrawler {
 			ended = new Date();
 		}
 	}
+	
+	private static boolean isProbablyNotAProfilePage(String url) {
+		String[] knownNonProfilePages = {"/search", "/about"};
+		for (String knownNonProfilePage : knownNonProfilePages) {
+			if (url.toLowerCase().contains(knownNonProfilePage + "/") || url.toLowerCase().endsWith(knownNonProfilePage)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public Date getHowOld() {
+		if (Mode.FORCED.equals(mode)) {
+			return null; // act like you are brand new
+		}
+		else if (ended != null) {
+			return ended;
+		}
+		else if (started != null) {
+			return started;
+		}
+		else {
+			return getDateLastCrawled();
+		}
+	}
+	
+	@Override
+	public int compareTo(AffiliationCrawler o) {
+		// TODO Auto-generated method stub
+		return this.status == o.status ? this.getAffiliationName().compareTo(o.getAffiliationName()) : this.status.compareTo(o.status);
+	}
+	
+	static class DateComparator implements Comparator<AffiliationCrawler> {
+	    @Override
+	    public int compare(AffiliationCrawler a, AffiliationCrawler b) {
+	    	Date aDate = a.getHowOld();
+	    	Date bDate = b.getHowOld();
+	    	if (aDate != null && bDate != null) {
+	    		return aDate.compareTo(bDate);
+	    	}
+	    	else if (aDate == null) {
+	    		return bDate == null ? 0 : -1;
+	    	}
+	    	else {
+	    		return 1;
+	    	}
+	    }
+	}
+ 
 	
 }

@@ -8,9 +8,10 @@ import java.util.logging.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.quartz.DisallowConcurrentExecution;
-import org.quartz.Job;
+import org.quartz.InterruptableJob;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.quartz.UnableToInterruptJobException;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
@@ -18,7 +19,7 @@ import com.google.inject.name.Named;
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 
 @DisallowConcurrentExecution
-public class AffiliationCrawlerJob implements Job {
+public class AffiliationCrawlerJob implements InterruptableJob {
 	
 	private static final Logger LOG = Logger.getLogger(AffiliationCrawlerJob.class.getName());
 	private static LinkedList<String> crawlerHistory = new LinkedList<String>();
@@ -26,6 +27,7 @@ public class AffiliationCrawlerJob implements Job {
 
 	private AffiliationCrawler crawler;
 	private int staleDays = 7;
+	private Thread currentExecutionThread;
 	
 	public static List<String> getCrawlerJobHistory() {
 		return crawlerHistory;
@@ -40,12 +42,13 @@ public class AffiliationCrawlerJob implements Job {
 	public void setConfiguration(@Named("staleDays") Integer staleDays) {
 		this.staleDays = staleDays;
 	}	
-
+	
 	@Override
 	public void execute(JobExecutionContext context)
 			throws JobExecutionException {
 		try {
-			Date lastCrawled = crawler.dateLastCrawled();
+			currentExecutionThread = Thread.currentThread();
+			Date lastCrawled = crawler.getDateLastCrawled();
 
 			// this is weird.  Need to either put this in the crawler or completely pull it out
 			if (lastCrawled == null || AffiliationCrawler.Mode.FORCED.equals(crawler.getMode()) || 
@@ -66,6 +69,15 @@ public class AffiliationCrawlerJob implements Job {
 				crawlerHistory.removeLast();
 			}
 		}
+		currentExecutionThread = null;
+	}
+
+	@Override
+	public void interrupt() throws UnableToInterruptJobException {
+		if (currentExecutionThread != null) {
+			currentExecutionThread.interrupt();
+		}
+		
 	}
 
 }

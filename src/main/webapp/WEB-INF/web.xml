@@ -6,11 +6,9 @@
   <session-config>
     <session-timeout>30</session-timeout>
   </session-config>
-
   <listener>
     <listener-class>edu.ucsf.crosslink.web.CrosslinksServletConfig</listener-class>
   </listener>
-  
   <filter>
     <filter-name>guiceFilter</filter-name>
     <filter-class>com.google.inject.servlet.GuiceFilter</filter-class>

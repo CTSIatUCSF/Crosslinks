@@ -1,11 +1,6 @@
 package edu.ucsf.crosslink.quartz;
 
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -19,41 +14,37 @@ import org.quartz.spi.TriggerFiredBundle;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 
-import edu.ucsf.crosslink.Crosslinks;
-import edu.ucsf.crosslink.crawler.AffiliationCrawlerModule;
+import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
 
 public class GuiceJobFactory implements JobFactory {
 
 	private static final Logger LOG = Logger.getLogger(GuiceJobFactory.class.getName());
 
 	private final Injector guice;
-	private Map<String, Injector> crawlers = new HashMap<String, Injector>(); 
+	private final AffiliationCrawlerFactory crawlerFactory;
 
 	@Inject
-	public GuiceJobFactory(final Injector guice) throws IOException {
+	public GuiceJobFactory(Injector guice, AffiliationCrawlerFactory crawlerFactory) {
 		this.guice = guice;
+		this.crawlerFactory = crawlerFactory;
 	}
 	
 	@Override
 	public Job newJob(final TriggerFiredBundle bundle, final Scheduler schedular)
 			throws SchedulerException {
 		JobDetail jobDetail = bundle.getJobDetail();
-		try {
-			String config = jobDetail.getJobDataMap().getString("config");
-			// at some point we should figure out a way to refresh the configuration.  For now, this is good
-			// we want crawlers to stick around
-			if (!crawlers.containsKey(config)) {
-				Properties prop = new Properties();
-				prop.load(this.getClass().getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
-				prop.load(new FileReader(new File(config)));
-				crawlers.put(config,  guice.createChildInjector(new AffiliationCrawlerModule(prop)));
+		String jobName = jobDetail.getKey().getName();
+		if (Quartz.META_JOB.equals(jobName)) {
+			return guice.getInstance(MetaCrawlerJob.class);
+		}
+		else {
+			try {
+				return crawlerFactory.getInjector(jobName).getInstance(AffiliationCrawlerJob.class);
+			} 
+			catch (IOException e) {
+				LOG.log(Level.SEVERE, e.getMessage(), e);
+				throw new SchedulerException(e);
 			}
-			//  AffiliationCrawlerJob is never bound??? 
-			return crawlers.get(config).getInstance(AffiliationCrawlerJob.class);
-		} 
-		catch (Exception e) {
-			LOG.log(Level.SEVERE, e.getMessage(), e);
-			throw new SchedulerException(e);
 		}
 	}
 }

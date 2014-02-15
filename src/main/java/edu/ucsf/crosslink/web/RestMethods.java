@@ -29,6 +29,7 @@ import com.google.inject.Inject;
 import com.sun.jersey.api.view.Viewable;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
+import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
 import edu.ucsf.crosslink.io.DBUtil;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
@@ -46,10 +47,12 @@ public class RestMethods {
 	private static final Logger LOG = Logger.getLogger(RestMethods.class.getName());
 	
 	private DBUtil dbUtil;
+	private AffiliationCrawlerFactory factory;
 	
 	@Inject
-	public RestMethods(DBUtil dbUtil) {
+	public RestMethods(DBUtil dbUtil, AffiliationCrawlerFactory factory) {
 		this.dbUtil = dbUtil;
+		this.factory = factory;
 	}
 
 	@GET
@@ -64,9 +67,21 @@ public class RestMethods {
 	@Path("/status")
 	public Viewable status(@Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws Exception {
-		request.setAttribute("crawlers", AffiliationCrawler.getLiveCrawlers());
+		request.setAttribute("crawlers", factory.getLiveCrawlers());
 		request.setAttribute("history", AffiliationCrawlerJob.getCrawlerJobHistory());
 		return new Viewable("/jsps/status.jsp", null);
+	}
+
+	@GET
+	@Path("/status/{affiliation}")
+	public Viewable statusDetail(@PathParam("affiliation") String affiliation, @Context HttpServletRequest request,
+			@Context HttpServletResponse response, @QueryParam("mode") String mode) throws Exception {
+		AffiliationCrawler crawler = factory.getCrawler(affiliation);
+		if (CrosslinksServletFilter.isAdministrator(request) && mode != null) {
+			crawler.setMode(mode);
+		}
+		request.setAttribute("crawler", crawler);
+		return new Viewable("/jsps/statusDetail.jsp", null);
 	}
 
 	@GET

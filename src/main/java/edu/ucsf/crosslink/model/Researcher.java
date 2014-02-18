@@ -1,6 +1,8 @@
 package edu.ucsf.crosslink.model;
 
 import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,8 +14,12 @@ import java.util.logging.Logger;
 import net.coobird.thumbnailator.Thumbnails;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 
 
 public class Researcher implements Comparable<Researcher> {
@@ -189,8 +195,37 @@ public class Researcher implements Comparable<Researcher> {
 		pmids.add(pmid);
 	}
 	
-	public void addPubMedPublication(String pmid) {
-		addPubMedPublication(Integer.valueOf(pmid));
+	// can handle it in URL form, or just the pmid
+	public void addPubMedPublication(String publication) {
+		Integer pmid = null;
+		if (StringUtils.isNumeric(publication)) {
+			pmid = Integer.valueOf(publication);
+		}
+		else if (publication.contains(AuthorParser.PUBMED_SECTION) && StringUtils.isNumeric(publication.split(AuthorParser.PUBMED_SECTION)[1])) {
+			pmid = Integer.valueOf(publication.split(AuthorParser.PUBMED_SECTION)[1]);
+		}
+		else {
+		    List<NameValuePair> params;
+			try {
+				params = URLEncodedUtils.parse(new URI(publication), "UTF-8");
+			    for (NameValuePair param : params) {
+			    	if ("term".equalsIgnoreCase(param.getName())) {
+						pmid = Integer.valueOf(param.getValue());		    		
+			    	}
+			    }
+			} 
+			catch (URISyntaxException e) {
+				LOG.log(Level.WARNING, e.getMessage(), e);
+				e.printStackTrace();
+			}		    
+		}
+		if (pmid != null) {
+			LOG.info("PMID = " + pmid);
+			addPubMedPublication(pmid);
+		}
+		else {
+			LOG.log(Level.WARNING, "Could not extract PMID from " + publication);			
+		}
 	}
 
 	public Collection<Authorship> getAuthorships() {
@@ -230,5 +265,18 @@ public class Researcher implements Comparable<Researcher> {
 	
 	public int getExternalCoauthorCount() {
 		return externalCoauthorCount;
-	}    	 	
+	}    
+	
+	public static void main(String[] args) {
+		// simple test
+		try {
+			Researcher foo = new Researcher("http://profiles.ucsf.edu/eric.meeks");
+			foo.addPubMedPublication("1234");
+			foo.addPubMedPublication("https://www.ncbi.nlm.nih.gov/pubmed/?otool=uchsclib&term=17874365");
+			foo.addPubMedPublication("http://www.ncbi.nlm.nih.gov/pubmed/24303259");
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 }

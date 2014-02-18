@@ -25,11 +25,11 @@ public class QuartzModule extends AbstractModule {
 		bind(AffiliationCrawlerFactory.class);
 		
 		bind(Integer.class).annotatedWith(Names.named("staleDays")).toInstance(Integer.parseInt(prop.getProperty("staleDays")));
-		bind(Integer.class).annotatedWith(Names.named("runInterval")).toInstance(Integer.parseInt(prop.getProperty("runInterval")));
+		bind(Integer.class).annotatedWith(Names.named("scanInterval")).toInstance(Integer.parseInt(prop.getProperty("scanInterval")));
 				
 		bind(SchedulerFactory.class).to(StdSchedulerFactory.class).in(Scopes.SINGLETON);
         bind(GuiceJobFactory.class).in(Scopes.SINGLETON);
-        bind(Quartz.class).in(Scopes.SINGLETON);        
+        bind(Quartz.class).in(Scopes.SINGLETON);
 	}
 
 }

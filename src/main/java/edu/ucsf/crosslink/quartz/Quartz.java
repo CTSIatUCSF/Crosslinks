@@ -33,8 +33,6 @@ public class Quartz {
 	
 	static final String META_JOB = "metaJob";
 	private static final String GROUP = "meta";
-	public static final String JOB_NAME  = "jobName";
-	static final String PROPERTIES_FILE = "propertiesFile";
 
 	private final Scheduler scheduler;
 
@@ -53,7 +51,7 @@ public class Quartz {
 	@Inject
 	public Quartz(final SchedulerFactory factory,
 			final GuiceJobFactory jobFactory,
-			@Named("runInterval") Integer runInterval) throws SchedulerException {
+			@Named("scanInterval") Integer scanInterval) throws SchedulerException {
 		scheduler = factory.getScheduler();
 		scheduler.setJobFactory(jobFactory);
 		
@@ -66,8 +64,7 @@ public class Quartz {
 	        .withIdentity("metaTrigger", GROUP)
 	        .startNow()
 	        .withSchedule(simpleSchedule()
-	        		.withIntervalInMinutes(runInterval)
-	        		//.withIntervalInSeconds(10)
+	        		.withIntervalInSeconds(scanInterval)
 	                .repeatForever()) 
 	        .forJob(job)
 	        .build();

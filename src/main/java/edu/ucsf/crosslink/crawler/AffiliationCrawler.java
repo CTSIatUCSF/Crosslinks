@@ -13,11 +13,13 @@ import java.util.logging.Logger;
 
 
 import org.joda.time.DateTime;
+import org.joda.time.Days;
 import org.joda.time.Minutes;
 import org.quartz.UnableToInterruptJobException;
 
 import com.google.inject.Guice;
 import com.google.inject.Inject;
+import com.google.inject.Injector;
 import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.Crosslinks;
@@ -26,7 +28,7 @@ import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.io.DBModule;
 import edu.ucsf.crosslink.model.Researcher;
-import edu.ucsf.crosslink.quartz.Quartz;
+import edu.ucsf.crosslink.quartz.AffiliationCrawlerJob;
 
 public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 
@@ -49,23 +51,21 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	private int errorsToAbort = 5;
 	private int pauseOnAbort = 60;
 	private int authorReadErrorThreshold = 3;
+	private int staleDays = 7;
 	private String latestError = null;
 	private Researcher currentAuthor = null;
 	
-	private Quartz quartz;
-	private String jobName;
+	private AffiliationCrawlerJob job;
 	
 	// pass in the name of a configuration file
 	public static void main(String[] args) {
-		Researcher author = new Researcher("UCSF", "Meeks", "Eric", null, "http://profiles.ucsf.edu/eric.meeks", 
-				"http://profiles.ucsf.edu/profile/Modules/CustomViewPersonGeneralInfo/PhotoHandler.ashx?NodeID=368698", null);
 		try  {								
 			// get these first
 			Properties prop = new Properties();
 			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
 			prop.load(new FileReader(new File(args[0])));
-			AffiliationCrawler crawler = Guice.createInjector(new DBModule(prop), 
-										new AffiliationCrawlerModule(prop)).getInstance(AffiliationCrawler.class);
+			Injector injector = Guice.createInjector(new DBModule(prop), new AffiliationCrawlerModule(prop));
+			AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);			
 			crawler.crawl();
 		}
 		catch (Exception e) {
@@ -104,16 +104,17 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	@Inject
 	public void setConfiguartion(@Named("errorsToAbort") Integer errorsToAbort, 
 			@Named("pauseOnAbort") Integer pauseOnAbort,
-			@Named("authorReadErrorThreshold") Integer authorReadErrorThreshold) {
+			@Named("authorReadErrorThreshold") Integer authorReadErrorThreshold,
+			@Named("staleDays") Integer staleDays) {
 		this.errorsToAbort = errorsToAbort;
 		this.pauseOnAbort = pauseOnAbort;
 		this.authorReadErrorThreshold = authorReadErrorThreshold;
+		this.staleDays = staleDays;
 	}
 	
 	@Inject 
-	public void setQuartzItems(Quartz quartz, @Named(Quartz.JOB_NAME) String jobName) {
-		this.quartz = quartz;
-		this.jobName = jobName;
+	public void setQuartzItems(AffiliationCrawlerJob job) {
+		this.job = job;
 	}
 	
 	public String toString() {
@@ -148,9 +149,9 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	
 	public void setMode(String mode) throws UnableToInterruptJobException {
 		this.mode = Mode.valueOf(mode);
-		if (Status.GATHERING_URLS.equals(status) && Mode.DISABLED.equals(this.mode) && quartz != null) {
+		if (Status.GATHERING_URLS.equals(status) && Mode.DISABLED.equals(this.mode) && job != null) {
 			// try and interrupt the job
-			quartz.interrupt(this.jobName);
+			job.interrupt();
 			this.status = Status.IDLE;
 		}
 		
@@ -193,95 +194,25 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	}
 
 	public void crawl() throws Exception {
-		// ugly, but it works
-		// decisions about if we SHOULD crawl will be made by the job
-		// decisions about it we CAN crawl can be made here
-		if (Mode.FORCED.equals(mode)) {
-			// don't leave in forced mode
-			mode = Mode.ENABLED;
-		}
-		
-		if (Mode.DISABLED.equals(mode)) {
-			return;
-		}
-		else if (!isOk() && Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes() < pauseOnAbort) {
-			return;
-		}
-
 		try {
 			if (Arrays.asList(Status.IDLE, Status.FINISHED, Status.ERROR).contains(status)) {
 				// fresh start
-				clearCounts();
-				started = new Date();
-				// Now index the site
+				gatherURLs();
 				store.start();
-				status = Status.GATHERING_URLS;
-				reader.collectAuthors();					
-				LOG.info("Found " + reader.getAuthors().size() + " potential Profile pages for " + affiliation);
 			}
 			else {
 				// we are resuming
 				reader.purgeProcessedAuthors();
 			}
-	
-			int currentErrorCnt = 0;
-			status = Status.READING_RESEARCHERS;
-			for (Researcher author : reader.getAuthors()) {
-				if (Mode.DISABLED.equals(mode)) {
-					status = Status.PAUSED;
-					break;
-				}
-				currentAuthor = author;
-				if (store.skip(author.getURL())) {
-					skippedCnt++;
-					reader.removeAuthor(author);
-					LOG.info("Skipping recently processed author :" + author);						
-				}
-				else {
-					try {
-						Researcher details = parser.getAuthorFromHTML(author.getURL());
-						if (details != null) {							
-							author.merge(details);
-							LOG.info("Saving author :" + author);						
-							store.saveResearcher(author);
-							savedCnt++;
-						}
-						else {
-							avoided.add(author);
-							LOG.info("Skipping " + author.getURL() + " because it does not appear to be a profile page");
-						}
-						// if we make it here, we've processed the author
-						reader.removeAuthor(author);
-					}
-					catch (Exception e) {
-						// see if it's likely to be a bad page
-						if (isProbablyNotAProfilePage(author.getURL())) {
-							avoided.add(author);
-							LOG.log(Level.INFO, "Skipping " + author.getURL() + " because it does not appear to be a profile page", e);	
-							reader.removeAuthor(author);
-							continue;
-						}
-						if (author != null) {
-							error.add(author);
-							author.registerReadException(e);
-							if (author.getErrorCount() > authorReadErrorThreshold) {
-								// assume this is a bad URL and just move on
-								continue;
-							}
-						}
-						// important that this next line work with author = null!
-						latestError = "Issue with : " + author + " : " + e.getMessage();
-						if (++currentErrorCnt > errorsToAbort) {
-							status = Status.PAUSED;
-							break;
-						}
-					}
-				}
-			}
-			if (Status.READING_RESEARCHERS.equals(status)) {
+			
+			if (readResearchers()) {
 				store.finish();
 				status = Status.FINISHED;
-			}
+				if (Mode.FORCED.equals(mode)) {
+					// don't leave in forced mode
+					mode = Mode.ENABLED;
+				}				
+			}	
 		}
 		catch (Exception e) {
 			status = Status.ERROR;
@@ -292,6 +223,95 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 			store.close();
 			ended = new Date();
 		}
+	}
+	
+	public boolean okToStart() {
+		if (Mode.DISABLED.equals(mode)) {
+			return false;
+		}
+		else if (isActive()) {
+			return false;
+		}
+		else if (Mode.FORCED.equals(mode)) {
+			return true;
+		}
+		else if (!isOk() && Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes() < pauseOnAbort) {
+			return false;
+		}
+		else if (getDateLastCrawled() == null) {
+			return true;
+		}
+		else {
+			return Days.daysBetween(new DateTime(getDateLastCrawled()), new DateTime()).getDays() > staleDays;
+		}
+	}
+	
+	private void gatherURLs() throws Exception {
+		// Now index the site
+		clearCounts();
+		status = Status.GATHERING_URLS;
+		reader.collectAuthors();					
+		LOG.info("Found " + reader.getAuthors().size() + " potential Profile pages for " + affiliation);		
+	}
+	
+	private boolean readResearchers() {
+		int currentErrorCnt = 0;
+		status = Status.READING_RESEARCHERS;
+		for (Researcher author : reader.getAuthors()) {
+			if (Mode.DISABLED.equals(mode)) {
+				status = Status.PAUSED;
+				break;
+			}
+			currentAuthor = author;
+			// do not skip any if we are in forced mode
+			if (!Mode.FORCED.equals(mode) && store.skip(author.getURL())) {
+				skippedCnt++;
+				reader.removeAuthor(author);
+				LOG.info("Skipping recently processed author :" + author);						
+			}
+			else {
+				try {
+					Researcher details = parser.getAuthorFromHTML(author.getURL());
+					if (details != null) {							
+						author.merge(details);
+						LOG.info("Saving author :" + author);						
+						store.saveResearcher(author);
+						savedCnt++;
+					}
+					else {
+						avoided.add(author);
+						LOG.info("Skipping " + author.getURL() + " because it does not appear to be a profile page");
+					}
+					// if we make it here, we've processed the author
+					reader.removeAuthor(author);
+				}
+				catch (Exception e) {
+					// see if it's likely to be a bad page
+					if (isProbablyNotAProfilePage(author.getURL())) {
+						avoided.add(author);
+						LOG.log(Level.INFO, "Skipping " + author.getURL() + " because it does not appear to be a profile page", e);	
+						reader.removeAuthor(author);
+						continue;
+					}
+					if (author != null) {
+						error.add(author);
+						author.registerReadException(e);
+						if (author.getErrorCount() > authorReadErrorThreshold) {
+							// assume this is a bad URL and just move on
+							continue;
+						}
+					}
+					// important that this next line work with author = null!
+					latestError = "Issue with : " + author + " : " + e.getMessage();
+					if (++currentErrorCnt > errorsToAbort) {
+						status = Status.PAUSED;
+						break;
+					}
+				}
+			}
+		}		
+		// if we are still in this status, we are OK
+		return Status.READING_RESEARCHERS.equals(status);
 	}
 	
 	private static boolean isProbablyNotAProfilePage(String url) {
@@ -321,7 +341,6 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	
 	@Override
 	public int compareTo(AffiliationCrawler o) {
-		// TODO Auto-generated method stub
 		return this.status == o.status ? this.getAffiliationName().compareTo(o.getAffiliationName()) : this.status.compareTo(o.status);
 	}
 	

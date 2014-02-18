@@ -2,10 +2,11 @@
 <%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
 <html>
 <body>
+    <a href='.'>Home</a><p>
     <h2>Scheduled and running crawlers</h2>
     Administrator = <c:out value="${administrator}"/><p>
 	<c:forEach var="i" items="${crawlers}">
-	   <a href='<c:out value="${i.affiliationName}"/>'><c:out value="${i.affiliationName}"/></a>&nbsp;
+	   <a href='./<c:out value="${i.affiliationName}"/>'><c:out value="${i.affiliationName}"/></a>&nbsp;
 		<c:if test="${not i.active and i.ok}">
 		   <c:out value="${i.state}"/>
 		</c:if>

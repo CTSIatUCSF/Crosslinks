@@ -56,7 +56,7 @@ public class RestMethods {
 	}
 
 	@GET
-	@Path("/")
+	@Path("/index")
 	public Viewable index(@Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws Exception {
 		request.setAttribute("affiliations", getAffiliations());
@@ -73,7 +73,7 @@ public class RestMethods {
 	}
 
 	@GET
-	@Path("/status/{affiliation}")
+	@Path("{affiliation}/status")
 	public Viewable statusDetail(@PathParam("affiliation") String affiliation, @Context HttpServletRequest request,
 			@Context HttpServletResponse response, @QueryParam("mode") String mode) throws Exception {
 		AffiliationCrawler crawler = factory.getCrawler(affiliation);

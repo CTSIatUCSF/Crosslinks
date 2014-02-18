@@ -18,7 +18,6 @@ import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.Crosslinks;
 import edu.ucsf.crosslink.crawler.AffiliationCrawler.DateComparator;
-import edu.ucsf.crosslink.quartz.Quartz;
 
 @Singleton
 public class AffiliationCrawlerFactory {
@@ -44,7 +43,6 @@ public class AffiliationCrawlerFactory {
 				Properties prop = new Properties();
 				prop.load(this.getClass().getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
 				prop.load(new FileReader(new File(fileName)));
-				prop.setProperty(Quartz.JOB_NAME, getRootFileName(fileName));
 				Injector injector = guice.createChildInjector(new AffiliationCrawlerModule(prop));
 				AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);
 				injectors.put(crawler.getAffiliationName(), injector);		
@@ -85,11 +83,5 @@ public class AffiliationCrawlerFactory {
 		}
 		return fileNames;
 	}
-	
-	private static String getRootFileName(String absoluteName) {
-		File file = new File(absoluteName);
-		return file.getName().split("\\.")[0];
-	}
-
 	
 }

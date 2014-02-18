@@ -40,8 +40,8 @@ public class MetaCrawlerJob implements Job {
 			throws JobExecutionException {
 		try {
 		    for (AffiliationCrawler crawler : factory.getOldestCrawlers()) {
-		    	if (crawler.isActive()) {
-		    		// would be OK to run anyway because jobs disallow concurrency, but we don't want to
+		    	if (!crawler.okToStart()) {
+		    		// not necessary but this helps keep the schedduler free
 		    		continue;
 		    	}
 		    	String affiliation = crawler.getAffiliationName();
@@ -49,7 +49,7 @@ public class MetaCrawlerJob implements Job {
 			        .withIdentity(affiliation, GROUP)
 			        .build();
 	
-			    // Trigger the job to once now
+			    // Trigger the job to run once now
 			    Trigger trigger = newTrigger()
 			        .withIdentity(TRIGGER_PREFIX + affiliation, GROUP)
 			        .startNow()

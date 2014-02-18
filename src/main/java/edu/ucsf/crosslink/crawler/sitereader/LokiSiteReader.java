@@ -67,7 +67,7 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 			
 		    for (Element link : links) {
 		    	if ( link.attr("abs:href").contains(AuthorParser.PUBMED_SECTION)) {
-		    		author.addPubMedPublication(link.attr("abs:href").split(AuthorParser.PUBMED_SECTION)[1]);
+		    		author.addPubMedPublication(link.attr("abs:href"));
 		    	}
 		    	else if (link.attr("abs:href").contains(AuthorParser.ORCID_SECTION)) { // this way it works with http and https
 		    		String orcidId = link.attr("abs:href").split(AuthorParser.ORCID_SECTION)[1];

@@ -9,7 +9,7 @@ import com.google.inject.name.Names;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
-import edu.ucsf.crosslink.quartz.Quartz;
+import edu.ucsf.crosslink.quartz.AffiliationCrawlerJob;
 
 public class AffiliationCrawlerModule extends AbstractModule {
 
@@ -42,20 +42,18 @@ public class AffiliationCrawlerModule extends AbstractModule {
 		bind(String.class).annotatedWith(Names.named("thumbnailDir")).toInstance(prop.getProperty("thumbnailDir"));
 		bind(Integer.class).annotatedWith(Names.named("thumbnailWidth")).toInstance(Integer.parseInt(prop.getProperty("thumbnailWidth")));
 		bind(Integer.class).annotatedWith(Names.named("thumbnailHeight")).toInstance(Integer.parseInt(prop.getProperty("thumbnailHeight")));
-
-		// quartz item
-		bind(String.class).annotatedWith(Names.named(Quartz.JOB_NAME)).toInstance(prop.getProperty(Quartz.JOB_NAME));
-
+        
 		try {
 			bind(CrosslinkPersistance.class).to((Class<? extends CrosslinkPersistance>) Class.forName(prop.getProperty("AuthorshipPersistance"))).in(Scopes.SINGLETON);
 			bind(SiteReader.class).to((Class<? extends SiteReader>) Class.forName(prop.getProperty("Reader"))).in(Scopes.SINGLETON);			
 			bind(AuthorParser.class).to((Class<? extends AuthorParser>) Class.forName(prop.getProperty("AuthorParser"))).in(Scopes.SINGLETON);
-			bind(AffiliationCrawler.class).in(Scopes.SINGLETON);
 		} 
 		catch (ClassNotFoundException e) {
 			addError(e);
 		}
 
+		bind(AffiliationCrawler.class).in(Scopes.SINGLETON);
+        bind(AffiliationCrawlerJob.class);
 	}
 
 }

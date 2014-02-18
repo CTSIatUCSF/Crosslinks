@@ -64,7 +64,7 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 			
 		    for (Element link : links) {
 		    	if (  link.attr("abs:href").contains(PUBMED_SECTION) ) {
-		    		author.addPubMedPublication(link.attr("abs:href").split(PUBMED_SECTION)[1]);
+		    		author.addPubMedPublication(link.attr("abs:href"));
 		    	}
 	        }
 

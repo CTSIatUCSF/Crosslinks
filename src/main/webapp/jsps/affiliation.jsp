@@ -3,10 +3,12 @@
 <html>
 <body>
 	<a href=".">Home</a><p>	
-	<a href = '<c:out value="${affiliation.baseURL}"/>'><c:out value="${affiliation.name}"/> Research Networking Site</a>  
-						<c:out value="${affiliation.researcherCount}"/> researchers indexed, <c:out value="${affiliation.pmidCount}"/> PUBMED publications found<p>
-	<a href = '<c:out value="${affiliation.name}"/>/researchers'>Indexed researchers from <c:out value="${affiliation.name}"/></a><p> 
-	<p>Links to help us clean up our data.  Once our data is all clean, these should not return any results.  Today, they return a bunch of results for most affiliations.<p>				
+	<a href = '<c:out value="${affiliation.baseURL}"/>'><c:out value="${affiliation.name}"/> Research Networking Site</a><p>						
+	<a href = '<c:out value="${affiliation.name}"/>/researchers'>Indexed researchers from <c:out value="${affiliation.name}"/></a>&nbsp;
+		<c:out value="${affiliation.researcherCount}"/> researchers indexed, <c:out value="${affiliation.pmidCount}"/> PUBMED publications found<p>
+	<p>Links to help us clean up our data.<p>				
+	<a href = '<c:out value="${affiliation.name}"/>/status'>Status of last crawl for <c:out value="${affiliation.name}"/></a><p> 
+
 	List of researchers at other affiliations that we think are also in <c:out value="${affiliation.name}"/>&nbsp;
 	<a href = '<c:out value="${affiliation.name}"/>/possibleSamePeople?format=CSV'> (CSV)</a>&nbsp; 
 	<a href = '<c:out value="${affiliation.name}"/>/possibleSamePeople?format=JSON'> (JSON)</a><p>

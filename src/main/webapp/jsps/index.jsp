@@ -3,6 +3,9 @@
 <body>
     <h2>Research Networking Coauthors Unbound</h2><p>
 	<h3>List of indexed affiliations. Click and have fun!</h3><p>
+	<c:if test="${not empty administrator}">
+	   <a href='status'>Status</a><p>
+	</c:if><p>    
 	<ul>
 	<c:forEach var="i" items="${affiliations}">
 		<li>

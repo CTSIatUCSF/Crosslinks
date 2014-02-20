@@ -5,7 +5,7 @@
     <c:out value="${crawler}"/><p>
     Mode : <c:out value="${crawler.mode}"/>
 	<c:if test="${not empty administrator}">
-	    &nbsp;<a href='?mode=ENABLED'>ENABLE</a>&nbsp;<a href='?mode=DISABLED'>DISABLE</a>&nbsp;<a href='?mode=FORCED'>FORCE</a>
+	    &nbsp;<a href='?mode=ENABLED'>ENABLE</a>&nbsp;<a href='?mode=DISABLED'>DISABLE</a>&nbsp;<a href='?mode=FORCED'>FORCE</a>&nbsp;<a href='?mode=FORCED_NO_SKIP'>FORCE AND RELOAD EVERYONE</a>
 	</c:if><p>    
     Status : <c:out value="${crawler.status}"/><p>
     Latest Error : <c:out value="${crawler.latestError}"/><p>

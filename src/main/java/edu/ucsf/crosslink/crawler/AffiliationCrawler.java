@@ -79,7 +79,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	}
 	
 	public enum Mode {
-		ENABLED, DISABLED, FORCED;
+		ENABLED, DISABLED, FORCED, FORCED_NO_SKIP ;
 	}
 	
 	private static void showUse() {
@@ -189,6 +189,10 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		return !Arrays.asList(Status.PAUSED, Status.ERROR).contains(status);
 	}
 	
+	private boolean isForced() {
+		return Arrays.asList(Mode.FORCED_NO_SKIP, Mode.FORCED).contains(mode);		
+	}
+	
 	public Researcher getCurrentAuthor() {
 		return currentAuthor;
 	}
@@ -208,7 +212,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 			if (readResearchers()) {
 				store.finish();
 				status = Status.FINISHED;
-				if (Mode.FORCED.equals(mode)) {
+				if (isForced()) {
 					// don't leave in forced mode
 					mode = Mode.ENABLED;
 				}				
@@ -232,7 +236,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		else if (isActive()) {
 			return false;
 		}
-		else if (Mode.FORCED.equals(mode)) {
+		else if (isForced()) {
 			return true;
 		}
 		else if (!isOk() && Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes() < pauseOnAbort) {
@@ -264,7 +268,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 			}
 			currentAuthor = author;
 			// do not skip any if we are in forced mode
-			if (!Mode.FORCED.equals(mode) && store.skip(author.getURL())) {
+			if (!Mode.FORCED_NO_SKIP.equals(mode) && store.skip(author.getURL())) {
 				skippedCnt++;
 				reader.removeAuthor(author);
 				LOG.info("Skipping recently processed author :" + author);						
@@ -325,7 +329,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	}
 	
 	public Date getHowOld() {
-		if (Mode.FORCED.equals(mode)) {
+		if (isForced()) {
 			return null; // act like you are brand new
 		}
 		else if (ended != null) {

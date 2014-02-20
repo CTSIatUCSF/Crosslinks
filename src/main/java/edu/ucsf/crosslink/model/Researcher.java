@@ -133,7 +133,7 @@ public class Researcher implements Comparable<Researcher> {
 	}
 	
 	private void setURL(String uRL) {
-		URL = uRL;
+		URL = uRL != null ? uRL.toLowerCase() : null;
 	}
 	
 	// ugly but it works

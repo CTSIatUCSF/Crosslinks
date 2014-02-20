@@ -98,7 +98,7 @@ public class RDFAuthorshipParser implements AuthorParser {
 	    	}
 	    	//  look for a photo
 		    for (Element src : doc.select("[src]")) {
-	    	   if (src.tagName().equals("img") && src.attr("class").equals("individual_photo")) {
+	    	   if (src.tagName().equals("img") && src.attr("class").contains("photo") && !src.attr("title").equals("no image")) {
 	    		   author.addImageURL(src.attr("abs:src"));
 	    	   }
 		    }

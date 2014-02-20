@@ -86,6 +86,16 @@ public abstract class SiteReader {
     	authors.clear();
     	removeList.clear();
     	collectAuthorURLS();
+    	// dedupe, keep those with a name if you have a choice
+    	Map<String, Researcher> rbyU = new HashMap<String, Researcher>();
+    	for (Researcher r : authors) {
+    		if (rbyU.containsKey(r.getURL()) && r.getLastName() == null) {
+    			continue;
+    		}
+    		rbyU.put(r.getURL(), r);
+    	}
+    	authors.clear();
+    	authors.addAll(rbyU.values());
     	Collections.sort(authors);
     }
     	

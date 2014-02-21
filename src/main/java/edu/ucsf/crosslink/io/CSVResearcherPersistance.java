@@ -95,6 +95,10 @@ public class CSVResearcherPersistance implements CrosslinkPersistance {
 		return existingEntries.contains(url);
 	}
 	
+	public int touch(String url) {
+		return existingEntries.contains(url) ? 1 : -1;
+	}
+	
 	public void close() throws IOException {
 		writer.close();
 	}

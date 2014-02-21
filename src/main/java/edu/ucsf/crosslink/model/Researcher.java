@@ -133,7 +133,7 @@ public class Researcher implements Comparable<Researcher> {
 	}
 	
 	private void setURL(String uRL) {
-		URL = uRL != null ? uRL.toLowerCase() : null;
+		URL = uRL != null ? uRL : null;
 	}
 	
 	// ugly but it works
@@ -253,7 +253,6 @@ public class Researcher implements Comparable<Researcher> {
 		return (lastName != null ? lastName + ", " + firstName + " : " : " ") + URL;
 	}
 
-	@Override
 	public int compareTo(Researcher arg0) {
 		return this.readErrorCount == arg0.readErrorCount ? 
 					this.toString().compareTo(arg0.toString()) : Integer.compare(this.readErrorCount, arg0.readErrorCount);

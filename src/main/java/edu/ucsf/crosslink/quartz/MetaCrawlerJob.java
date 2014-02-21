@@ -35,7 +35,6 @@ public class MetaCrawlerJob implements Job {
 		this.factory = factory;
 	}
 
-	@Override
 	public void execute(JobExecutionContext context)
 			throws JobExecutionException {
 		try {

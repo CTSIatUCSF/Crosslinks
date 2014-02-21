@@ -6,8 +6,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -75,7 +77,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	}
 	
 	public enum Status {
-		GATHERING_URLS, READING_RESEARCHERS, ERROR, PAUSED, FINISHED, IDLE;
+		GATHERING_URLS, READING_RESEARCHERS, VERIFY_PRIOR_RESEARCHERS, ERROR, PAUSED, FINISHED, IDLE;
 	}
 	
 	public enum Mode {
@@ -118,7 +120,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	}
 	
 	public String toString() {
-		return affiliation + " : " + getState() + " " + getCounts() + ", " + getDates(); 
+		return affiliation + " : " + getState() + " " + getCounts() + ", " + getDates() + " " + getDuration(); 
 	}
 	
 	public String getCounts() {
@@ -130,6 +132,15 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	public String getDates() {
 		// found is dynamic
 		return "(lastStart, lastStop, lastFinish) : (" + started + ", " + ended + ", " + getDateLastCrawled() + ")";		
+	}
+	
+	public String getDuration() {
+		if (started == null) {
+			return "";
+		}
+		else {
+			return "" +  Minutes.minutesBetween(new DateTime(started), ended != null ? new DateTime(ended) : new DateTime()).getMinutes() + " minutes";
+		}
 	}
 	
 	public Date getDateLastCrawled() {
@@ -182,7 +193,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	}
 
 	public boolean isActive() {
-		return Arrays.asList(Status.GATHERING_URLS, Status.READING_RESEARCHERS).contains(status);
+		return Arrays.asList(Status.GATHERING_URLS, Status.VERIFY_PRIOR_RESEARCHERS, Status.READING_RESEARCHERS).contains(status);
 	}
 	
 	public boolean isOk() {
@@ -201,6 +212,8 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		try {
 			if (Arrays.asList(Status.IDLE, Status.FINISHED, Status.ERROR).contains(status)) {
 				// fresh start
+				clearCounts();
+				started = new Date();
 				gatherURLs();
 				store.start();
 			}
@@ -209,7 +222,10 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 				reader.purgeProcessedAuthors();
 			}
 			
-			if (readResearchers()) {
+			// touch all the ones we have found.  This will make sure that we do not remove anyone that had been indexed before just due to an error in crawling their page
+			Set<String> knownReseacherURLs =  touchResearchers();
+			
+			if (readResearchers(knownReseacherURLs)) {
 				store.finish();
 				status = Status.FINISHED;
 				if (isForced()) {
@@ -252,13 +268,28 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	
 	private void gatherURLs() throws Exception {
 		// Now index the site
-		clearCounts();
 		status = Status.GATHERING_URLS;
 		reader.collectAuthors();					
 		LOG.info("Found " + reader.getAuthors().size() + " potential Profile pages for " + affiliation);		
 	}
 	
-	private boolean readResearchers() {
+	private Set<String> touchResearchers() throws Exception {
+		status = Status.VERIFY_PRIOR_RESEARCHERS;
+		Set<String> touched = new HashSet<String>();
+		for (Researcher author : reader.getAuthors()) {
+			if (Mode.DISABLED.equals(mode)) {
+				status = Status.PAUSED;
+				break;
+			}
+			// sort of ugly, but this will work with the DB store and not mess things up with the CSV store
+			if (store.touch(author.getURL()) > 0) {
+				touched.add(author.getURL());
+			}
+		}		
+		return touched;
+	}
+	
+	private boolean readResearchers(Set<String> knownReseacherURLs) {
 		int currentErrorCnt = 0;
 		status = Status.READING_RESEARCHERS;
 		for (Researcher author : reader.getAuthors()) {
@@ -283,8 +314,13 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 						savedCnt++;
 					}
 					else {
-						avoided.add(author);
-						LOG.info("Skipping " + author.getURL() + " because it does not appear to be a profile page");
+						if (knownReseacherURLs.contains(author.getURL())) {
+							throw new Exception("Error reading known researcher URL: " + author.getURL() );
+						}
+						else {
+							avoided.add(author);
+							LOG.info("Skipping " + author.getURL() + " because it we could not read it's contents, and it is new to us");
+						}
 					}
 					// if we make it here, we've processed the author
 					reader.removeAuthor(author);
@@ -343,13 +379,11 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		}
 	}
 	
-	@Override
 	public int compareTo(AffiliationCrawler o) {
 		return this.status == o.status ? this.getAffiliationName().compareTo(o.getAffiliationName()) : this.status.compareTo(o.status);
 	}
 	
 	static class DateComparator implements Comparator<AffiliationCrawler> {
-	    @Override
 	    public int compare(AffiliationCrawler a, AffiliationCrawler b) {
 	    	Date aDate = a.getHowOld();
 	    	Date bDate = b.getHowOld();

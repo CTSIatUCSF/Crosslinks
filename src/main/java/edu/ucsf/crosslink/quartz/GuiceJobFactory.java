@@ -29,7 +29,6 @@ public class GuiceJobFactory implements JobFactory {
 		this.crawlerFactory = crawlerFactory;
 	}
 	
-	@Override
 	public Job newJob(final TriggerFiredBundle bundle, final Scheduler schedular)
 			throws SchedulerException {
 		JobDetail jobDetail = bundle.getJobDetail();

@@ -30,7 +30,6 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	private int daysConsideredOld;
 	private DBUtil dbUtil;
 	private Set<String> recentIndexedAuthors = new HashSet<String>();
-	private Set<String> currentIndexedAuthors = new HashSet<String>();
 	
 	private String thumbnailDir;
 	private String thumbnailRootURL;
@@ -123,7 +122,7 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	        ResultSet rs = cs.executeQuery();
 	        if (rs.next()) {
 	        	LOG.info("Saved authorshipId = " + rs.getInt(1));
-	        	currentIndexedAuthors.add(researcher.getURL());
+	        	recentIndexedAuthors.add(researcher.getURL());
 	        }
 		} 
 		finally {
@@ -132,18 +131,10 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	}
 
 	public boolean skip(String url) {
-		if (recentIndexedAuthors.contains(url)) {
-			try {
-				return touchAuthor(url) != -1;
-			}
-			catch (SQLException e) {
-				LOG.log(Level.WARNING, e.getMessage(), e);
-			}
-		}
-		return currentIndexedAuthors.contains(url);
+		return recentIndexedAuthors.contains(url);
 	}
 
-	public int touchAuthor(String url) throws SQLException {
+	public int touch(String url) throws SQLException {
         Integer authorId = null;
 		Connection conn = dbUtil.getConnection();
 		try {

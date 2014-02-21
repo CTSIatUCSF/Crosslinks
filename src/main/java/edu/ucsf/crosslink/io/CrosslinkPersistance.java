@@ -17,6 +17,8 @@ public interface CrosslinkPersistance {
 
 	boolean skip(String url);
 	
+	int touch(String url) throws Exception;
+	
 	void close()  throws Exception;
 
 	// only call this when things are good, not during an abort

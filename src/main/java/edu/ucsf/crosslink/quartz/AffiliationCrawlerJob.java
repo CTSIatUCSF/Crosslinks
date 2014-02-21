@@ -35,7 +35,6 @@ public class AffiliationCrawlerJob implements InterruptableJob {
 		this.crawler = crawler;
 	}
 	
-	@Override
 	public void execute(JobExecutionContext context)
 			throws JobExecutionException {
 		boolean didSomething = false;
@@ -61,7 +60,6 @@ public class AffiliationCrawlerJob implements InterruptableJob {
 		currentExecutionThread = null;
 	}
 
-	@Override
 	public void interrupt() throws UnableToInterruptJobException {
 		if (currentExecutionThread != null) {
 			currentExecutionThread.interrupt();

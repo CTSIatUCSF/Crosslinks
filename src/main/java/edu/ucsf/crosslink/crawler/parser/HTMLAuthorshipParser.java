@@ -7,7 +7,7 @@ import java.util.logging.Logger;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.github.jsonldjava.core.JSONLDProcessingError;
+import com.github.jsonldjava.core.JsonLdError;
 import com.google.inject.Inject;
 
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
@@ -31,7 +31,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
     	this.rdfParser = new RDFAuthorshipParser(siteReader); 		    	
     }
 
-	public Researcher getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+	public Researcher getAuthorFromHTML(String url) throws IOException, JSONException, InterruptedException, JsonLdError {
     	Researcher author = null;
     	Document doc = siteReader.getDocument(url);
 		if (doc != null) {			

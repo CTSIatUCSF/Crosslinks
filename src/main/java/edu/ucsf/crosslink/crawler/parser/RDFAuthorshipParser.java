@@ -1,6 +1,11 @@
 package edu.ucsf.crosslink.crawler.parser;
 
+import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -10,15 +15,29 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.util.FileManager;
 
-import com.github.jsonldjava.core.JSONLD;
-import com.github.jsonldjava.core.JSONLDProcessingError;
-import com.github.jsonldjava.core.Options;
-import com.github.jsonldjava.impl.JenaRDFParser;
+import com.github.jsonldjava.core.JsonLdError;
+import com.github.jsonldjava.core.JsonLdOptions;
+import com.github.jsonldjava.core.JsonLdProcessor;
+import com.github.jsonldjava.jena.JenaRDFParser;
 import com.github.jsonldjava.utils.JSONUtils;
 import com.google.inject.Inject;
+import com.hp.hpl.jena.ontology.OntClass;
+import com.hp.hpl.jena.ontology.OntModel;
+import com.hp.hpl.jena.ontology.OntModelSpec;
+import com.hp.hpl.jena.ontology.Ontology;
+import com.hp.hpl.jena.query.Dataset;
+import com.hp.hpl.jena.query.ReadWrite;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.NsIterator;
+import com.hp.hpl.jena.rdf.model.ResIterator;
+import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.rdf.model.ResourceFactory;
+import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
+import com.hp.hpl.jena.tdb.TDBFactory;
+import com.hp.hpl.jena.util.FileManager;
 
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.model.Researcher;
@@ -50,10 +69,10 @@ public class RDFAuthorshipParser implements AuthorParser {
     @Inject
     public RDFAuthorshipParser(SiteReader siteReader) {
     	this.siteReader = siteReader;
-    	JSONLD.registerRDFParser(RDFXML, new JenaRDFParser());		    	
+    	JsonLdProcessor.registerRDFParser(RDFXML, new JenaRDFParser());		    	
     }
     
-    public Researcher getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+    public Researcher getAuthorFromHTML(String url) throws IOException, JSONException, InterruptedException, JsonLdError {
     	Researcher author = null;
     	Document doc = siteReader.getDocument(url);
     	JSONObject person = getPersonOnlyFromURL(doc, url);
@@ -106,7 +125,7 @@ public class RDFAuthorshipParser implements AuthorParser {
     	return author;
     }
     
-    JSONObject getPersonOnlyFromURL(Document doc, String url) throws IOException, InterruptedException, JSONException, JSONLDProcessingError {
+    JSONObject getPersonOnlyFromURL(Document doc, String url) throws IOException, InterruptedException, JSONException, JsonLdError {
     	JSONObject person = null;
     	String uri = getPersonRDFURLFromHTMLURL(doc, url);
 		if (uri != null) {
@@ -153,24 +172,94 @@ public class RDFAuthorshipParser implements AuthorParser {
 	    }
 	    return uri;
     }
-    
-    private JSONObject getJSONFromURI(String uri) throws JSONLDProcessingError, JSONException { 
-        final Options opts = new Options("");
+
+    private JSONObject getJSONFromURI(String uri) throws JSONException, IOException, JsonLdError { 
+        final JsonLdOptions opts = new JsonLdOptions("");
         opts.format = RDFXML;
-        opts.outputForm = "compacted";  // [compacted|expanded|flattened]
+        opts.outputForm = "compacted";
         Model model = FileManager.get().loadModel(uri);
-        Object obj = JSONLD.fromRDF(model, opts);        
-        // simplify
-        obj = JSONLD.simplify(obj, opts);
-        String str = JSONUtils.toString(obj);
+        Object outobj = JsonLdProcessor.fromRDF(model, opts); 
+        String str = JSONUtils.toString(outobj);
         return new JSONObject(str);	
 	}
     
+    
+    private JSONObject getJSONFromURITest(String uri) throws JSONException, IOException, JsonLdError { 
+        final JsonLdOptions opts = new JsonLdOptions("http://stage-profiles.ucsf.edu/profiles200");
+        opts.format = RDFXML;
+        opts.outputForm = "compacted";
+        Model model = FileManager.get().loadModel(uri);
+        theModel.add(model);
+        theModel.add(FileManager.get().loadModel("http://stage-profiles.ucsf.edu/profiles200/profile/368113/368113.rdf"));
+// to remove
+        NsIterator ns = model.listNameSpaces();
+        while (ns.hasNext()) {
+        	System.out.println(ns.next());
+        }        
+        System.out.println();
+
+        ResIterator ni = theModel.listSubjects();
+        while (ni.hasNext()) {
+        	System.out.println(ni.next());
+        }        
+        System.out.println();
+        
+        StmtIterator si = model.listStatements();
+        List<Statement> remove = new ArrayList<Statement>();
+        while (si.hasNext()) {
+        	Statement s = si.next();
+        	if (s.getPredicate().getURI().indexOf("orng") != -1) {
+        		remove.add(s);
+        	}
+        	else if (s.getPredicate().getURI().indexOf("/prns") != -1) {
+        		remove.add(s);
+        	}
+        	else {
+        		System.out.println(s);
+        	}
+        }
+        System.out.println();
+model.remove(remove);        
+Resource foo = ResourceFactory.createResource("http://stage-profiles.ucsf.edu/profiles200/profile/foo");
+System.out.println(model.contains(foo, null));
+foo = ResourceFactory.createResource("http://stage-profiles.ucsf.edu/profiles200/profile/368698");
+System.out.println(model.contains(foo, null));
+foo = theModel.createResource("http://stage-profiles.ucsf.edu/profiles200/profile/368113");
+        Object outobj = JsonLdProcessor.fromRDF(foo, opts);        
+System.out.println(JSONUtils.toPrettyString(outobj));
+theModel.removeAll(foo, null, null);
+
+outobj = JsonLdProcessor.fromRDF(theModel, opts);        
+System.out.println(JSONUtils.toPrettyString(outobj));
+
+        String str = JSONUtils.toString(outobj);
+System.out.println(str.length());        
+        return new JSONObject(str);	
+	}
+    
+    static Model theModel;
+    
     public static void main(String[] args) {
     	try {
+    		
+    		String base = "http://www.example.com/ont";
+    		OntModel model = ModelFactory.createOntologyModel();
+    		Ontology ont = model.createOntology("");
+    		ont.addImport(model.createResource("http://test.owl#"));
+    		model.write(System.out, "RDF/XML-ABBREV", base);
+    		model.write(new FileOutputStream("C:\\Development\\Crosslinks\\workspace\\example3.owl"), "RDF/XML-ABBREV", base);
+    		
+    		
+    		  // Make a TDB-backed dataset
+    		  String directory = "C:\\Development\\Crosslinks\\workspace\\rdf" ;
+    		  Dataset dataset = TDBFactory.createDataset(directory) ;
+    		  dataset.begin(ReadWrite.WRITE) ;
+    		  theModel = dataset.getDefaultModel() ;
+    		  
     		RDFAuthorshipParser parser = new RDFAuthorshipParser(null);
-    		JSONObject person = parser.getJSONFromURI(args[0]);
+    		JSONObject person = parser.getJSONFromURITest("http://stage-profiles.ucsf.edu/profiles200/profile/368698/368698.rdf");
     		System.out.println(person.getString("@id"));
+  		  	dataset.end();
     	}
     	catch (Exception e) {
     		e.printStackTrace();

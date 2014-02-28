@@ -10,7 +10,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import com.github.jsonldjava.core.JSONLDProcessingError;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
@@ -49,7 +48,7 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 	    LOG.info("Found " + getAuthors().size() + " total profile pages");
     }
 
-    public Researcher getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+    public Researcher getAuthorFromHTML(String url) throws IOException, JSONException, InterruptedException {
     	if (url.endsWith("/browse")) {
     		return null;
     	}

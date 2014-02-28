@@ -10,7 +10,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import com.github.jsonldjava.core.JSONLDProcessingError;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
@@ -59,7 +58,7 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 		}
     }
 
-    public Researcher getAuthorFromHTML(String url) throws IOException, JSONLDProcessingError, JSONException, InterruptedException {
+    public Researcher getAuthorFromHTML(String url) throws IOException, JSONException, InterruptedException {
     	Researcher author = new Researcher(getAffiliation(), null, null, null, url, null, null);
     	Document doc = getDocument(url + "&hitCount=500");
 		if (doc != null) {

@@ -46,9 +46,8 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 		    for (Element link : links) {
 		    	if ( link.attr("abs:href").startsWith(getSiteRoot() + "/research/browseResearch.jsp?") && link.attr("abs:href").contains("id=")) {
 		    		try {
-			    		String[] personName = link.text().split(", ");
 		    			String url = getSiteRoot() + "/research/browseResearch.jsp?id=" + link.attr("abs:href").split("&id=")[1];
-		    			addAuthor(new Researcher(getAffiliation(), personName[0], personName[1], null, url, null, null));
+		    			addAuthor(new Researcher(getAffiliation(), url, null, link.text(), null, null));
 		    		}
 		    		catch (Exception e) {
 						LOG.log(Level.WARNING, "Error parsing " + link.attr("abs:href"), e);		    			
@@ -59,7 +58,7 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
     }
 
     public Researcher getAuthorFromHTML(String url) throws IOException, JSONException, InterruptedException {
-    	Researcher author = new Researcher(getAffiliation(), null, null, null, url, null, null);
+    	Researcher author = new Researcher(getAffiliation(), url, null, null, null, null);
     	Document doc = getDocument(url + "&hitCount=500");
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	

@@ -28,7 +28,7 @@ import edu.ucsf.crosslink.Crosslinks;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
-import edu.ucsf.crosslink.io.DBModule;
+import edu.ucsf.crosslink.io.IOModule;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.crosslink.quartz.AffiliationCrawlerJob;
 
@@ -66,7 +66,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 			Properties prop = new Properties();
 			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
 			prop.load(new FileReader(new File(args[0])));
-			Injector injector = Guice.createInjector(new DBModule(prop), new AffiliationCrawlerModule(prop));
+			Injector injector = Guice.createInjector(new IOModule(prop), new AffiliationCrawlerModule(prop));
 			AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);			
 			crawler.crawl();
 		}
@@ -223,7 +223,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 			}
 			
 			// touch all the ones we have found.  This will make sure that we do not remove anyone that had been indexed before just due to an error in crawling their page
-			Set<String> knownReseacherURLs =  touchResearchers();
+			Set<String> knownReseacherURLs = touchResearchers();
 			
 			if (readResearchers(knownReseacherURLs)) {
 				store.finish();
@@ -282,8 +282,8 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 				break;
 			}
 			// sort of ugly, but this will work with the DB store and not mess things up with the CSV store
-			if (store.touch(author.getURL()) > 0) {
-				touched.add(author.getURL());
+			if (store.touch(author.getHomePageURL()) > 0) {
+				touched.add(author.getHomePageURL());
 			}
 		}		
 		return touched;
@@ -299,14 +299,14 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 			}
 			currentAuthor = author;
 			// do not skip any if we are in forced mode
-			if (!Mode.FORCED_NO_SKIP.equals(mode) && store.skip(author.getURL())) {
+			if (!Mode.FORCED_NO_SKIP.equals(mode) && store.skip(author.getHomePageURL())) {
 				skippedCnt++;
 				reader.removeAuthor(author);
 				LOG.info("Skipping recently processed author :" + author);						
 			}
 			else {
 				try {
-					Researcher details = parser.getAuthorFromHTML(author.getURL());
+					Researcher details = parser.getAuthorFromHTML(author.getHomePageURL());
 					if (details != null) {							
 						author.merge(details);
 						LOG.info("Saving author :" + author);						
@@ -314,12 +314,12 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 						savedCnt++;
 					}
 					else {
-						if (knownReseacherURLs.contains(author.getURL())) {
-							throw new Exception("Error reading known researcher URL: " + author.getURL() );
+						if (knownReseacherURLs.contains(author.getHomePageURL())) {
+							throw new Exception("Error reading known researcher URL: " + author.getHomePageURL() );
 						}
 						else {
 							avoided.add(author);
-							LOG.info("Skipping " + author.getURL() + " because it we could not read it's contents, and it is new to us");
+							LOG.info("Skipping " + author.getHomePageURL() + " because we could not read it's contents, and it is new to us");
 						}
 					}
 					// if we make it here, we've processed the author
@@ -327,9 +327,9 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 				}
 				catch (Exception e) {
 					// see if it's likely to be a bad page
-					if (isProbablyNotAProfilePage(author.getURL())) {
+					if (isProbablyNotAProfilePage(author.getHomePageURL())) {
 						avoided.add(author);
-						LOG.log(Level.INFO, "Skipping " + author.getURL() + " because it does not appear to be a profile page", e);	
+						LOG.log(Level.INFO, "Skipping " + author.getHomePageURL() + " because it does not appear to be a profile page", e);	
 						reader.removeAuthor(author);
 						continue;
 					}

@@ -55,10 +55,9 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
     	Document doc = getDocument(url);
     	// read name from title    	
     	Researcher author = null;
-		if (doc != null && doc.title().endsWith(" | Stanford Profiles")) {
+		if (doc != null && (doc.title().endsWith(" | Stanford Profiles") || doc.title().endsWith(" | Stanford Medicine"))) {
 			String fullName = StringEscapeUtils.escapeHtml4(doc.title().split("\\|")[0].split(",")[0]);
-			String[] name = fullName.split(" ");	
-			author = new Researcher(getAffiliation(), name[name.length - 1], name[0], name.length > 2 ? name[1] : null, url, null, null);
+			author = new Researcher(getAffiliation(), url, null, fullName, null, null);
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {

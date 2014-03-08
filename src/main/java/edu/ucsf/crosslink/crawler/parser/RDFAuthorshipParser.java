@@ -1,20 +1,16 @@
 package edu.ucsf.crosslink.crawler.parser;
 
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
 
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 
 import com.github.jsonldjava.core.JsonLdError;
 import com.github.jsonldjava.core.JsonLdOptions;
@@ -22,9 +18,7 @@ import com.github.jsonldjava.core.JsonLdProcessor;
 import com.github.jsonldjava.jena.JenaRDFParser;
 import com.github.jsonldjava.utils.JSONUtils;
 import com.google.inject.Inject;
-import com.hp.hpl.jena.ontology.OntClass;
 import com.hp.hpl.jena.ontology.OntModel;
-import com.hp.hpl.jena.ontology.OntModelSpec;
 import com.hp.hpl.jena.ontology.Ontology;
 import com.hp.hpl.jena.query.Dataset;
 import com.hp.hpl.jena.query.ReadWrite;
@@ -40,6 +34,7 @@ import com.hp.hpl.jena.tdb.TDBFactory;
 import com.hp.hpl.jena.util.FileManager;
 
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
+import edu.ucsf.crosslink.io.JenaPersistance;
 import edu.ucsf.crosslink.model.Researcher;
 
 import org.jsoup.nodes.Document;
@@ -50,10 +45,10 @@ import org.jsoup.select.Elements;
 public class RDFAuthorshipParser implements AuthorParser {
 
 	private static final Logger LOG = Logger.getLogger(RDFAuthorshipParser.class.getName());
-
 	private static final String RDFXML = "application/rdf+xml";
-	
+
 	private SiteReader siteReader;
+	private JenaPersistance jenaPersistance;
 	
     private static void print(String msg, Object... args) {
         System.out.println(String.format(msg, args));
@@ -67,11 +62,13 @@ public class RDFAuthorshipParser implements AuthorParser {
     }
     
     @Inject
-    public RDFAuthorshipParser(SiteReader siteReader) {
+    public RDFAuthorshipParser(SiteReader siteReader, JenaPersistance jenaPersistance) {
     	this.siteReader = siteReader;
+    	this.jenaPersistance = jenaPersistance;
     	JsonLdProcessor.registerRDFParser(RDFXML, new JenaRDFParser());		    	
     }
     
+	
     public Researcher getAuthorFromHTML(String url) throws IOException, JSONException, InterruptedException, JsonLdError {
     	Researcher author = null;
     	Document doc = siteReader.getDocument(url);
@@ -82,10 +79,10 @@ public class RDFAuthorshipParser implements AuthorParser {
 	    		JSONArray authorInAuthorship = person.optJSONArray("authorInAuthorship");
 		        for (int i = 0; i < (authorInAuthorship).length(); i++) {
 		        	try {
-			        	JSONObject authorship = getJSONFromURI(authorInAuthorship.getString(i));
+			        	JSONObject authorship = getJSONFromURI(authorInAuthorship.getString(i), false);
 			        	authorship = findDataItem(authorship, "linkedInformationResource");
 			        	LOG.info(authorship.toString());
-			        	JSONObject publication = getJSONFromURI(authorship.getString("linkedInformationResource"));
+			        	JSONObject publication = getJSONFromURI(authorship.getString("linkedInformationResource"), false);
 			        	publication = findDataItem(publication, "pmid");
 			        	LOG.info(publication.toString());
 			        	if (!publication.optString("pmid").isEmpty()) {
@@ -101,10 +98,10 @@ public class RDFAuthorshipParser implements AuthorParser {
 	    	else if (!StringUtils.isEmpty(person.optString("authorInAuthorship"))) {
 	    		try {
 		 	    	//  not an array for someone like ME
-		    		JSONObject authorship = getJSONFromURI(person.optString("authorInAuthorship"));
+		    		JSONObject authorship = getJSONFromURI(person.optString("authorInAuthorship"), false);
 		        	authorship = findDataItem(authorship, "linkedInformationResource");
 		        	LOG.info(authorship.toString());
-		        	JSONObject publication = getJSONFromURI(authorship.getString("linkedInformationResource"));
+		        	JSONObject publication = getJSONFromURI(authorship.getString("linkedInformationResource"), false);
 		        	publication = findDataItem(publication, "pmid");
 		        	LOG.info(publication.toString());
 		        	if (!publication.optString("pmid").isEmpty()) {
@@ -129,10 +126,10 @@ public class RDFAuthorshipParser implements AuthorParser {
     	JSONObject person = null;
     	String uri = getPersonRDFURLFromHTMLURL(doc, url);
 		if (uri != null) {
-	    	person = getJSONFromURI(uri);
+	    	person = getJSONFromURI(uri, true);
 	    	LOG.info(person.toString());
-	    	// ugly but necessary
-	    	person = findDataItem(person, "lastName");
+	    	// ugly but necessary,  actually probably not any more
+	    	//person = findDataItem(person, "lastName");
 		}
 		
 		return person;
@@ -158,27 +155,27 @@ public class RDFAuthorshipParser implements AuthorParser {
     private String getPersonRDFURLFromHTMLURL(Document doc, String url) throws IOException, InterruptedException {
 		Elements links = doc.select("a[href]");	
 		
-		String uri = null;
+		String rdfUrl = null;
 	    for (Element link : links) {
 	    	if ( link.attr("abs:href").endsWith(".rdf")) {
 	    		print(" * a: <%s>  (%s)", link.attr("abs:href"), trim(link.text(), 35));
-	    		uri = link.attr("abs:href");
+	    		rdfUrl = link.attr("abs:href");
 	    	}
         }
-	    if (uri == null) {
+	    if (rdfUrl == null) {
 	    	// worth a try
 	    	String[] parts = url.split("/");
-	    	uri = url + "/" + parts[parts.length - 1] + ".rdf";
+	    	rdfUrl = url + "/" + parts[parts.length - 1] + ".rdf";
 	    }
-	    return uri;
+	    return rdfUrl;
     }
 
-    private JSONObject getJSONFromURI(String uri) throws JSONException, IOException, JsonLdError { 
+    private JSONObject getJSONFromURI(String uri, boolean store) throws JSONException, IOException, JsonLdError { 
         final JsonLdOptions opts = new JsonLdOptions("");
         opts.format = RDFXML;
         opts.outputForm = "compacted";
-        Model model = FileManager.get().loadModel(uri);
-        Object outobj = JsonLdProcessor.fromRDF(model, opts); 
+        Resource resource = jenaPersistance.getFreshResource(uri, store);
+        Object outobj = JsonLdProcessor.fromRDF(resource, opts); 
         String str = JSONUtils.toString(outobj);
         return new JSONObject(str);	
 	}
@@ -256,7 +253,7 @@ System.out.println(str.length());
     		  dataset.begin(ReadWrite.WRITE) ;
     		  theModel = dataset.getDefaultModel() ;
     		  
-    		RDFAuthorshipParser parser = new RDFAuthorshipParser(null);
+    		RDFAuthorshipParser parser = new RDFAuthorshipParser(null, null);
     		JSONObject person = parser.getJSONFromURITest("http://stage-profiles.ucsf.edu/profiles200/profile/368698/368698.rdf");
     		System.out.println(person.getString("@id"));
   		  	dataset.end();

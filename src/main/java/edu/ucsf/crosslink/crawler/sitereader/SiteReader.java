@@ -89,10 +89,10 @@ public abstract class SiteReader {
     	// dedupe, keep those with a name if you have a choice
     	Map<String, Researcher> rbyU = new HashMap<String, Researcher>();
     	for (Researcher r : authors) {
-    		if (rbyU.containsKey(r.getURL()) && r.getLastName() == null) {
+    		if (rbyU.containsKey(r.getHomePageURL()) && r.getLabel() == null) {
     			continue;
     		}
-    		rbyU.put(r.getURL(), r);
+    		rbyU.put(r.getHomePageURL(), r);
     	}
     	authors.clear();
     	authors.addAll(rbyU.values());

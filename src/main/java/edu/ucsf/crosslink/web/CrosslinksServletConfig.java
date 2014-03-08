@@ -11,7 +11,7 @@ import com.google.inject.servlet.GuiceServletContextListener;
 
 import edu.ucsf.crosslink.Crosslinks;
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
-import edu.ucsf.crosslink.io.DBModule;
+import edu.ucsf.crosslink.io.IOModule;
 import edu.ucsf.crosslink.quartz.Quartz;
 import edu.ucsf.crosslink.quartz.QuartzModule;
 
@@ -25,7 +25,7 @@ public class CrosslinksServletConfig extends GuiceServletContextListener {
 		try {
 			Properties prop = new Properties();
 			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));			
-			injector = Guice.createInjector(new DBModule(prop), new QuartzModule(prop), new CrosslinksServletModule(prop));
+			injector = Guice.createInjector(new IOModule(prop), new QuartzModule(prop), new CrosslinksServletModule(prop));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

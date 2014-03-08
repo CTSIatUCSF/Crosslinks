@@ -1,17 +1,14 @@
 package edu.ucsf.crosslink.model;
 
-import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import net.coobird.thumbnailator.Thumbnails;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
@@ -26,10 +23,9 @@ public class Researcher implements Comparable<Researcher> {
 	private static final Logger LOG = Logger.getLogger(Researcher.class.getName());
 	
 	private String affiliationName;
-	private String lastName;
-	private String firstName;
-	private String middleName;
-	private String URL;
+	private String label;
+	private String homePageURL;
+	private String URI;
 	private List<String> imageURLs = new ArrayList<String>(); // we allow for grabbing more than one and then test to see if any are valid when saving
 	private String thumbnailURL;
 	private String orcidId;
@@ -38,44 +34,63 @@ public class Researcher implements Comparable<Researcher> {
 	private Collection<Integer> pmids= new HashSet<Integer>();
 
 	public Researcher(String url) {
-		this.setURL(url);
+		this.setHomePageURL(url);
 	}
 
 	// for loading from the DB
 	public Researcher(Affiliation affiliation,
-			String lastName, String firstName, String middleName, String url, String imageURL, String thumbnailURL, 
+			String homePageURL, String uri, String label, String imageURL, String thumbnailURL, 
 			String orcidId, int externalCoauthorCount) {		
-		this(url);
+		this(homePageURL);
     	this.setAffiliationName(affiliation.getName());
-    	this.setLastName(lastName);
-    	this.setFirstName(firstName);
-    	this.setMiddleName(middleName);
+    	this.setURI(uri);
+    	this.setLabel(label);
     	this.addImageURL(imageURL);
     	this.thumbnailURL = thumbnailURL;
     	this.setOrcidId(orcidId);
     	this.externalCoauthorCount = externalCoauthorCount;
     }
 
-	public Researcher(String affiliationName, String lastName, String firstName, String middleName, String url, String imageURL, String orcidId) {
-		this(url);
+	// TODO make this a URL and URI java object
+	public Researcher(String affiliationName, String homePageURL, String uri, String label, String imageURL, String orcidId) {
+		this(homePageURL);
     	this.setAffiliationName(affiliationName);
-    	this.setLastName(lastName);
-    	this.setFirstName(firstName);
-    	this.setMiddleName(middleName);
+    	this.setURI(uri);
+    	this.setLabel(label);
     	this.addImageURL(imageURL);
     	this.setOrcidId(orcidId);
     }
 
-    public Researcher(String affiliationName, JSONObject person, String url) throws JSONException {
-    	this(affiliationName, person.getString("lastName"), person.getString("firstName"), person.optString("middleName"), url, person.optString("mainImage"), person.optString("orcidId"));
+	// need to test this one
+    public Researcher(String affiliationName, JSONObject person, String homePageURL) throws JSONException {
+    	this(affiliationName, homePageURL, person.getString("@id"), getSuffixMatch(person, "#label"), getSuffixMatch(person, "#mainImage"), getSuffixMatch(person, "#orcidId"));
+    }
+    
+    private static String getSuffixMatch(JSONObject item, String suffix) throws JSONException {
+    	@SuppressWarnings("rawtypes")
+		Iterator keys = item.keys();
+    	while (keys.hasNext()) {
+    		String key = "" + keys.next();
+    		if (key.endsWith(suffix)) {
+    			Object retval = item.get(key);
+    			if (retval instanceof String) {
+    				return (String)retval;
+    			}
+    			else if (retval instanceof JSONObject && ((JSONObject)retval).has("@id")) {
+    				return ((JSONObject)retval).getString("@id");
+    			}
+    			if (item.getBoolean(key))
+    			return item.getString(key);
+    		}
+    	}
+    	return null;
     }
     
     public void merge(Researcher author) throws Exception {
     	this.setAffiliationName(getMergedValue(this.affiliationName, author.affiliationName));
-    	this.setLastName(getMergedValue(this.lastName, author.lastName));
-    	this.setFirstName(getMergedValue(this.firstName, author.firstName));
-    	this.setMiddleName(getMergedValue(this.middleName, author.middleName));
-    	this.setURL(getMergedValue(this.URL, author.URL));
+    	this.setHomePageURL(getMergedValue(this.homePageURL, author.homePageURL));
+    	this.setLabel(getMergedValue(this.label, author.label));
+    	this.setURI(getMergedValue(this.URI, author.URI));
     	this.imageURLs.addAll(author.imageURLs);
     	this.setOrcidId(getMergedValue(this.orcidId, author.orcidId));
     	this.pmids.addAll(author.pmids);
@@ -96,29 +111,22 @@ public class Researcher implements Comparable<Researcher> {
     	}
     }
     
-    public String getLastName() {
-		return lastName;
+    public String getLabel() {
+		return label;
 	}
 	
-    private void setLastName(String lastName) {
-		this.lastName = lastName;
+    private void setLabel(String label) {
+		this.label = label;
 	}
 	
-	public String getFirstName() {
-		return firstName;
+	public String getURI() {
+		return URI;
 	}
 	
-	private void setMiddleName(String middleName) {
-		this.middleName = StringUtils.isEmpty(middleName) ? null : middleName;
+	public void setURI(String URI) {
+		this.URI = StringUtils.isEmpty(URI) ? null : URI;
 	}
 	
-	public String getMiddleName() {
-		return middleName;
-	}
-	
-	private void setFirstName(String firstName) {
-		this.firstName = firstName;
-	}
 
 	public String getAffiliationName() {
 		return affiliationName;
@@ -128,41 +136,22 @@ public class Researcher implements Comparable<Researcher> {
 		this.affiliationName = affiliationName;
 	}
 	
-	public String getURL() {
-		return URL;
+	public String getHomePageURL() {
+		return homePageURL;
 	}
 	
-	private void setURL(String uRL) {
-		URL = uRL != null ? uRL : null;
+	private void setHomePageURL(String homePageURL) {
+		this.homePageURL = homePageURL;
 	}
 	
 	// ugly but it works
-	public boolean generateReseacherThumbnail(String thumbnailDir, int thumbnailWidth, int thumbnailHeight, String thumbnailRootURL) {
-		if (URL != null && imageURLs.size() > 0 && thumbnailURL == null) {
-			int id = URL.toLowerCase().hashCode();
-			String loc = getAffiliationName() + "/" + ("" + (100 + (Math.abs(id) % 100))).substring(1) + "/" + id + ".jpg";
-			for (String imageURL : imageURLs) {
-				try {
-					File thumbnail = new File(thumbnailDir + "/" + loc );
-					new File(thumbnail.getParent()).mkdirs();
-					Thumbnails.of(new URL(imageURL))
-			        	.size(thumbnailWidth, thumbnailHeight)
-			        	.toFile(thumbnail);
-					// if we made it here, we are good
-					this.thumbnailURL = thumbnailRootURL + "/" + loc;
-					imageURLs.clear();
-					imageURLs.add(imageURL);
-					return true;
-				}
-				catch (Exception e) {
-					LOG.log(Level.WARNING, e.getMessage(), e);
-				}
-			}
+	public void setConfirmedImgURLs(String imageURL, String thumbnailURL) {
+		this.imageURLs.clear();
+		if (imageURL != null) {
+			this.imageURLs.add(imageURL);
 		}
-		// if we get here, they are all bad
-		imageURLs.clear();
-		return false;
-	}	
+		this.thumbnailURL = thumbnailURL;
+	}
 	
 	public String getThumbnailURL() {
 		return thumbnailURL; 
@@ -173,6 +162,10 @@ public class Researcher implements Comparable<Researcher> {
 		return imageURLs.size() == 1 ? imageURLs.get(0) : null;
 	}
 	
+	public List<String> getImageURLs() {
+		return imageURLs;
+	}
+
 	public void addImageURL(String imageURL) {
 		if (!StringUtils.isEmpty(imageURL)) {
 			imageURLs.add(imageURL);
@@ -250,7 +243,7 @@ public class Researcher implements Comparable<Researcher> {
 	}
 	
 	public String toString() {
-		return (lastName != null ? lastName + ", " + firstName + " : " : " ") + URL;
+		return label + " : " + homePageURL;
 	}
 
 	public int compareTo(Researcher arg0) {
@@ -259,7 +252,7 @@ public class Researcher implements Comparable<Researcher> {
 	}
 	
 	public String getName() {
-		return lastName != null ? (lastName + ", " + firstName + (middleName != null ? " " + middleName : "")) : "";
+		return label;
 	}
 	
 	public int getExternalCoauthorCount() {

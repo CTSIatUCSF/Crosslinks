@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.logging.Logger;
 
 
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -11,6 +12,7 @@ import com.github.jsonldjava.core.JsonLdError;
 import com.google.inject.Inject;
 
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
+import edu.ucsf.crosslink.io.JenaPersistance;
 import edu.ucsf.crosslink.model.Researcher;
 
 import org.jsoup.nodes.Document;
@@ -26,9 +28,9 @@ public class HTMLAuthorshipParser implements AuthorParser {
 	private RDFAuthorshipParser rdfParser;
 	
 	@Inject
-    public HTMLAuthorshipParser(SiteReader siteReader) {
+    public HTMLAuthorshipParser(SiteReader siteReader, JenaPersistance jenaPersistance) {
     	this.siteReader = siteReader;
-    	this.rdfParser = new RDFAuthorshipParser(siteReader); 		    	
+    	this.rdfParser = new RDFAuthorshipParser(siteReader, jenaPersistance); 		    	
     }
 
 	public Researcher getAuthorFromHTML(String url) throws IOException, JSONException, InterruptedException, JsonLdError {

@@ -242,7 +242,7 @@ public class RestMethods {
     }
     
     public List<Researcher> getResearchers(Affiliation affiliation) {
-		String sql = "select LastName, FirstName , MiddleName , URL, imageURL, thumbnailURL, orcidId, externalCoauthorCount from vw_ResearcherList where affiliationName = ?";
+		String sql = "select homePageURL, URI, Label, imageURL, thumbnailURL, orcidId, externalCoauthorCount from vw_ResearcherList where affiliationName = ?";
     	List<Researcher> researchers = new ArrayList<Researcher>();
 		Connection conn = dbUtil.getConnection();
 		try {
@@ -250,7 +250,7 @@ public class RestMethods {
 			ps.setString(1, affiliation.getName());
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
-				researchers.add( new Researcher(affiliation, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7), rs.getInt(8)) );
+				researchers.add( new Researcher(affiliation, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getInt(7)) );
 			}
 		}
 		catch (Exception se) {

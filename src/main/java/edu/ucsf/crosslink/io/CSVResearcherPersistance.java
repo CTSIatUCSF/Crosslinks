@@ -60,8 +60,8 @@ public class CSVResearcherPersistance implements CrosslinkPersistance {
 					continue;
 				}
 				Authorship authorship = new Authorship(entry);
-				if (!existingEntries.contains(authorship.getURL())) {
-					existingEntries.add(authorship.getURL());
+				if (!existingEntries.contains(authorship.getHomePageURL())) {
+					existingEntries.add(authorship.getHomePageURL());
 				}
 			}
 			LOG.info("Found " + existingEntries.size() + " processed authors in " + filename + " out of " + entries.size() + " entries");
@@ -85,8 +85,8 @@ public class CSVResearcherPersistance implements CrosslinkPersistance {
 	private void saveAuthorships(Collection<Authorship> authorships) throws Exception {
 		for (Authorship authorship : authorships) {
 			writer.writeNext(authorship.toStringArray());
-			if (!existingEntries.contains(authorship.getURL())) {
-				existingEntries.add(authorship.getURL());
+			if (!existingEntries.contains(authorship.getHomePageURL())) {
+				existingEntries.add(authorship.getHomePageURL());
 			}
 		}
 	}

@@ -4,59 +4,49 @@ package edu.ucsf.crosslink.model;
 public class Authorship {
 
 	private String affiliation;
-	private String lastName;
-	private String firstName;
-	private String middleName;
-	private String URL;
+	private String homePageURL;
+	private String label;
+	private String URI;
 	private String imageURL;
 	private String orcidId;
 	private String pmid;  // keep as string so we can handle NULL 
 	
-	public static String[] ColumnNames = {"Affiliation", "LastName", "FirstName", "MiddleName", "URL", "imageURL", "OrcidID", "PMID"};
+	public static String[] ColumnNames = {"Affiliation", "HomePageURL", "URI", "Label", "imageURL", "OrcidID", "PMID"};
 	
-    Authorship(String affiliation, String lastName, String firstName, String middleName, String url, String imageURL, String orcidId, String pmid) {
+    Authorship(String affiliation, String homePageURL, String URI, String label, String imageURL, String orcidId, String pmid) {
     	this.setAffiliation(affiliation);
-    	this.setLastName(lastName);
-    	this.setFirstName(firstName);
-    	this.setMiddleName(middleName);
-    	this.setURL(url);
+    	this.setHomePageURL(homePageURL);
+    	this.setURI(URI);
+    	this.setLabel(label);
     	this.setImageURL(imageURL);
     	this.setOrcidId(orcidId);
     	this.setPmid(pmid);
     }
 
 	public Authorship(String[] entry) {
-		this(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5], entry[6], entry[7]);
+		this(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5], entry[6]);
 	}
 
     Authorship(Researcher author, String pmid) {
-    	this(author.getAffiliationName(), author.getLastName(), author.getFirstName(), author.getMiddleName(), author.getURL(), author.getImageURL(), author.getOrcidId(), pmid);
+    	this(author.getAffiliationName(), author.getHomePageURL(), author.getURI(), author.getLabel(), author.getImageURL(), author.getOrcidId(), pmid);
     }
 
-    public String getLastName() {
-		return lastName;
+    public String getLabel() {
+		return label;
 	}
 	
-    private void setLastName(String lastName) {
-		this.lastName = lastName;
+    private void setLabel(String label) {
+		this.label = label;
 	}
 	
-	public String getFirstName() {
-		return firstName;
+	public String getHomePageURL() {
+		return homePageURL;
 	}
 	
-	private void setMiddleName(String middleName) {
-		this.middleName = middleName;
+	private void setHomePageURL(String homePageURL) {
+		this.homePageURL = homePageURL;
 	}
 	
-	public String getMiddleName() {
-		return middleName;
-	}
-	
-	private void setFirstName(String firstName) {
-		this.firstName = firstName;
-	}
-
 	public String getAffiliation() {
 		return affiliation;
 	}
@@ -65,12 +55,12 @@ public class Authorship {
 		this.affiliation = affiliation;
 	}
 	
-	public String getURL() {
-		return URL;
+	public String getURI() {
+		return URI;
 	}
 	
-	private void setURL(String URL) {
-		this.URL = URL;
+	private void setURI(String URI) {
+		this.URI = URI;
 	}
 	
 	public String getImageURL() {
@@ -98,11 +88,11 @@ public class Authorship {
 	}
 	
 	public String toString() {
-		return affiliation + ": " + lastName + ", " + firstName + ": " + pmid;
+		return affiliation + ": " + label + ": " + pmid;
 	}
 	
 	public String[] toStringArray() {
-		String[] retval = {affiliation, lastName, firstName, middleName, URL, imageURL, orcidId, pmid};
+		String[] retval = {affiliation, homePageURL, URI, label, imageURL, orcidId, pmid};
 		return retval;
 	}
 

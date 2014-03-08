@@ -24,7 +24,7 @@ import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.Crosslinks;
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
-import edu.ucsf.crosslink.io.DBModule;
+import edu.ucsf.crosslink.io.IOModule;
 
 @Singleton
 public class Quartz {
@@ -40,7 +40,7 @@ public class Quartz {
 		try {
 			Properties prop = new Properties();
 			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));			
-			Quartz quartz = Guice.createInjector(new DBModule(prop), new QuartzModule(prop)).getInstance(Quartz.class);
+			Quartz quartz = Guice.createInjector(new IOModule(prop), new QuartzModule(prop)).getInstance(Quartz.class);
 			quartz.shutdown();
 		}
 		catch (Exception e) {

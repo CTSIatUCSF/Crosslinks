@@ -1,6 +1,5 @@
 package edu.ucsf.crosslink.io;
 
-import java.io.File;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -20,7 +19,6 @@ import com.thoughtworks.xstream.XStream;
 
 import edu.ucsf.crosslink.model.Researcher;
 
-
 public class DBResearcherPersistance implements CrosslinkPersistance {
 	
 	private static final Logger LOG = Logger.getLogger(DBResearcherPersistance.class.getName());
@@ -31,11 +29,9 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	private DBUtil dbUtil;
 	private Set<String> recentIndexedAuthors = new HashSet<String>();
 	
-	private String thumbnailDir;
-	private String thumbnailRootURL;
-	private int thumbnailWidth = 100;
-	private int thumbnailHeight = 100;
-	
+	private ThumbnailGenerator thumbnailGenerator;
+	private JenaPersistance jenaPersistance;
+		
 	@Inject
 	public DBResearcherPersistance(@Named("Affiliation") String affiliationName, @Named("BaseURL") String baseURL, 
 			@Named("daysConsideredOld") Integer daysConsideredOld, DBUtil dbUtil) {
@@ -46,17 +42,15 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	}
 	
 	@Inject
-	public void setThumbnailInformation(@Named("thumbnailDir") String thumbnailDir, @Named("thumbnailRootURL") String thumbnailRootURL, 
-			@Named("thumbnailWidth") Integer thumbnailWidth, @Named("thumbnailHeight") Integer thumbnailHeight) {
-		this.thumbnailDir = thumbnailDir;
-		this.thumbnailRootURL = thumbnailRootURL;
-		this.thumbnailWidth = thumbnailWidth;
-		this.thumbnailHeight = thumbnailHeight;
-		// prove that this works from a user rights perspective
-		File directory = new File(thumbnailDir);
-		directory.mkdirs();		
+	public void setThumbnailGenerator(ThumbnailGenerator thumbnailGenerator) {
+		this.thumbnailGenerator = thumbnailGenerator;
 	}
 	
+	@Inject
+	public void setJenaPersistance(JenaPersistance jenaPersistance) {
+		this.jenaPersistance = jenaPersistance;
+	}
+
 	public Date dateOfLastCrawl() {
 		Connection conn = dbUtil.getConnection();
 		try {
@@ -102,27 +96,31 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
     
 	public void saveResearcher(Researcher researcher) throws Exception {
 		//  clean up image urls
-		researcher.generateReseacherThumbnail(thumbnailDir, thumbnailWidth, thumbnailHeight, thumbnailRootURL);
+		if (thumbnailGenerator != null) {
+			thumbnailGenerator.generateThumbnail(researcher);
+		}
+		if (jenaPersistance != null) {
+			jenaPersistance.saveResearcher(researcher);
+		}
 		// check DB
 		Connection conn = dbUtil.getConnection();
 		XStream xstream = new XStream();
 		try {
 	        CallableStatement cs = conn
-			        .prepareCall("{ call [UpsertAuthor](?, ?, ?, ?, ?, ?, ?, ?, ?)}");
+			        .prepareCall("{ call [UpsertAuthor](?, ?, ?, ?, ?, ?, ?, ?)}");
 	        cs.setString(1, researcher.getAffiliationName());
-	        cs.setString(2, researcher.getLastName());
-	        cs.setString(3, researcher.getFirstName());
-	        cs.setString(4, researcher.getMiddleName());
-	        cs.setString(5, researcher.getURL());
-	        cs.setString(6, researcher.getImageURL());
-	        cs.setString(7, researcher.getThumbnailURL());
-	        cs.setString(8, researcher.getOrcidId());
-	        cs.setString(9, xstream.toXML(researcher.getPubMedPublications()));
+	        cs.setString(2, researcher.getHomePageURL());
+	        cs.setString(3, researcher.getURI());
+	        cs.setString(4, researcher.getLabel());
+	        cs.setString(5, researcher.getImageURL());
+	        cs.setString(6, researcher.getThumbnailURL());
+	        cs.setString(7, researcher.getOrcidId());
+	        cs.setString(8, xstream.toXML(researcher.getPubMedPublications()));
 	        
 	        ResultSet rs = cs.executeQuery();
 	        if (rs.next()) {
 	        	LOG.info("Saved authorshipId = " + rs.getInt(1));
-	        	recentIndexedAuthors.add(researcher.getURL());
+	        	recentIndexedAuthors.add(researcher.getHomePageURL());
 	        }
 		} 
 		finally {
@@ -187,7 +185,7 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 			pmids.add(456);
 			System.out.println(xstream.toXML(pmids));
 			
-			Researcher author = new Researcher("UCSF", "nobody", "nobody", null, "http://stage-profiles.ucsf.edu/profiles200/nobody.nobody", null, null);
+			Researcher author = new Researcher("UCSF", "nobody", null, "http://stage-profiles.ucsf.edu/profiles200/nobody.nobody", null, null);
 			author.addPubMedPublication(123);
 			author.addPubMedPublication(456);
 			

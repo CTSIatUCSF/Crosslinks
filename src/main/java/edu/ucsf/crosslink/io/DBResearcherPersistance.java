@@ -17,14 +17,14 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.thoughtworks.xstream.XStream;
 
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
 public class DBResearcherPersistance implements CrosslinkPersistance {
 	
 	private static final Logger LOG = Logger.getLogger(DBResearcherPersistance.class.getName());
 	
-	private String affiliationName;
-	private String baseURL;
+	private Affiliation affiliation;
 	private int daysConsideredOld;
 	private DBUtil dbUtil;
 	private Set<String> recentIndexedAuthors = new HashSet<String>();
@@ -33,10 +33,8 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	private JenaPersistance jenaPersistance;
 		
 	@Inject
-	public DBResearcherPersistance(@Named("Affiliation") String affiliationName, @Named("BaseURL") String baseURL, 
-			@Named("daysConsideredOld") Integer daysConsideredOld, DBUtil dbUtil) {
-		this.affiliationName = affiliationName;
-		this.baseURL = baseURL;
+	public DBResearcherPersistance(Affiliation affiliation, @Named("daysConsideredOld") Integer daysConsideredOld, DBUtil dbUtil) {
+		this.affiliation = affiliation;
 		this.daysConsideredOld = daysConsideredOld;
 		this.dbUtil = dbUtil;
 	}
@@ -56,7 +54,7 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 		try {
 			String sql = "select lastIndexEndDT from Affiliation where affiliationName = ?";
 			PreparedStatement ps = conn.prepareStatement(sql);
-			ps.setString(1, affiliationName);
+			ps.setString(1, affiliation.getName());
 			ResultSet rs = ps.executeQuery();
 			if (rs.next()) {
 				// return the last time finished.  This only works because we assume only ONE CrosslinksRunner is running at a time!
@@ -80,14 +78,14 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 		try {
 	        CallableStatement cs = conn
 			        .prepareCall("{ call [StartCrawl](?, ?, ?)}");
-	        cs.setString(1, affiliationName);
-	        cs.setString(2, baseURL);
+	        cs.setString(1, affiliation.getName());
+	        cs.setString(2, affiliation.getBaseURL());
 	        cs.setInt(3, daysConsideredOld);
 	        ResultSet rs = cs.executeQuery();
 	        while (rs.next()) {
 	        	recentIndexedAuthors.add(rs.getString(1));
 	        }
-        	LOG.info("Starting affiliation " + affiliationName + " found " + recentIndexedAuthors.size() + " recently indexed authors");
+        	LOG.info("Starting affiliation " + affiliation + " found " + recentIndexedAuthors.size() + " recently indexed authors");
 		} 
 		finally {
 			conn.close();
@@ -96,11 +94,16 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
     
 	public void saveResearcher(Researcher researcher) throws Exception {
 		//  clean up image urls
-		if (thumbnailGenerator != null) {
-			thumbnailGenerator.generateThumbnail(researcher);
+		try {
+			if (thumbnailGenerator != null) {
+				thumbnailGenerator.generateThumbnail(researcher);
+			}
+			if (jenaPersistance != null) {
+				jenaPersistance.saveResearcher(researcher);
+			}
 		}
-		if (jenaPersistance != null) {
-			jenaPersistance.saveResearcher(researcher);
+		catch (Exception e) {
+			LOG.log(Level.WARNING, "Trying to generate thumbnails and store RDF for " + researcher, e);
 		}
 		// check DB
 		Connection conn = dbUtil.getConnection();
@@ -108,7 +111,7 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 		try {
 	        CallableStatement cs = conn
 			        .prepareCall("{ call [UpsertAuthor](?, ?, ?, ?, ?, ?, ?, ?)}");
-	        cs.setString(1, researcher.getAffiliationName());
+	        cs.setString(1, researcher.getAffiliation().getName());
 	        cs.setString(2, researcher.getHomePageURL());
 	        cs.setString(3, researcher.getURI());
 	        cs.setString(4, researcher.getLabel());
@@ -138,7 +141,7 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 		try {
 	        CallableStatement cs = conn
 			        .prepareCall("{ call [TouchAuthor](?, ?)}");
-	        cs.setString(1, affiliationName);
+	        cs.setString(1, affiliation.getName());
 	        cs.setString(2, url);
 	        ResultSet rs = cs.executeQuery();
 	        if (rs.next()) {
@@ -156,15 +159,15 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 		try {
 	        CallableStatement cs = conn
 			        .prepareCall("{ call [EndCrawl](?)}");
-	        cs.setString(1, affiliationName);
+	        cs.setString(1, affiliation.getName());
 	        ResultSet rs = cs.executeQuery();
 	        Integer affiliationId = null;
 	        if (rs.next()) {
 	        	affiliationId = rs.getInt(1);
-	        	LOG.info("Stopping affiliation " + affiliationName + " affiliationId = " + affiliationId);
+	        	LOG.info("Stopping affiliation " + affiliation + " affiliationId = " + affiliationId);
 	        }
 	        if (affiliationId == null) {
-	        	throw new Exception("Affiliation " + affiliationName + " not found in the database, shutting down!");
+	        	throw new Exception("Affiliation " + affiliation + " not found in the database, shutting down!");
 	        }
 	        
 		} 
@@ -185,11 +188,11 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 			pmids.add(456);
 			System.out.println(xstream.toXML(pmids));
 			
-			Researcher author = new Researcher("UCSF", "nobody", null, "http://stage-profiles.ucsf.edu/profiles200/nobody.nobody", null, null);
+			Researcher author = new Researcher(null, null, null, "http://stage-profiles.ucsf.edu/profiles200/nobody.nobody", null, null);
 			author.addPubMedPublication(123);
 			author.addPubMedPublication(456);
 			
-			DBResearcherPersistance db = new DBResearcherPersistance(null, null, 4, null);
+			DBResearcherPersistance db = new DBResearcherPersistance(null, 4, null);
 			db.saveResearcher(author);
 		}
 		catch (Exception e) {

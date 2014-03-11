@@ -10,6 +10,7 @@ import java.util.Map.Entry;
 import java.util.logging.Logger;
 
 
+
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.Connection.Response;
@@ -18,6 +19,7 @@ import org.jsoup.nodes.Document;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
 
@@ -25,8 +27,7 @@ public abstract class SiteReader {
 	
 	private static final Logger LOG = Logger.getLogger(SiteReader.class.getName());
 
-	private String affiliation;
-	private String siteRoot;
+	private Affiliation affiliation;
 	private List<Researcher> authors = new ArrayList<Researcher>();
 	private List<Researcher> removeList = new ArrayList<Researcher>();
 	private Map<String, String> cookies = new HashMap<String, String>();	
@@ -36,9 +37,8 @@ public abstract class SiteReader {
 	private int getDocumentSleep = 1000;
 
 	@Inject
-	public SiteReader(@Named("Affiliation") String affiliation, @Named("BaseURL") String siteRoot) {
+	public SiteReader(Affiliation affiliation) {
 		this.affiliation = affiliation;
-		this.siteRoot = siteRoot;
 	}
 	
 	@Inject
@@ -123,12 +123,11 @@ public abstract class SiteReader {
     	removeList.clear();
     }    
     
-    public String getAffiliation() {
+    public Affiliation getAffiliation() {
     	return affiliation;
     }
-    
+
     public String getSiteRoot() {
-    	return siteRoot;
+    	return affiliation.getBaseURL();
     }
-    
 }

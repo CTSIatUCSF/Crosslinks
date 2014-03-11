@@ -4,13 +4,14 @@ import java.io.IOException;
 import java.util.logging.Logger;
 
 
+
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.inject.Inject;
-import com.google.inject.name.Named;
 
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
 
@@ -19,8 +20,8 @@ public class ProfilesSearchReader extends SiteReader {
 	private static final Logger LOG = Logger.getLogger(ProfilesSearchReader.class.getName());
 
 	@Inject
-	public ProfilesSearchReader(@Named("Affiliation") String affiliation, @Named("BaseURL") String siteRoot) {
-		super(affiliation, siteRoot);
+	public ProfilesSearchReader(Affiliation affiliation) {
+		super(affiliation);
 	}
 
 	protected void collectAuthorURLS() throws IOException, InterruptedException {

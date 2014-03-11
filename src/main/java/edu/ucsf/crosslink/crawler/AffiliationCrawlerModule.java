@@ -9,6 +9,7 @@ import com.google.inject.name.Names;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.quartz.AffiliationCrawlerJob;
 
 public class AffiliationCrawlerModule extends AbstractModule {
@@ -30,12 +31,15 @@ public class AffiliationCrawlerModule extends AbstractModule {
 		// AffiliationCrawler items
 		bind(String.class).annotatedWith(Names.named("Affiliation")).toInstance(prop.getProperty("Affiliation"));
 		bind(String.class).annotatedWith(Names.named("BaseURL")).toInstance(prop.getProperty("BaseURL"));
+		bind(Affiliation.class);
 		
 		bind(AffiliationCrawler.Mode.class).toInstance(AffiliationCrawler.Mode.valueOf(prop.getProperty("crawlingMode").toUpperCase()));
 		bind(Integer.class).annotatedWith(Names.named("errorsToAbort")).toInstance(Integer.parseInt(prop.getProperty("errorsToAbort")));
 		bind(Integer.class).annotatedWith(Names.named("pauseOnAbort")).toInstance(Integer.parseInt(prop.getProperty("pauseOnAbort")));
 		bind(Integer.class).annotatedWith(Names.named("authorReadErrorThreshold")).toInstance(Integer.parseInt(prop.getProperty("authorReadErrorThreshold")));
 
+		bind(Integer.class).annotatedWith(Names.named("staleDays")).toInstance(Integer.parseInt(prop.getProperty("staleDays")));
+		bind(Integer.class).annotatedWith(Names.named("daysConsideredOld")).toInstance(Integer.parseInt(prop.getProperty("daysConsideredOld")));
 		try {
 			bind(CrosslinkPersistance.class).to((Class<? extends CrosslinkPersistance>) Class.forName(prop.getProperty("AuthorshipPersistance"))).in(Scopes.SINGLETON);
 			bind(SiteReader.class).to((Class<? extends SiteReader>) Class.forName(prop.getProperty("Reader"))).in(Scopes.SINGLETON);			

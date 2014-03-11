@@ -11,14 +11,15 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 
+
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.gson.Gson;
 import com.google.inject.Inject;
-import com.google.inject.name.Named;
 
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
 
@@ -31,21 +32,27 @@ public class VivoDataserviceReader extends SiteReader {
 	private int dataServiceSuffixNdx = 0;
 	
 	@Inject
-	public VivoDataserviceReader(@Named("Affiliation") String affiliation, @Named("BaseURL") String siteRoot) {
-		super(affiliation, siteRoot);
+	public VivoDataserviceReader(Affiliation affiliation) {
+		super(affiliation);
 	}
 
 	protected void collectAuthorURLS() throws Exception {
 		String suffix = "/people";
 		Document doc = getDocument(getSiteRoot() + suffix );
     	Set<VIVOPerson> people = new HashSet<VIVOPerson>();
+    	// remember which types we have read, in case the link shows up multiple times
+    	Set<String> processedTypes = new HashSet<String>();
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	
 		    for (Element link : links) {
 		    	if (link.attr("abs:href").contains("#") && !link.attr("abs:href").endsWith("#")) {		    		
 		    		//print(" * a: <%s>  (%s)", link.attr("abs:href"), trim(link.text(), 35));
 		    		//print(" * a: <%s>  (%s)", link.attr("data-uri"), trim(link.text(), 35));
-		    		people.addAll(readPeopleOfType(link.attr("data-uri")));
+		    		String type = link.attr("data-uri");
+		    		if (!processedTypes.contains(type)) {
+			    		people.addAll(readPeopleOfType(type));
+			    		processedTypes.add(type);
+		    		}
 		    	}
 				LOG.info("Found " + people.size() + " people so far....");
 		    }			

@@ -5,15 +5,16 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
+
 import org.json.JSONException;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.inject.Inject;
-import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
 public class LokiSiteReader extends SiteReader implements AuthorParser {
@@ -21,8 +22,8 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 	private static final Logger LOG = Logger.getLogger(LokiSiteReader.class.getName());
 
 	@Inject
-	public LokiSiteReader(@Named("Affiliation") String affiliation, @Named("BaseURL") String siteRoot) {
-		super(affiliation, siteRoot);
+	public LokiSiteReader(Affiliation affiliation) {
+		super(affiliation);
 	}
 	
     protected void collectAuthorURLS() throws IOException, InterruptedException  {

@@ -8,8 +8,8 @@ import java.util.Collection;
 import java.util.logging.Logger;
 
 import com.google.inject.Inject;
-import com.google.inject.name.Named;
 
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
 
@@ -25,8 +25,8 @@ public class ProfilesSitemapReader extends SiteReader  {
 	private static final Logger LOG = Logger.getLogger(ProfilesSitemapReader.class.getName());
 	
 	@Inject
-	public ProfilesSitemapReader(@Named("Affiliation") String affiliation, @Named("BaseURL") String siteRoot) {
-		super(affiliation, siteRoot);
+	public ProfilesSitemapReader(Affiliation affiliation) {
+		super(affiliation);
 	}
 
 	protected void collectAuthorURLS() throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException {

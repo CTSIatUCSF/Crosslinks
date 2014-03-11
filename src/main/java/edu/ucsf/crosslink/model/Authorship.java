@@ -28,7 +28,7 @@ public class Authorship {
 	}
 
     Authorship(Researcher author, String pmid) {
-    	this(author.getAffiliationName(), author.getHomePageURL(), author.getURI(), author.getLabel(), author.getImageURL(), author.getOrcidId(), pmid);
+    	this(author.getAffiliation().getName(), author.getHomePageURL(), author.getURI(), author.getLabel(), author.getImageURL(), author.getOrcidId(), pmid);
     }
 
     public String getLabel() {

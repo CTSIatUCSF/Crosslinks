@@ -29,7 +29,7 @@ public class IOModule extends AbstractModule {
 		bind(String.class).annotatedWith(Names.named("dbPassword")).toInstance(prop.getProperty("dbPassword"));
 		bind(DBUtil.class);
 		
-		// Jena
+		// Jena		
 		bind(String.class).annotatedWith(Names.named("rdfBaseDir")).toInstance(prop.getProperty("rdfBaseDir"));
 		bind(JenaPersistance.class);		
 	}

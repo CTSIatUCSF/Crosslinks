@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.logging.Logger;
 
 
+
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.json.JSONException;
 import org.jsoup.nodes.Document;
@@ -11,9 +12,9 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.inject.Inject;
-import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
 public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
@@ -21,8 +22,8 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 	private static final Logger LOG = Logger.getLogger(StanfordCapSiteReader.class.getName());
 
 	@Inject
-	public StanfordCapSiteReader(@Named("Affiliation") String affiliation, @Named("BaseURL") String siteRoot) {
-		super(affiliation, siteRoot);
+	public StanfordCapSiteReader(Affiliation affiliation) {
+		super(affiliation);
 	}
 	
 	protected void collectAuthorURLS() throws IOException, InterruptedException {
@@ -78,7 +79,7 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
     
     public static void main(String[] args) {
     	try {
-    		StanfordCapSiteReader reader = new StanfordCapSiteReader("TEST", "https://med.stanford.edu/profiles");
+    		StanfordCapSiteReader reader = new StanfordCapSiteReader(null);
     		reader.getAuthorFromHTML(args[0]);
     	}
     	catch (Exception e) {

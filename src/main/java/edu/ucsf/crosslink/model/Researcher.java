@@ -5,7 +5,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -13,8 +12,6 @@ import java.util.logging.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 
@@ -22,7 +19,7 @@ import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 public class Researcher implements Comparable<Researcher> {
 	private static final Logger LOG = Logger.getLogger(Researcher.class.getName());
 	
-	private String affiliationName;
+	private Affiliation affiliation;
 	private String label;
 	private String homePageURL;
 	private String URI;
@@ -41,53 +38,23 @@ public class Researcher implements Comparable<Researcher> {
 	public Researcher(Affiliation affiliation,
 			String homePageURL, String uri, String label, String imageURL, String thumbnailURL, 
 			String orcidId, int externalCoauthorCount) {		
-		this(homePageURL);
-    	this.setAffiliationName(affiliation.getName());
-    	this.setURI(uri);
-    	this.setLabel(label);
-    	this.addImageURL(imageURL);
+		this(affiliation, homePageURL, uri, label, imageURL, orcidId);
     	this.thumbnailURL = thumbnailURL;
-    	this.setOrcidId(orcidId);
     	this.externalCoauthorCount = externalCoauthorCount;
     }
 
 	// TODO make this a URL and URI java object
-	public Researcher(String affiliationName, String homePageURL, String uri, String label, String imageURL, String orcidId) {
+	public Researcher(Affiliation affiliation, String homePageURL, String uri, String label, String imageURL, String orcidId) {
 		this(homePageURL);
-    	this.setAffiliationName(affiliationName);
+    	this.setAffiliation(affiliation);
     	this.setURI(uri);
     	this.setLabel(label);
     	this.addImageURL(imageURL);
     	this.setOrcidId(orcidId);
     }
-
-	// need to test this one
-    public Researcher(String affiliationName, JSONObject person, String homePageURL) throws JSONException {
-    	this(affiliationName, homePageURL, person.getString("@id"), getSuffixMatch(person, "#label"), getSuffixMatch(person, "#mainImage"), getSuffixMatch(person, "#orcidId"));
-    }
-    
-    private static String getSuffixMatch(JSONObject item, String suffix) throws JSONException {
-    	@SuppressWarnings("rawtypes")
-		Iterator keys = item.keys();
-    	while (keys.hasNext()) {
-    		String key = "" + keys.next();
-    		if (key.endsWith(suffix)) {
-    			Object retval = item.get(key);
-    			if (retval instanceof String) {
-    				return (String)retval;
-    			}
-    			else if (retval instanceof JSONObject && ((JSONObject)retval).has("@id")) {
-    				return ((JSONObject)retval).getString("@id");
-    			}
-    			if (item.getBoolean(key))
-    			return item.getString(key);
-    		}
-    	}
-    	return null;
-    }
     
     public void merge(Researcher author) throws Exception {
-    	this.setAffiliationName(getMergedValue(this.affiliationName, author.affiliationName));
+    	this.setAffiliation(this.affiliation != null ? this.affiliation : author.affiliation);
     	this.setHomePageURL(getMergedValue(this.homePageURL, author.homePageURL));
     	this.setLabel(getMergedValue(this.label, author.label));
     	this.setURI(getMergedValue(this.URI, author.URI));
@@ -128,12 +95,12 @@ public class Researcher implements Comparable<Researcher> {
 	}
 	
 
-	public String getAffiliationName() {
-		return affiliationName;
+	public Affiliation getAffiliation() {
+		return affiliation;
 	}
 	
-	private void setAffiliationName(String affiliationName) {
-		this.affiliationName = affiliationName;
+	private void setAffiliation(Affiliation affiliation) {
+		this.affiliation = affiliation;
 	}
 	
 	public String getHomePageURL() {
@@ -243,7 +210,7 @@ public class Researcher implements Comparable<Researcher> {
 	}
 	
 	public String toString() {
-		return label + " : " + homePageURL;
+		return label != null ? label + " : " + homePageURL : homePageURL;
 	}
 
 	public int compareTo(Researcher arg0) {

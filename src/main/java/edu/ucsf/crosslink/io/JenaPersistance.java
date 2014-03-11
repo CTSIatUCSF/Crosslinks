@@ -1,6 +1,7 @@
 package edu.ucsf.crosslink.io;
 
 import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -18,8 +19,11 @@ import com.hp.hpl.jena.query.Dataset;
 import com.hp.hpl.jena.query.ReadWrite;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
+import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.ResourceFactory;
+import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
 import com.hp.hpl.jena.tdb.TDBFactory;
 import com.hp.hpl.jena.util.FileManager;
 import com.hp.hpl.jena.vocabulary.XSD;
@@ -47,12 +51,12 @@ public class JenaPersistance implements CrosslinkPersistance {
 	@Inject
 	public JenaPersistance(@Named("rdfBaseDir")String tdbBaseDir) {
 		this.tdbBaseDir = tdbBaseDir;
-		
+
 		// load the ontology into the model
 		if (this.tdbBaseDir != null) {
 			Dataset dataSet = getDataset(ReadWrite.WRITE);
     		Model model = dataSet.getDefaultModel();
-    		model.add(getR2ROntModel());
+    		model.add(JenaPersistance.getR2ROntModel());
         	dataSet.commit();
     		dataSet.end();
 		}
@@ -69,7 +73,7 @@ public class JenaPersistance implements CrosslinkPersistance {
 		return dataset;
 	}
 	
-	public boolean contains(String uri) {
+	private boolean contains(String uri) {
 		if (tdbBaseDir == null) {
 			return false;
 		}
@@ -81,43 +85,57 @@ public class JenaPersistance implements CrosslinkPersistance {
 	    finally {
 	    	dataSet.end();
 	    }
-	}
+	}	
 	
 	public Resource getFreshResource(String rdfUrl, boolean store) {
-		Dataset dataSet = null;
-		Resource resource = null;
 		// hack
 		String uri = rdfUrl;
 		if (rdfUrl.endsWith(".rdf")) {
 			uri = rdfUrl.substring(0, rdfUrl.lastIndexOf('/'));
 		}
+		return getResource(uri, rdfUrl, true, true, store);
+	}
+	
+	public Resource getResource(String uri, boolean okToUseLocal, boolean okToUseWeb, boolean okToStore) {
+		return getResource(uri, uri, okToUseLocal, okToUseWeb, okToStore);
+	}
+		
+	public Resource getResource(String uri, String rdfUrl, boolean okToUseLocal, boolean okToUseWeb, boolean okToStore) {
+		Dataset dataSet = null;
+		Resource resource = null;
 		try {
-			if (tdbBaseDir == null || !store) {
-				resource = FileManager.get().loadModel(rdfUrl).createResource(uri);
-			}
-			else if (!contains(uri)) {
-	        	dataSet = getDataset(ReadWrite.WRITE);
-	        	Model writeModel = dataSet.getDefaultModel();
-	            writeModel.removeAll(resource, null, null);
-	            writeModel.add(FileManager.get().loadModel(rdfUrl));
-	            resource = writeModel.createResource(uri);
-	        	dataSet.commit();
-			}
-			else {
+			if (okToUseLocal && contains(uri)) {
 		    	dataSet = getDataset(ReadWrite.READ);
 	            Model readModel = dataSet.getDefaultModel();
 	            resource = readModel.createResource(uri);
+	            dataSet.end();
+			}
+			else if (okToUseWeb) {
+				// if this starts to fail, put in code to do a second try with a modified rdfUrl
+				Model model = FileManager.get().loadModel(rdfUrl);
+				if (okToStore && model != null) {
+		        	dataSet = getDataset(ReadWrite.WRITE);
+		        	Model writeModel = dataSet.getDefaultModel();
+		            writeModel.removeAll(resource, null, null);
+		            writeModel.add(model);
+		            resource = writeModel.createResource(uri);
+		        	dataSet.commit();					
+				}
+				else if (model != null) {
+					resource = model.createResource(uri);
+				}
 			}
 		}
 		catch (Exception e) {
-			LOG.log(Level.WARNING, e.getMessage(), e);
+			LOG.log(Level.WARNING, "Error reading " + uri, e);
 		}
 		finally {
-	    	dataSet.end();
+			if (dataSet != null) {
+				dataSet.end();
+			}
 		}
 		return resource;
 	}
-		
 
 	public void start() throws Exception {
 	}
@@ -175,6 +193,41 @@ public class JenaPersistance implements CrosslinkPersistance {
 	    	dataSet.end();
 		}
 	}
+	
+	public String find(Resource resource, String name) {
+		return find(resource, name, false);
+	}
+	
+	private String find(Resource resource, String name, boolean force) {
+		StmtIterator si = resource.listProperties();
+		while (si.hasNext()) {
+			Statement s = si.next();
+			if (name.equalsIgnoreCase(s.getPredicate().getLocalName())) {
+				RDFNode n = s.getObject();
+				if (force) {
+					return n.toString();
+				}
+				else if (n.isLiteral()) {
+					return "" + n.asLiteral().getValue();
+				}
+				else if (n.isURIResource() && name.toLowerCase().contains("image")) {
+					String possibleReturnValue = n.asNode().getURI(); 
+					if (possibleReturnValue.toLowerCase().contains("photohandler.ashx")) {
+						// this is profiles, and this is not a LOD uri, we are done
+						return possibleReturnValue;
+					}
+					try {
+						return find(getFreshResource(n.asNode().getURI(), false), "downloadLocation", true);
+					}
+					catch (Exception e) {
+						LOG.info(e.getMessage());
+					}
+					return possibleReturnValue;
+				}
+			}
+		}	
+		return null;
+	}
 
 	public Date dateOfLastCrawl() {
 		return null;
@@ -228,35 +281,36 @@ public class JenaPersistance implements CrosslinkPersistance {
 		return m;
 	}
 	
+	public static void printModel(String filename) throws IOException {
+		OntModel m = getR2ROntModel();
+		FileWriter out = null;
+		try {
+		  // XML format - long and verbose
+		  out = new FileWriter( "mymodel.xml" );
+		  m.write( out, "RDF/XML-ABBREV" );
+		}
+		finally {
+		  if (out != null) {
+			  out.close();
+		  }
+		}				
+	}
+	
 	public static void main(String[] args) {
 		try {
-			OntModel m = getR2ROntModel();
-			//			/http://xmlns.com/foaf/0.1/Person
-			//TDBCacheResourceService service = new TDBCacheResourceService("C:\\Development\\R2R\\workspace\\datastores");
-//			OntModel m = ModelFactory.createOntologyModel();
-			//m.read( "http://xmlns.com/foaf/0.1/" );
-//			m.read("http://xmlns.com/foaf/spec/", "RDF/XML");
-				
-			FileWriter out = null;
-			try {
-			  // XML format - long and verbose
-			  out = new FileWriter( "mymodel.xml" );
-			  m.write( out, "RDF/XML-ABBREV" );
-
-			  // OR Turtle format - compact and more readable
-			  // use this variant if you're not sure which to use!
-			  out = new FileWriter( "mymodel.ttl" );
-			  m.write( out, "Turtle" );
+			if (args[0] == "print") {
+				printModel(args.length > 1 ? args[1] : "R2R.owl");				
 			}
-			finally {
-			  if (out != null) {
-				  out.close();
-			  }
-			}		
-			
-			new JenaPersistance("C:\\Development\\R2R\\workspace\\Crosslinks\\testModel");
+			else {
+				JenaPersistance jp = new JenaPersistance("C:\\Development\\R2R\\workspace\\Crosslinks\\testModel");
+				Resource r = jp.getFreshResource(args[0], false);
+				System.out.println(r.getURI());
+				System.out.println(jp.find(r, "label"));
+				System.out.println(jp.find(r, "mainImage"));
+			}
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 		}
-	}}
+	}
+}

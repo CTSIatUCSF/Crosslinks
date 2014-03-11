@@ -186,6 +186,7 @@ public class RestMethods {
 		}    
 		writer.endArray();
 		writer.flush();
+		writer.close();
 		return sw.toString();
     }
 

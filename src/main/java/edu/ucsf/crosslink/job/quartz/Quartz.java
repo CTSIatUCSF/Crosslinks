@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink.quartz;
+package edu.ucsf.crosslink.job.quartz;
 
 import java.util.Properties;
 import java.util.logging.Level;
@@ -17,6 +17,7 @@ import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
 
+
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -25,9 +26,10 @@ import com.google.inject.name.Named;
 import edu.ucsf.crosslink.Crosslinks;
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.io.IOModule;
+import edu.ucsf.crosslink.web.Stoppable;
 
 @Singleton
-public class Quartz {
+public class Quartz implements Stoppable {
 
 	private static final Logger LOG = Logger.getLogger(Quartz.class.getName());
 	
@@ -55,7 +57,7 @@ public class Quartz {
 		scheduler = factory.getScheduler();
 		scheduler.setJobFactory(jobFactory);
 		
-	    JobDetail job = newJob(AffiliationCrawlerJob.class)
+	    JobDetail job = newJob(MetaCrawlerJob.class)
 		        .withIdentity(META_JOB, GROUP)
 		        .build();
 

@@ -45,8 +45,8 @@ import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.IOModule;
 import edu.ucsf.crosslink.io.JenaPersistance;
 import edu.ucsf.crosslink.io.ThumbnailGenerator;
+import edu.ucsf.crosslink.job.quartz.QuartzModule;
 import edu.ucsf.crosslink.model.Researcher;
-import edu.ucsf.crosslink.quartz.QuartzModule;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;

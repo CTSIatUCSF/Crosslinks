@@ -31,10 +31,9 @@ import com.sun.jersey.api.view.Viewable;
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
 import edu.ucsf.crosslink.io.DBUtil;
+import edu.ucsf.crosslink.job.quartz.AffiliationCrawlerJob;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
-import edu.ucsf.crosslink.quartz.AffiliationCrawlerJob;
-
 import au.com.bytecode.opencsv.CSVWriter;
 
 

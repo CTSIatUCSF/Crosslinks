@@ -14,6 +14,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
+
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.Minutes;
@@ -29,8 +30,8 @@ import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.io.IOModule;
+import edu.ucsf.crosslink.job.quartz.AffiliationCrawlerJob;
 import edu.ucsf.crosslink.model.Researcher;
-import edu.ucsf.crosslink.quartz.AffiliationCrawlerJob;
 
 public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 
@@ -67,7 +68,8 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
 			prop.load(new FileReader(new File(args[0])));
 			Injector injector = Guice.createInjector(new IOModule(prop), new AffiliationCrawlerModule(prop));
-			AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);			
+			AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);		
+			crawler.setMode("DEBUG");
 			crawler.crawl();
 		}
 		catch (Exception e) {
@@ -81,7 +83,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	}
 	
 	public enum Mode {
-		ENABLED, DISABLED, FORCED, FORCED_NO_SKIP ;
+		ENABLED, DISABLED, FORCED, FORCED_NO_SKIP, DEBUG;
 	}
 	
 	private static void showUse() {
@@ -208,7 +210,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		return currentAuthor;
 	}
 
-	public void crawl() throws Exception {
+	public synchronized void crawl() throws Exception {
 		try {
 			if (Arrays.asList(Status.IDLE, Status.FINISHED, Status.ERROR).contains(status)) {
 				// fresh start
@@ -252,11 +254,11 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		else if (isActive()) {
 			return false;
 		}
-		else if (isForced()) {
-			return true;
-		}
 		else if (!isOk() && Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes() < pauseOnAbort) {
 			return false;
+		}
+		else if (isForced()) {
+			return true;
 		}
 		else if (getDateLastCrawled() == null) {
 			return true;
@@ -276,6 +278,9 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	private Set<String> touchResearchers() throws Exception {
 		status = Status.VERIFY_PRIOR_RESEARCHERS;
 		Set<String> touched = new HashSet<String>();
+		if (Mode.DEBUG.equals(mode)) {
+			return touched;
+		}
 		for (Researcher author : reader.getAuthors()) {
 			if (Mode.DISABLED.equals(mode)) {
 				status = Status.PAUSED;

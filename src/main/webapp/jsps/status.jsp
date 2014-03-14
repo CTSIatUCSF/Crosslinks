@@ -5,6 +5,7 @@
     <a href='.'>Home</a><p>
     <h2>Scheduled and running crawlers</h2>
     Administrator = <c:out value="${administrator}"/><p>
+    <c:out value="${memoryStats}" escapeXml="false"/><p>
 	<c:forEach var="i" items="${crawlers}">
 	   <a href='./<c:out value="${i.affiliationName}"/>'><c:out value="${i.affiliationName}"/></a>&nbsp;
 		<c:if test="${not i.active and i.ok}">

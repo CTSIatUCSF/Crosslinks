@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink.quartz;
+package edu.ucsf.crosslink.job.quartz;
 
 import java.util.Properties;
 
@@ -10,6 +10,7 @@ import com.google.inject.Scopes;
 import com.google.inject.name.Names;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
+import edu.ucsf.crosslink.web.Stoppable;
 
 public class QuartzModule extends AbstractModule {
 	
@@ -28,7 +29,7 @@ public class QuartzModule extends AbstractModule {
 				
 		bind(SchedulerFactory.class).to(StdSchedulerFactory.class).in(Scopes.SINGLETON);
         bind(GuiceJobFactory.class).in(Scopes.SINGLETON);
-        bind(Quartz.class).in(Scopes.SINGLETON);
+        bind(Stoppable.class).to(Quartz.class).in(Scopes.SINGLETON);
 	}
 
 }

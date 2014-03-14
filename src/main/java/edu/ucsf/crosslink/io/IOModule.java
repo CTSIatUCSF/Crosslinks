@@ -6,6 +6,7 @@ import com.google.inject.AbstractModule;
 import com.google.inject.name.Names;
 
 import edu.ucsf.crosslink.io.DBUtil;
+import edu.ucsf.ctsi.r2r.jena.LODService;
 
 public class IOModule extends AbstractModule {
 
@@ -28,9 +29,12 @@ public class IOModule extends AbstractModule {
 		bind(String.class).annotatedWith(Names.named("dbUser")).toInstance(prop.getProperty("dbUser"));
 		bind(String.class).annotatedWith(Names.named("dbPassword")).toInstance(prop.getProperty("dbPassword"));
 		bind(DBUtil.class);
+
+		bind(Integer.class).annotatedWith(Names.named("daysConsideredOld")).toInstance(Integer.parseInt(prop.getProperty("daysConsideredOld")));
 		
 		// Jena		
-		bind(String.class).annotatedWith(Names.named("rdfBaseDir")).toInstance(prop.getProperty("rdfBaseDir"));
+		bind(String.class).annotatedWith(Names.named("r2r.fusekiUrl")).toInstance(prop.getProperty("r2r.fusekiUrl"));
+		bind(LODService.class);
 		bind(JenaPersistance.class);		
 	}
 

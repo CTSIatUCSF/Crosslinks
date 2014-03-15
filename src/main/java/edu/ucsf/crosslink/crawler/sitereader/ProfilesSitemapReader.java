@@ -29,7 +29,7 @@ public class ProfilesSitemapReader extends SiteReader  {
 		super(affiliation);
 	}
 
-	protected void collectAuthorURLS() throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException {
+	protected void collectResearcherURLs() throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException {
 		SitemapParser smp = new SitemapParser();
 		smp.processSitemap(new URL(getSiteRoot() + "/sitemap.xml"));
 		Sitemap sitemap = smp.getSitemap();
@@ -37,9 +37,9 @@ public class ProfilesSitemapReader extends SiteReader  {
 		Collection<SitemapUrl> urls = sitemap.getUrlList();
 
 		for (SitemapUrl url : urls) {
-			addAuthor(new Researcher(url.getUrl().toString()));
+			addResearcher(new Researcher(getAffiliation(), url.getUrl().toString()));
 		}
-		LOG.info("Found " + getAuthors().size() + " profile pages");
+		LOG.info("Found " + getReseachers().size() + " profile pages");
     }
     
 }

@@ -188,7 +188,7 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 			pmids.add(456);
 			System.out.println(xstream.toXML(pmids));
 			
-			Researcher author = new Researcher(null, null, null, "http://stage-profiles.ucsf.edu/profiles200/nobody.nobody", null, null);
+			Researcher author = new Researcher(null, "http://stage-profiles.ucsf.edu/profiles200/nobody.nobody");
 			author.addPubMedPublication(123);
 			author.addPubMedPublication(456);
 			

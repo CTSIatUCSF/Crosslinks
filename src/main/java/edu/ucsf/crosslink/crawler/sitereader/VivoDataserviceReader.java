@@ -34,7 +34,7 @@ public class VivoDataserviceReader extends SiteReader {
 		super(affiliation);
 	}
 
-	protected void collectAuthorURLS() throws Exception {
+	protected void collectResearcherURLs() throws Exception {
 		String suffix = "/people";
 		Document doc = getDocument(getSiteRoot() + suffix );
     	Set<VIVOPerson> people = new HashSet<VIVOPerson>();
@@ -58,9 +58,9 @@ public class VivoDataserviceReader extends SiteReader {
 		
 		// now grab all the individual URI's
 		for (VIVOPerson person : people) {
-			addAuthor(new Researcher(person.URI));
+			addResearcher(new Researcher(getAffiliation(), person.URI));
 		}
-		LOG.info("Found " + getAuthors().size() + " unique URI's");
+		LOG.info("Found " + getReseachers().size() + " unique URI's");
     }
 
     

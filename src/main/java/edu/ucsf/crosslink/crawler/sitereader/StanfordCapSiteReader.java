@@ -23,7 +23,7 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 		super(affiliation);
 	}
 	
-	protected void collectAuthorURLS() throws IOException, InterruptedException {
+	protected void collectResearcherURLs() throws IOException, InterruptedException {
     	int page = 1;
     	boolean onLastPage = true;// until we know otherwise
     	do {    		
@@ -37,47 +37,46 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 			    		onLastPage = false;
 			    	}
 			    	else if ( href.startsWith(getSiteRoot() + "/") && href.length() > getSiteRoot().length() + 1 && !href.contains("?")) {
-		    			addAuthor( new Researcher(href));
+		    			addResearcher( new Researcher(getAffiliation(), href));
 			    	}
 		        }
-			    LOG.info("Found " + getAuthors().size() + " profile pages so far, onto page " + page);
+			    LOG.info("Found " + getReseachers().size() + " profile pages so far, onto page " + page);
 			}
     	} while(!onLastPage);
-	    LOG.info("Found " + getAuthors().size() + " total profile pages");
+	    LOG.info("Found " + getReseachers().size() + " total profile pages");
     }
 
-    public Researcher getAuthorFromHTML(String url) throws IOException, InterruptedException {
-    	if (url.endsWith("/browse")) {
-    		return null;
+    public boolean readResearcher(Researcher researcher) throws IOException, InterruptedException {
+    	if (researcher.getHomePageURL().endsWith("/browse")) {
+    		return false;
     	}
-    	Document doc = getDocument(url);
+    	Document doc = getDocument(researcher.getHomePageURL());
     	// read name from title    	
-    	Researcher author = null;
 		if (doc != null && (doc.title().endsWith(" | Stanford Profiles") || doc.title().endsWith(" | Stanford Medicine"))) {
 			String fullName = StringEscapeUtils.escapeHtml4(doc.title().split("\\|")[0].split(",")[0]);
-			author = new Researcher(getAffiliation(), url, null, fullName, null, null);
+			researcher.setLabel(fullName);
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {
 		    	if (  link.attr("abs:href").contains(PUBMED_SECTION) ) {
-		    		author.addPubMedPublication(link.attr("abs:href"));
+		    		researcher.addPubMedPublication(link.attr("abs:href"));
 		    	}
 	        }
 
 		    for (Element src : doc.select("[src]")) {
 		    	   if (src.tagName().equals("img") && src.attr("abs:src").contains("viewImage")) {
-		    		   author.addImageURL(src.attr("abs:src"));
+		    		   researcher.addImageURL(src.attr("abs:src"));
 		    	   }
 			    }
 		}
-    	return author;
+    	return doc != null;
     }
 
     
     public static void main(String[] args) {
     	try {
     		StanfordCapSiteReader reader = new StanfordCapSiteReader(null);
-    		reader.getAuthorFromHTML(args[0]);
+    		reader.readResearcher(new Researcher(null, args[0]));
     	}
     	catch (Exception e) {
     		e.printStackTrace();

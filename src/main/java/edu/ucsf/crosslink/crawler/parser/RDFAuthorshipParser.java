@@ -52,12 +52,12 @@ public class RDFAuthorshipParser implements AuthorParser {
     }
     
 	
-    public Researcher getAuthorFromHTML(String htmlUrl) throws IOException, InterruptedException {
-    	Researcher researcher = null;
-    	Document doc = siteReader.getDocument(htmlUrl);
-    	Resource resource = jenaPersistance.getResourceFromRdfURL(getPersonRDFURLFromHTMLURL(htmlUrl, doc), true);
-		if (resource != null) {
-	    	researcher = getPersonOnlyFromURL(htmlUrl, doc);
+    public boolean readResearcher(Researcher researcher) throws IOException, InterruptedException {
+    	Document doc = siteReader.getDocument(researcher.getHomePageURL());
+    	Resource resource = jenaPersistance.getResourceFromRdfURL(getPersonRDFURLFromHTMLURL(researcher.getHomePageURL(), doc), true);
+    	boolean foundResearcherInfo = false;
+		if (resource != null && getPersonOnlyFromURL(researcher, doc)) {
+			foundResearcherInfo = true;
 			StmtIterator rsi = resource.listProperties();
 			while (rsi.hasNext()) {
 				Statement rs = rsi.next();
@@ -86,22 +86,24 @@ public class RDFAuthorshipParser implements AuthorParser {
 	    	   }
 		    }
 		}
-    	return researcher;
+    	return foundResearcherInfo;
     }
     
-    Researcher getPersonOnlyFromURL(String htmlUrl, Document doc) {
-    	String rdfUrl = getPersonRDFURLFromHTMLURL(htmlUrl, doc);
+    boolean getPersonOnlyFromURL(Researcher researcher, Document doc) {
+    	String rdfUrl = getPersonRDFURLFromHTMLURL(researcher.getHomePageURL(), doc);
     	Resource resource = jenaPersistance.getResourceFromRdfURL(rdfUrl, true);
-    	return getResearcher(htmlUrl, resource); 
+    	return addResearcherDetails(researcher, resource);
     }
     
-    private Researcher getResearcher(String htmlUrl, Resource resource) {
-    	return new Researcher(siteReader.getAffiliation(), 
-				htmlUrl, 
-				resource.getURI(),
-				jenaPersistance.find(resource, "label"),
-				jenaPersistance.find(resource, "mainImage"),
-				jenaPersistance.find(resource, "orcidId"));     	
+    private boolean addResearcherDetails(Researcher researcher, Resource resource) {
+    	if (resource != null) {
+	     	researcher.setURI(resource.getURI());
+	    	researcher.setLabel(jenaPersistance.find(resource, "label"));
+	    	researcher.addImageURL(jenaPersistance.find(resource, "mainImage"));
+	    	researcher.setOrcidId(jenaPersistance.find(resource, "orcidId"));
+	    	return true;
+    	}
+    	return false;
     }
     
     private String getPersonRDFURLFromHTMLURL(String url, Document doc) {
@@ -143,7 +145,8 @@ public class RDFAuthorshipParser implements AuthorParser {
 
 			RDFAuthorshipParser parser = injector.getInstance(RDFAuthorshipParser.class);
 			//parser.getAuthorFromHTML("http://profiles.ucsf.edu/eric.meeks");
-			Researcher reseacher = parser.getAuthorFromHTML("http://vivo.wustl.edu/individual/hrfact-1358572946");
+			Researcher reseacher = new Researcher(null, "http://vivo.wustl.edu/individual/hrfact-1358572946");
+			parser.readResearcher(reseacher);
 			injector.getInstance(ThumbnailGenerator.class).generateThumbnail(reseacher);
     	}
     	catch (Exception e) {

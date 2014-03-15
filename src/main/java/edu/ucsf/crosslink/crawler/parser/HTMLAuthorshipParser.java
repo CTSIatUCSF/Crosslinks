@@ -35,15 +35,11 @@ public class HTMLAuthorshipParser implements AuthorParser {
     	this.rdfParser = new RDFAuthorshipParser(siteReader, jenaPersistance); 		    	
     }
 
-	public Researcher getAuthorFromHTML(String htmlUrl) throws IOException, InterruptedException {
-    	Researcher researcher = null;
-    	Document doc = siteReader.getDocument(htmlUrl);
-		if (doc != null) {			
-			researcher = rdfParser.getPersonOnlyFromURL(htmlUrl, doc);
-		    if (researcher == null) {
-		    	return null;
-		    }
-
+	public boolean readResearcher(Researcher researcher) throws IOException, InterruptedException {
+    	Document doc = siteReader.getDocument(researcher.getHomePageURL());
+    	boolean foundResearcherInfo = false;
+		if (doc != null && rdfParser.getPersonOnlyFromURL(researcher, doc)) {	
+			foundResearcherInfo = true;
 	    	Elements links = doc.select("a[href]");	
 		    for (Element link : links) {
 		    	if (link.attr("abs:href").contains(PUBMED_SECTION)) { // this way it works with http and https
@@ -62,7 +58,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
 	    	   }
 		    }		    
 		}
-    	return researcher;
+    	return foundResearcherInfo;
     }
 	
 	public static void main(String[] args) {
@@ -74,8 +70,9 @@ public class HTMLAuthorshipParser implements AuthorParser {
 			Injector injector = Guice.createInjector(new IOModule(prop), new AffiliationCrawlerModule(prop));
 
 			HTMLAuthorshipParser parser = injector.getInstance(HTMLAuthorshipParser.class);
-			Researcher reseacher = parser.getAuthorFromHTML("http://profiles.ucsf.edu/eric.meeks");
-			injector.getInstance(ThumbnailGenerator.class).generateThumbnail(reseacher);		}
+			Researcher researcher = new Researcher(null, "http://profiles.ucsf.edu/eric.meeks");
+			parser.readResearcher(researcher);
+			injector.getInstance(ThumbnailGenerator.class).generateThumbnail(researcher);		}
 		catch (Exception e) {
 			e.printStackTrace();
 		}

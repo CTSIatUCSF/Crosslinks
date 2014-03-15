@@ -29,7 +29,7 @@ public abstract class SiteReader {
 	private static final Logger LOG = Logger.getLogger(SiteReader.class.getName());
 
 	private Affiliation affiliation;
-	private List<Researcher> authors = new ArrayList<Researcher>();
+	private List<Researcher> researchers = new ArrayList<Researcher>();
 	private List<Researcher> removeList = new ArrayList<Researcher>();
 	private Map<String, String> cookies = new HashMap<String, String>();	
 
@@ -83,44 +83,44 @@ public abstract class SiteReader {
             return s;
     }
     
-    public void collectAuthors() throws Exception {
-    	authors.clear();
+    public void collectResearchers() throws Exception {
+    	researchers.clear();
     	removeList.clear();
-    	collectAuthorURLS();
+    	collectResearcherURLs();
     	// dedupe, keep those with a name if you have a choice
     	Map<String, Researcher> rbyU = new HashMap<String, Researcher>();
-    	for (Researcher r : authors) {
+    	for (Researcher r : researchers) {
     		if (rbyU.containsKey(r.getHomePageURL()) && r.getLabel() == null) {
     			continue;
     		}
     		rbyU.put(r.getHomePageURL(), r);
     	}
-    	authors.clear();
-    	authors.addAll(rbyU.values());
-    	Collections.sort(authors);
+    	researchers.clear();
+    	researchers.addAll(rbyU.values());
+    	Collections.sort(researchers);
     }
     	
 	
-    protected abstract void collectAuthorURLS() throws Exception;
+    protected abstract void collectResearcherURLs() throws Exception;
     
-    protected void addAuthor(Researcher author) {
-    	authors.add(author);
+    protected void addResearcher(Researcher researcher) {
+    	researchers.add(researcher);
     }
     
-    public void removeAuthor(Researcher author) {
-    	removeList.add(author);
+    public void removeResearcher(Researcher researcher) {
+    	removeList.add(researcher);
     }
     
-    public List<Researcher> getAuthors() {
-    	return authors;
+    public List<Researcher> getReseachers() {
+    	return researchers;
     }
         
     public int getRemainingAuthorsSize() {
-    	return authors.size() - removeList.size();
+    	return researchers.size() - removeList.size();
     }
         
     public void purgeProcessedAuthors() {
-    	authors.removeAll(removeList);
+    	researchers.removeAll(removeList);
     	removeList.clear();
     }    
     

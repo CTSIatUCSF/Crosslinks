@@ -30,59 +30,34 @@ public class Researcher implements Comparable<Researcher> {
 	private int readErrorCount = 0;
 	private Collection<Integer> pmids= new HashSet<Integer>();
 
-	public Researcher(String url) {
+	public Researcher(Affiliation affiliation, String url) {
+    	this.setAffiliation(affiliation);
 		this.setHomePageURL(url);
+	}
+
+	public Researcher(Affiliation affiliation, String url, String label) {
+    	this.setAffiliation(affiliation);
+		this.setHomePageURL(url);
+		this.setLabel(label);
 	}
 
 	// for loading from the DB
 	public Researcher(Affiliation affiliation,
 			String homePageURL, String uri, String label, String imageURL, String thumbnailURL, 
 			String orcidId, int externalCoauthorCount) {		
-		this(affiliation, homePageURL, uri, label, imageURL, orcidId);
+		this(affiliation, homePageURL, label);
+		this.setURI(uri);
+		this.addImageURL(imageURL);
+		this.setOrcidId(orcidId);
     	this.thumbnailURL = thumbnailURL;
     	this.externalCoauthorCount = externalCoauthorCount;
-    }
-
-	// TODO make this a URL and URI java object
-	public Researcher(Affiliation affiliation, String homePageURL, String uri, String label, String imageURL, String orcidId) {
-		this(homePageURL);
-    	this.setAffiliation(affiliation);
-    	this.setURI(uri);
-    	this.setLabel(label);
-    	this.addImageURL(imageURL);
-    	this.setOrcidId(orcidId);
-    }
-    
-    public void merge(Researcher author) throws Exception {
-    	this.setAffiliation(this.affiliation != null ? this.affiliation : author.affiliation);
-    	this.setHomePageURL(getMergedValue(this.homePageURL, author.homePageURL));
-    	this.setLabel(getMergedValue(this.label, author.label));
-    	this.setURI(getMergedValue(this.URI, author.URI));
-    	this.imageURLs.addAll(author.imageURLs);
-    	this.setOrcidId(getMergedValue(this.orcidId, author.orcidId));
-    	this.pmids.addAll(author.pmids);
-    }
-    
-    private String getMergedValue(String one, String other) throws Exception {
-    	if (one == null) {
-    		return other;
-    	}
-    	else if (other == null) {
-    		return one;
-    	}
-    	else if (one.equalsIgnoreCase(other)) {
-        	return one;  
-    	}
-    	else {
-    		throw new Exception("Confilicting values in merge of " + one + " :AND: " + other);
-    	}
     }
     
     public String getLabel() {
 		return label;
 	}
 	
-    private void setLabel(String label) {
+    public void setLabel(String label) {
 		this.label = label;
 	}
 	
@@ -92,8 +67,7 @@ public class Researcher implements Comparable<Researcher> {
 	
 	public void setURI(String URI) {
 		this.URI = StringUtils.isEmpty(URI) ? null : URI;
-	}
-	
+	}	
 
 	public Affiliation getAffiliation() {
 		return affiliation;
@@ -210,7 +184,8 @@ public class Researcher implements Comparable<Researcher> {
 	}
 	
 	public String toString() {
-		return label != null ? label + " : " + homePageURL : homePageURL;
+		return homePageURL + (label != null ? " : " + label : "") +
+					" : " + pmids.size() + " publications";
 	}
 
 	public int compareTo(Researcher arg0) {
@@ -229,7 +204,7 @@ public class Researcher implements Comparable<Researcher> {
 	public static void main(String[] args) {
 		// simple test
 		try {
-			Researcher foo = new Researcher("http://profiles.ucsf.edu/eric.meeks");
+			Researcher foo = new Researcher(null, "http://profiles.ucsf.edu/eric.meeks");
 			foo.addPubMedPublication("1234");
 			foo.addPubMedPublication("https://www.ncbi.nlm.nih.gov/pubmed/?otool=uchsclib&term=17874365");
 			foo.addPubMedPublication("http://www.ncbi.nlm.nih.gov/pubmed/24303259");

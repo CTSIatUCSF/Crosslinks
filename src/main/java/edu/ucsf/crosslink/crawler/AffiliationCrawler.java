@@ -274,8 +274,8 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	private void gatherURLs() throws Exception {
 		// Now index the site
 		status = Status.GATHERING_URLS;
-		reader.collectAuthors();					
-		LOG.info("Found " + reader.getAuthors().size() + " potential Profile pages for " + affiliation);		
+		reader.collectResearchers();					
+		LOG.info("Found " + reader.getReseachers().size() + " potential Profile pages for " + affiliation);		
 	}
 	
 	private Set<String> touchResearchers() throws Exception {
@@ -284,7 +284,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		if (Mode.DEBUG.equals(mode)) {
 			return touched;
 		}
-		for (Researcher author : reader.getAuthors()) {
+		for (Researcher author : reader.getReseachers()) {
 			if (Mode.DISABLED.equals(mode)) {
 				status = Status.PAUSED;
 				break;
@@ -300,57 +300,55 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	private boolean readResearchers(Set<String> knownReseacherURLs) {
 		int currentErrorCnt = 0;
 		status = Status.READING_RESEARCHERS;
-		for (Researcher author : reader.getAuthors()) {
+		for (Researcher researcher : reader.getReseachers()) {
 			if (Mode.DISABLED.equals(mode)) {
 				status = Status.PAUSED;
 				break;
 			}
-			currentAuthor = author;
+			currentAuthor = researcher;
 			// do not skip any if we are in forced mode
-			if (!Mode.FORCED_NO_SKIP.equals(mode) && store.skip(author.getHomePageURL())) {
+			if (!Mode.FORCED_NO_SKIP.equals(mode) && store.skip(researcher.getHomePageURL())) {
 				skippedCnt++;
-				reader.removeAuthor(author);
-				LOG.info("Skipping recently processed author :" + author);						
+				reader.removeResearcher(researcher);
+				LOG.info("Skipping recently processed author :" + researcher);						
 			}
 			else {
 				try {
-					Researcher details = parser.getAuthorFromHTML(author.getHomePageURL());
-					if (details != null) {							
-						author.merge(details);
-						LOG.info("Saving author :" + author);						
-						store.saveResearcher(author);
+					if (parser.readResearcher(researcher)) {							
+						LOG.info("Saving researcher :" + researcher);						
+						store.saveResearcher(researcher);
 						savedCnt++;
 					}
 					else {
-						if (knownReseacherURLs.contains(author.getHomePageURL())) {
-							throw new Exception("Error reading known researcher URL: " + author.getHomePageURL() );
+						if (knownReseacherURLs.contains(researcher.getHomePageURL())) {
+							throw new Exception("Error reading known researcher URL: " + researcher.getHomePageURL() );
 						}
 						else {
-							avoided.add(author);
-							LOG.info("Skipping " + author.getHomePageURL() + " because we could not read it's contents, and it is new to us");
+							avoided.add(researcher);
+							LOG.info("Skipping " + researcher.getHomePageURL() + " because we could not read it's contents, and it is new to us");
 						}
 					}
 					// if we make it here, we've processed the author
-					reader.removeAuthor(author);
+					reader.removeResearcher(researcher);
 				}
 				catch (Exception e) {
 					// see if it's likely to be a bad page
-					if (isProbablyNotAProfilePage(author.getHomePageURL())) {
-						avoided.add(author);
-						LOG.log(Level.INFO, "Skipping " + author.getHomePageURL() + " because it does not appear to be a profile page", e);	
-						reader.removeAuthor(author);
+					if (isProbablyNotAProfilePage(researcher.getHomePageURL())) {
+						avoided.add(researcher);
+						LOG.log(Level.INFO, "Skipping " + researcher.getHomePageURL() + " because it does not appear to be a profile page", e);	
+						reader.removeResearcher(researcher);
 						continue;
 					}
-					if (author != null) {
-						error.add(author);
-						author.registerReadException(e);
-						if (author.getErrorCount() > authorReadErrorThreshold) {
+					if (researcher != null) {
+						error.add(researcher);
+						researcher.registerReadException(e);
+						if (researcher.getErrorCount() > authorReadErrorThreshold) {
 							// assume this is a bad URL and just move on
 							continue;
 						}
 					}
 					// important that this next line work with author = null!
-					latestError = "Issue with : " + author + " : " + e.getMessage();
+					latestError = "Issue with : " + researcher + " : " + e.getMessage();
 					if (++currentErrorCnt > errorsToAbort) {
 						status = Status.PAUSED;
 						break;

@@ -23,7 +23,7 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 		super(affiliation);
 	}
 	
-    protected void collectAuthorURLS() throws IOException, InterruptedException  {
+    protected void collectResearcherURLs() throws IOException, InterruptedException  {
     	Document doc = getDocument(getSiteRoot() + "/research/browseResearch.jsp");
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	
@@ -45,7 +45,7 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 		    	if ( link.attr("abs:href").startsWith(getSiteRoot() + "/research/browseResearch.jsp?") && link.attr("abs:href").contains("id=")) {
 		    		try {
 		    			String url = getSiteRoot() + "/research/browseResearch.jsp?id=" + link.attr("abs:href").split("&id=")[1];
-		    			addAuthor(new Researcher(getAffiliation(), url, null, link.text(), null, null));
+		    			addResearcher(new Researcher(getAffiliation(), url, link.text()));
 		    		}
 		    		catch (Exception e) {
 						LOG.log(Level.WARNING, "Error parsing " + link.attr("abs:href"), e);		    			
@@ -55,29 +55,28 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 		}
     }
 
-    public Researcher getAuthorFromHTML(String url) throws IOException, InterruptedException {
-    	Researcher author = new Researcher(getAffiliation(), url, null, null, null, null);
-    	Document doc = getDocument(url + "&hitCount=500");
+    public boolean readResearcher(Researcher researcher) throws IOException, InterruptedException {
+    	Document doc = getDocument(researcher.getHomePageURL() + "&hitCount=500");
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {
 		    	if ( link.attr("abs:href").contains(AuthorParser.PUBMED_SECTION)) {
-		    		author.addPubMedPublication(link.attr("abs:href"));
+		    		researcher.addPubMedPublication(link.attr("abs:href"));
 		    	}
 		    	else if (link.attr("abs:href").contains(AuthorParser.ORCID_SECTION)) { // this way it works with http and https
 		    		String orcidId = link.attr("abs:href").split(AuthorParser.ORCID_SECTION)[1];
-		    		author.setOrcidId(orcidId);
+		    		researcher.setOrcidId(orcidId);
 		    	}
 	        }
 		    
 		    for (Element src : doc.select("[src]")) {
 	    	   if (src.tagName().equals("img") && src.attr("abs:src").contains("displayPhoto")) {
-	    		   author.addImageURL(src.attr("abs:src"));
+	    		   researcher.addImageURL(src.attr("abs:src"));
 	    	   }
 		    }
 		}
-    	return author;
+    	return doc != null;
     }
 
 }

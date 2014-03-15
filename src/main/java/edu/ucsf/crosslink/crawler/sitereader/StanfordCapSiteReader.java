@@ -3,10 +3,7 @@ package edu.ucsf.crosslink.crawler.sitereader;
 import java.io.IOException;
 import java.util.logging.Logger;
 
-
-
 import org.apache.commons.lang3.StringEscapeUtils;
-import org.json.JSONException;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -49,7 +46,7 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 	    LOG.info("Found " + getAuthors().size() + " total profile pages");
     }
 
-    public Researcher getAuthorFromHTML(String url) throws IOException, JSONException, InterruptedException {
+    public Researcher getAuthorFromHTML(String url) throws IOException, InterruptedException {
     	if (url.endsWith("/browse")) {
     		return null;
     	}

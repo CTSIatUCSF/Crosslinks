@@ -4,9 +4,6 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-
-
-import org.json.JSONException;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
@@ -58,7 +55,7 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
 		}
     }
 
-    public Researcher getAuthorFromHTML(String url) throws IOException, JSONException, InterruptedException {
+    public Researcher getAuthorFromHTML(String url) throws IOException, InterruptedException {
     	Researcher author = new Researcher(getAffiliation(), url, null, null, null, null);
     	Document doc = getDocument(url + "&hitCount=500");
 		if (doc != null) {

@@ -1,0 +1,30 @@
+<rdf:RDF
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:owl="http://www.w3.org/2002/07/owl#"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+  <owl:Ontology rdf:about="http://ucsf.edu/ontology/R2R">
+    <owl:imports rdf:resource="http://xmlns.com/foaf/0.1/"/>
+  </owl:Ontology>
+  <owl:Class rdf:about="http://ucsf.edu/ontology/R2R#ColloaboartiveWork"/>
+  <owl:ObjectProperty rdf:about="http://ucsf.edu/ontology/R2R#collaboratedOn">
+    <rdfs:range rdf:resource="http://ucsf.edu/ontology/R2R#ColloaboartiveWork"/>
+    <rdfs:domain rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+  </owl:ObjectProperty>
+  <owl:DatatypeProperty rdf:about="http://ucsf.edu/ontology/R2R#addedToCacheOn">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#long"/>
+    <rdfs:domain rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="http://ucsf.edu/ontology/R2R#PMCID">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    <rdfs:domain rdf:resource="http://ucsf.edu/ontology/R2R#ColloaboartiveWork"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="http://ucsf.edu/ontology/R2R#doi">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:domain rdf:resource="http://ucsf.edu/ontology/R2R#ColloaboartiveWork"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="http://ucsf.edu/ontology/R2R#PMID">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    <rdfs:domain rdf:resource="http://ucsf.edu/ontology/R2R#ColloaboartiveWork"/>
+  </owl:DatatypeProperty>
+</rdf:RDF>

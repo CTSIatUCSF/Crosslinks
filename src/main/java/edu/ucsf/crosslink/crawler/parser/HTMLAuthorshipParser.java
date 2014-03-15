@@ -1,14 +1,10 @@
 package edu.ucsf.crosslink.crawler.parser;
 
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-import org.json.JSONException;
 
-import com.github.jsonldjava.core.JsonLdError;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -39,7 +35,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
     	this.rdfParser = new RDFAuthorshipParser(siteReader, jenaPersistance); 		    	
     }
 
-	public Researcher getAuthorFromHTML(String htmlUrl) throws IOException, JSONException, InterruptedException, JsonLdError {
+	public Researcher getAuthorFromHTML(String htmlUrl) throws IOException, InterruptedException {
     	Researcher researcher = null;
     	Document doc = siteReader.getDocument(htmlUrl);
 		if (doc != null) {			

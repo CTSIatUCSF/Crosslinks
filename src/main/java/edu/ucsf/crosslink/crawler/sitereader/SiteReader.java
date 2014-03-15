@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 
 
 
+
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.Connection.Response;
@@ -49,7 +50,7 @@ public abstract class SiteReader {
 		this.getDocumentSleep = getDocumentSleep;
 	}
 	
-	public Document getDocument(String url) throws IOException, InterruptedException {
+	public Document getDocument(String url) throws IOException, InterruptedException  {
     	int attempts = 0;
     	Document doc = null;
     	while (attempts++ < getDocumentRetry) {

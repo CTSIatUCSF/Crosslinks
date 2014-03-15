@@ -219,6 +219,12 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 				gatherURLs();
 				store.start();
 			}
+			else if (isActive()) {
+				// something way bad happened
+				latestError = "Restarting in status : " + status + ", should not be possible. Will pause in error mode for a while.";
+				status = Status.ERROR;
+				return;
+			}
 			else {
 				// we are resuming
 				reader.purgeProcessedAuthors();
@@ -249,9 +255,6 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	
 	public boolean okToStart() {
 		if (Mode.DISABLED.equals(mode)) {
-			return false;
-		}
-		else if (isActive()) {
 			return false;
 		}
 		else if (!isOk() && Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes() < pauseOnAbort) {

@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
-
-
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;

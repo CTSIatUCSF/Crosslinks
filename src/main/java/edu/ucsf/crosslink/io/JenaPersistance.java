@@ -56,25 +56,27 @@ public class JenaPersistance implements CrosslinkPersistance, R2RConstants {
 		return fusekiCache.contains(uri);
 	}	
 	
-	public Resource getFreshResource(String rdfUrl, boolean store) {
+	public Resource getResourceFromRdfURL(String rdfUrl, boolean store) {
 		// hack
 		String uri = rdfUrl;
 		if (rdfUrl.endsWith(".rdf")) {
 			uri = rdfUrl.substring(0, rdfUrl.lastIndexOf('/'));
 		}
-		return getResource(uri, rdfUrl, true, true, store);
+		return getResource(rdfUrl, uri, store);
 	}
 	
-	public Resource getResource(String uri, boolean okToUseLocal, boolean okToUseWeb, boolean okToStore) {
-		return getResource(uri, uri, okToUseLocal, okToUseWeb, okToStore);
+	public Resource getResource(String uri, boolean okToStore) {
+		return getResource(uri, uri, okToStore);
 	}
-		
-	public Resource getResource(String uri, String rdfUrl, boolean okToUseLocal, boolean okToUseWeb, boolean okToStore) {
+
+	// it is possible that we might have a resource in our fusekiCache even if we don't store it	
+	// but we don't bother to check at this point
+	private Resource getResource(String rdfUrl, String uri, boolean okToStore) {
 		Resource resource = null;
-		try {
+		try {   	
 			if (okToStore) {
 				resource = fusekiCache.getResource(rdfUrl, uri);				
-			}
+			}	
 			else {
 				resource = lodService.getModel(rdfUrl).createResource(uri);
 			}
@@ -158,7 +160,7 @@ public class JenaPersistance implements CrosslinkPersistance, R2RConstants {
 						return possibleReturnValue;
 					}
 					try {
-						return find(getFreshResource(n.asNode().getURI(), false), "downloadLocation", true);
+						return find(getResourceFromRdfURL(n.asNode().getURI(), false), "downloadLocation", true);
 					}
 					catch (Exception e) {
 						LOG.info(e.getMessage());
@@ -191,7 +193,7 @@ public class JenaPersistance implements CrosslinkPersistance, R2RConstants {
 	public static void main(String[] args) {
 		try {
 			JenaPersistance jp = new JenaPersistance(null, null, 6);
-			Resource r = jp.getFreshResource(args[0], false);
+			Resource r = jp.getResourceFromRdfURL(args[0], false);
 			System.out.println(r.getURI());
 			System.out.println(jp.find(r, "label"));
 			System.out.println(jp.find(r, "mainImage"));

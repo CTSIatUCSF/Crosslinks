@@ -257,8 +257,8 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		if (Mode.DISABLED.equals(mode)) {
 			return false;
 		}
-		else if (!isOk() && Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes() < pauseOnAbort) {
-			return false;
+		else if (!isOk()) {
+			return Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes() > pauseOnAbort;
 		}
 		else if (isForced()) {
 			return true;

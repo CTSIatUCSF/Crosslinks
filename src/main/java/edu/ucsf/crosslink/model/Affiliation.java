@@ -9,6 +9,8 @@ public class Affiliation {
 	private String baseURL;
 	private int researcherCount;
 	private int pmidCount;
+	private float latitude;
+	private float longitude;
 
 	@Inject
 	public Affiliation(@Named("Affiliation") String affiliationName, @Named("BaseURL") String baseURL) {
@@ -16,10 +18,12 @@ public class Affiliation {
 		this.baseURL = baseURL;
 	}
 	
-	public Affiliation(String name, String baseURL, int researcherCount, int pmidCount) {
+	public Affiliation(String name, String baseURL, int researcherCount, int pmidCount, float latitude, float longitude) {
 		this(name, baseURL);
-		this.researcherCount = researcherCount;
+		this.researcherCount = researcherCount;		
 		this.pmidCount = pmidCount;
+		this.latitude = latitude;
+		this.longitude = longitude;
 	}
 	
 	@Override
@@ -41,5 +45,13 @@ public class Affiliation {
 	
 	public int getPmidCount() {
 		return pmidCount;
+	}
+	
+	public float getLatitude() {
+		return latitude;
+	}
+	
+	public float getLongitude() {
+		return longitude;
 	}
 }

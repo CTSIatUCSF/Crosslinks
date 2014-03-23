@@ -133,7 +133,7 @@ public class RestMethods {
     @Path("coauthors")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
     public String getCoauthors(@QueryParam("authorURL") String authorURL, @QueryParam("format") String format) {
-		String sql = "select affiliationName, lastName, firstName, middleName, URL, imageURL, thumbnailURL, orcidId, PMID from vw_ExternalCoauthorList where subjectURL = ? " + 
+		String sql = "select affiliationName, displayName, URL, imageURL, thumbnailURL, orcidId, latitude, longitude, PMID from vw_ExternalCoauthorList where subjectURL = ? " + 
 					 "order by affiliationName, URL";
 		return getSimpleResults(sql, authorURL, format);
     }    
@@ -199,13 +199,13 @@ public class RestMethods {
 
     private List<Affiliation> getAffiliations() {
     	List<Affiliation> affiliations = new ArrayList<Affiliation>();
-		String sql = "select affiliation, baseURL, researcherCount, PMIDCount from vw_AffiliationList";
+		String sql = "select affiliation, baseURL, researcherCount, PMIDCount, latitude, longitude from vw_AffiliationList";
 		Connection conn = dbUtil.getConnection();
 		try {
 			PreparedStatement ps = conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
-				affiliations.add(new Affiliation(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getInt(4)));
+				affiliations.add(new Affiliation(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getInt(4), rs.getFloat(5), rs.getFloat(6)));
 			}
 		}
 		catch (Exception se) {
@@ -220,14 +220,14 @@ public class RestMethods {
     }
     
     public Affiliation getAffiliation(String affiliation) {
-		String sql = "select affiliation, baseURL, researcherCount, PMIDCount from vw_AffiliationList where affiliation = ?";
+		String sql = "select affiliation, baseURL, researcherCount, PMIDCount, latitude, longitude from vw_AffiliationList where affiliation = ?";
 		Connection conn = dbUtil.getConnection();
 		try {
 			PreparedStatement ps = conn.prepareStatement(sql);
 			ps.setString(1, affiliation);
 			ResultSet rs = ps.executeQuery();
 			if (rs.next()) {
-				return new Affiliation(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getInt(4));
+				return new Affiliation(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getInt(4), rs.getFloat(5), rs.getFloat(6));
 			}
 		}
 		catch (Exception se) {

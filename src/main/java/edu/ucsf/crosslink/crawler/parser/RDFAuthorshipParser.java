@@ -34,41 +34,41 @@ public class RDFAuthorshipParser implements AuthorParser {
 	private SiteReader siteReader;
 	private JenaPersistance jenaPersistance;
 	
-    private static void print(String msg, Object... args) {
-        System.out.println(String.format(msg, args));
-    }
-
-    private static String trim(String s, int width) {
-        if (s.length() > width)
-            return s.substring(0, width-1) + ".";
-        else
-            return s;
-    }
-    
     @Inject
     public RDFAuthorshipParser(SiteReader siteReader, JenaPersistance jenaPersistance) {
     	this.siteReader = siteReader;
     	this.jenaPersistance = jenaPersistance;
     }
     
-	
     public boolean readResearcher(Researcher researcher) throws IOException, InterruptedException {
-    	Document doc = siteReader.getDocument(researcher.getHomePageURL());
+    	return readResearcher(researcher, siteReader.getDocument(researcher.getHomePageURL()), false);
+    }
+	
+    boolean readResearcher(Researcher researcher, Document doc, boolean foundResearcherInfo) throws IOException, InterruptedException {
     	Resource resource = jenaPersistance.getResourceFromRdfURL(getPersonRDFURLFromHTMLURL(researcher.getHomePageURL(), doc), true);
-    	boolean foundResearcherInfo = false;
-		if (resource != null && getPersonOnlyFromURL(researcher, doc)) {
-			foundResearcherInfo = true;
+    	if (resource != null) {
+    		// read the researcher basic info if we still need to
+        	if (!foundResearcherInfo) {
+    			getPersonOnlyFromURL(researcher, doc);
+    			foundResearcherInfo = true;
+    		}
 			StmtIterator rsi = resource.listProperties();
 			while (rsi.hasNext()) {
 				Statement rs = rsi.next();
 				if ("authorInAuthorship".equals(rs.getPredicate().getLocalName())) {
-					Resource aia = jenaPersistance.getResource(rs.getObject().asNode().getURI(), false);
+					Resource aia = jenaPersistance.getResource(rs.getObject().asNode().getURI());
 					LOG.info("authorInAuthorship : " + aia);
+					if (aia == null) {
+						continue;
+					}
 					StmtIterator aiasi = aia.listProperties();
-					while (aiasi.hasNext()) {
+					while (aiasi != null && aiasi.hasNext()) {
 						Statement aias = aiasi.next();
 						if ("linkedInformationResource".equalsIgnoreCase(aias.getPredicate().getLocalName())) {
-							Resource lir = jenaPersistance.getResource(aias.getObject().asNode().getURI(), false);
+							Resource lir = jenaPersistance.getResource(aias.getObject().asNode().getURI());
+							if (lir == null) {
+								continue;
+							}
 							LOG.info("linkedInformationResource : " + lir);
 							String pmid = jenaPersistance.find(lir, "pmid");
 							if (pmid != null) {
@@ -91,7 +91,7 @@ public class RDFAuthorshipParser implements AuthorParser {
     
     boolean getPersonOnlyFromURL(Researcher researcher, Document doc) {
     	String rdfUrl = getPersonRDFURLFromHTMLURL(researcher.getHomePageURL(), doc);
-    	Resource resource = jenaPersistance.getResourceFromRdfURL(rdfUrl, true);
+    	Resource resource = jenaPersistance.getResourceFromRdfURL(rdfUrl);
     	return addResearcherDetails(researcher, resource);
     }
     
@@ -107,21 +107,21 @@ public class RDFAuthorshipParser implements AuthorParser {
     }
     
     private String getPersonRDFURLFromHTMLURL(String url, Document doc) {
-		Elements links = doc.select("a[href]");	
-		
-		String rdfUrl = null;
-	    for (Element link : links) {
+    	// standard links
+	    for (Element link : doc.select("a[href]")) {
 	    	if ( link.attr("abs:href").endsWith(".rdf")) {
-	    		print(" * a: <%s>  (%s)", link.attr("abs:href"), trim(link.text(), 35));
-	    		rdfUrl = link.attr("abs:href");
+	    		return link.attr("abs:href");
 	    	}
         }
-	    if (rdfUrl == null) {
-	    	// worth a try
-	    	String[] parts = url.split("/");
-	    	rdfUrl = url + "/" + parts[parts.length - 1] + ".rdf";
-	    }
-	    return rdfUrl;
+	    // other links
+	    for (Element link : doc.select("link[href]")) {
+	    	if ( link.attr("abs:href").endsWith(".rdf")) {
+	    		return link.attr("abs:href");
+	    	}
+        }
+    	// worth a try
+    	String[] parts = url.split("/");
+    	return url + "/" + parts[parts.length - 1] + ".rdf";
     }
     
     @SuppressWarnings({ "unused", "resource" })
@@ -145,7 +145,7 @@ public class RDFAuthorshipParser implements AuthorParser {
 
 			RDFAuthorshipParser parser = injector.getInstance(RDFAuthorshipParser.class);
 			//parser.getAuthorFromHTML("http://profiles.ucsf.edu/eric.meeks");
-			Researcher reseacher = new Researcher(null, "http://vivo.wustl.edu/individual/hrfact-1358572946");
+			Researcher reseacher = new Researcher(null, "http://reach.suny.edu/display/Zivadinov_Robert");
 			parser.readResearcher(reseacher);
 			injector.getInstance(ThumbnailGenerator.class).generateThumbnail(reseacher);
     	}

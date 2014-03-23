@@ -1,6 +1,7 @@
 package edu.ucsf.crosslink.io;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -32,19 +33,10 @@ public class JenaPersistance implements CrosslinkPersistance, R2RConstants {
 	private ThumbnailGenerator thumbnailGenerator;
 	
 	@Inject
-	public JenaPersistance(@Named("r2r.fusekiUrl") String fusekiUrl, LODService lodService, @Named("daysConsideredOld") Integer daysConsideredOld) {
+	public JenaPersistance(@Named("r2r.fusekiUrl") String fusekiUrl, LODService lodService) throws IOException {
 		this.lodService = lodService;
 		this.fusekiService = new HttpClientFusekiService(fusekiUrl);
-		this.fusekiCache = new FusekiCache(fusekiService, lodService, "" + daysConsideredOld*24);
-
-		// load the ontology into the model
-//		if (this.fusekiCache != null) {
-//			Dataset dataSet = getDataset(ReadWrite.WRITE);
-//    		Model model = dataSet.getDefaultModel();
-//    		model.add(JenaPersistance.getR2ROntModel());
-//        	dataSet.commit();
-//    		dataSet.end();
-//		}
+		this.fusekiCache = new FusekiCache(fusekiService, lodService);
 	}
 
 	@Inject
@@ -55,6 +47,10 @@ public class JenaPersistance implements CrosslinkPersistance, R2RConstants {
 	private boolean contains(String uri) {
 		return fusekiCache.contains(uri);
 	}	
+
+	public Resource getResourceFromRdfURL(String rdfUrl) {
+		return getResourceFromRdfURL(rdfUrl, true);
+	}
 	
 	public Resource getResourceFromRdfURL(String rdfUrl, boolean store) {
 		// hack
@@ -64,7 +60,11 @@ public class JenaPersistance implements CrosslinkPersistance, R2RConstants {
 		}
 		return getResource(rdfUrl, uri, store);
 	}
-	
+
+	public Resource getResource(String uri) {
+		return getResource(uri, true);
+	}
+
 	public Resource getResource(String uri, boolean okToStore) {
 		return getResource(uri, uri, okToStore);
 	}
@@ -192,7 +192,7 @@ public class JenaPersistance implements CrosslinkPersistance, R2RConstants {
 	
 	public static void main(String[] args) {
 		try {
-			JenaPersistance jp = new JenaPersistance(null, null, 6);
+			JenaPersistance jp = new JenaPersistance(null, null);
 			Resource r = jp.getResourceFromRdfURL(args[0], false);
 			System.out.println(r.getURI());
 			System.out.println(jp.find(r, "label"));

@@ -58,6 +58,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
 	    	   }
 		    }		    
 		}
+		// figure out some way to call into rdfauthorship parser if we think it might yeild more info
     	return foundResearcherInfo;
     }
 	

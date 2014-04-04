@@ -10,7 +10,8 @@
     Status : <c:out value="${crawler.status}"/><p>
     Latest Error : <c:out value="${crawler.latestError}"/><p>
     Current author : <c:out value="${crawler.currentAuthor}"/><p>
-
+	Stack trace : <c:out value="${i.currentStackTrace}" escapeXml="false"/><p>
+	
     <h2>Errors</h2>
 	<c:forEach var="e" items="${crawler.errors}">
 	   <c:out value="${e}"/><p>

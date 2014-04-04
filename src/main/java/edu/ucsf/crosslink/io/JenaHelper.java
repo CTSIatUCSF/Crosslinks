@@ -1,8 +1,5 @@
 package edu.ucsf.crosslink.io;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,35 +13,35 @@ import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
+import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
+import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.FusekiCache;
-import edu.ucsf.ctsi.r2r.jena.FusekiService;
-import edu.ucsf.ctsi.r2r.jena.HttpClientFusekiService;
+import edu.ucsf.ctsi.r2r.jena.FusekiClient;
+import edu.ucsf.ctsi.r2r.jena.FusekiHttpClient;
 import edu.ucsf.ctsi.r2r.jena.LODService;
 
 @Singleton
-public class JenaPersistance implements CrosslinkPersistance, R2RConstants {
-	private static final Logger LOG = Logger.getLogger(JenaPersistance.class.getName());
+public class JenaHelper implements R2RConstants {
+	private static final Logger LOG = Logger.getLogger(JenaHelper.class.getName());
 	
 	private LODService lodService;
-	private FusekiService fusekiService;
+	private FusekiClient fusekiClient;
 	private FusekiCache fusekiCache;
-	private ThumbnailGenerator thumbnailGenerator;
+	private R2ROntology r2r;
 	
 	@Inject
-	public JenaPersistance(@Named("r2r.fusekiUrl") String fusekiUrl, LODService lodService) throws IOException {
+	public JenaHelper(@Named("r2r.fusekiUrl") String fusekiUrl, LODService lodService) throws Exception {
 		this.lodService = lodService;
-		this.fusekiService = new HttpClientFusekiService(fusekiUrl);
-		this.fusekiCache = new FusekiCache(fusekiService, lodService);
+		this.fusekiClient = new FusekiHttpClient(fusekiUrl);
+		this.fusekiCache = new FusekiCache(fusekiClient, lodService);
+		this.r2r = new R2ROntology();
+		// make sure we have the latest info
+		fusekiClient.add(r2r.getR2ROntModel());		
 	}
 
-	@Inject
-	public void setThumbnailGenerator(ThumbnailGenerator thumbnailGenerator) {
-		this.thumbnailGenerator = thumbnailGenerator;
-	}
-		
-	private boolean contains(String uri) {
+	boolean contains(String uri) {
 		return fusekiCache.contains(uri);
 	}	
 
@@ -87,56 +84,68 @@ public class JenaPersistance implements CrosslinkPersistance, R2RConstants {
 		return resource;
 	}
 
-	public void start() throws Exception {
-	}
-
-	public void saveResearcher(Researcher researcher) throws Exception {
-		if (thumbnailGenerator != null) {
-			thumbnailGenerator.generateThumbnail(researcher);
-		}
-		
-    	Model writeModel = ModelFactory.createDefaultModel();
-    	writeModel.setNsPrefix(FOAF_PREFIX, FOAF);
-    	
+	public Model getModelFor(Researcher researcher, boolean forWebOutput) throws Exception {
+		Model model = ModelFactory.createDefaultModel();
     	String uri = researcher.getURI() != null ? researcher.getURI() : researcher.getHomePageURL();
-    	if (!contains(uri)) {
+    	if (!contains(uri) || forWebOutput) {
     		// Must be from a site that does not have LOD.  add basic stuff
-            Resource resource = writeModel.createResource(uri);
+            Resource researcherResource = model.createResource(uri);
     		
         	// person
-        	writeModel.add(resource, 
-    				writeModel.createProperty(TYPE), 
-    				writeModel.createLiteral("http://xmlns.com/foaf/0.1/Person"));
+            model.add(researcherResource, 
+            		model.createProperty(RDF_TYPE), 
+            		model.createLiteral(FOAF_PERSON));
 
             // label
-        	writeModel.add(resource, 
-        				writeModel.createProperty(LABEL), 
-        				writeModel.createTypedLiteral(researcher.getLabel()));
+            model.add(researcherResource, 
+            		model.createProperty(RDFS_LABEL), 
+            		model.createTypedLiteral(researcher.getLabel()));
         	
+            // mainImage
+        	if (researcher.getImageURL() != null) {
+        			model.add(researcherResource, 
+        			model.createProperty(PRNS_MAIN_IMAGE), 
+        			model.createTypedLiteral(researcher.getImageURL()));
+        	}
+
         	researcher.setURI(uri);
         }
-    	Resource resource = writeModel.createResource(uri);
+    	// create affiliation.  Should be smart about doing this only when necessary!
+    	Resource affiliationResource = model.createResource(researcher.getAffiliation().getURI());
+    	Resource researcherResource = model.createResource(uri);
+    	
+    	// add affiliation to researcher
+    	model.add(researcherResource,
+    			model.createProperty(R2R_FROM_RN_WEBSITE), 
+        				affiliationResource);
 			
     	// homepage
-    	writeModel.add(resource, 
-				writeModel.createProperty(HOMEPAGE), 
-				writeModel.createTypedLiteral(researcher.getHomePageURL()));        	
+    	model.add(researcherResource, 
+    			model.createProperty(FOAF_HOMEPAGE), 
+				model.createTypedLiteral(researcher.getHomePageURL()));        	
 
-    	// image        	
+    	// thumbnail        	
     	if (researcher.getThumbnailURL() != null) {
-        	writeModel.add(resource, 
-    				writeModel.createProperty(IMAGE), 
-    				writeModel.createTypedLiteral(researcher.getThumbnailURL()));
+    		model.add(researcherResource, 
+    				model.createProperty(R2R_THUMBNAIL), 
+    				model.createTypedLiteral(researcher.getThumbnailURL()));
+    		    	
     	}
     	
-    	// now store in our fuseki store
-		ByteArrayOutputStream stream = new ByteArrayOutputStream();
-		    		writeModel.write(stream);
-		    		stream.flush();
-		    		stream.close();
-		fusekiService.add(stream.toByteArray());			
+    	// publications
+    	if (!researcher.getPubMedPublications().isEmpty()) {
+    		for (Integer pmid : researcher.getPubMedPublications()) {
+                Resource pmidResource = model.createResource("http:" + AuthorParser.PUBMED_SECTION + pmid);
+        		// Associate to Researcher
+        		model.add(researcherResource, 
+        				model.createProperty(R2R_CONTRIBUTED_TO), 
+        				pmidResource);    			
+    		}
+    	}
+    	
+		return model;
 	}
-	
+
 	public String find(Resource resource, String name) {
 		return find(resource, name, false);
 	}
@@ -172,27 +181,9 @@ public class JenaPersistance implements CrosslinkPersistance, R2RConstants {
 		return null;
 	}
 
-	public Date dateOfLastCrawl() {
-		return null;
-	}
-
-	public boolean skip(String url) {
-		return false;
-	}
-
-	public int touch(String url) throws Exception {
-		return 0;
-	}
-
-	public void close() throws Exception {
-	}
-
-	public void finish() throws Exception {
-	}
-	
 	public static void main(String[] args) {
 		try {
-			JenaPersistance jp = new JenaPersistance(null, null);
+			JenaHelper jp = new JenaHelper(null, null);
 			Resource r = jp.getResourceFromRdfURL(args[0], false);
 			System.out.println(r.getURI());
 			System.out.println(jp.find(r, "label"));

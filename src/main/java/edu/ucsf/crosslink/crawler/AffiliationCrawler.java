@@ -2,9 +2,10 @@ package edu.ucsf.crosslink.crawler;
 
 import java.io.File;
 import java.io.FileReader;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -12,6 +13,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+
 
 
 
@@ -45,6 +48,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	private List<Researcher> error = new ArrayList<Researcher>();
 	private Date started;
 	private Date ended;
+	private CrawlerStartStatus lastStartStatus;
 
 	private String affiliation;
 	private SiteReader reader;
@@ -59,24 +63,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	private Researcher currentAuthor = null;
 	
 	private AffiliationCrawlerJob job;
-	
-	// pass in the name of a configuration file
-	public static void main(String[] args) {
-		try  {								
-			// get these first
-			Properties prop = new Properties();
-			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
-			prop.load(new FileReader(new File(args[0])));
-			Injector injector = Guice.createInjector(new IOModule(prop), new AffiliationCrawlerModule(prop));
-			AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);		
-			crawler.setMode("DEBUG");
-			crawler.crawl();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			showUse();
-		}		
-	}
+	private Thread crawlingThread;
 	
 	public enum Status {
 		GATHERING_URLS, READING_RESEARCHERS, VERIFY_PRIOR_RESEARCHERS, ERROR, PAUSED, FINISHED, IDLE;
@@ -210,7 +197,9 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		return currentAuthor;
 	}
 
-	public synchronized void crawl() throws Exception {
+	public synchronized void crawl(CrawlerStartStatus startStatus) throws Exception {
+		crawlingThread = Thread.currentThread();
+		lastStartStatus = startStatus;
 		try {
 			if (Arrays.asList(Status.IDLE, Status.FINISHED, Status.ERROR).contains(status)) {
 				// fresh start
@@ -250,24 +239,60 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		finally {
 			store.close();
 			ended = new Date();
+			crawlingThread = null;
 		}
 	}
 	
-	public boolean okToStart() {
+	public CrawlerStartStatus getLastStartStatus() {
+		return lastStartStatus;
+	}
+
+	public String getCurrentStackTrace() {
+		Thread activeThread = crawlingThread;
+		StringWriter sw = new StringWriter();
+		PrintWriter writer = new PrintWriter(sw);
+		if (activeThread != null) {
+			int i = 0;
+			for(StackTraceElement ste : activeThread.getStackTrace()) {
+				writer.println(ste.toString() + "<br/>");
+				if (i++ > 30) {
+					break;
+				}
+			}
+		}
+		writer.flush();
+		return sw.toString();
+	}
+
+	public CrawlerStartStatus okToStart() {
+		CrawlerStartStatus status = getStartStatus();
+		// if we are not active, go ahead and set this
+		if (!isActive()) {
+			lastStartStatus = status;
+		}
+		return status;
+	}
+
+	private CrawlerStartStatus getStartStatus() {
 		if (Mode.DISABLED.equals(mode)) {
-			return false;
+			return new CrawlerStartStatus(false, "in mode " + mode.toString());
+		}
+		else if (isActive()) {
+			return new CrawlerStartStatus(false, "currently active");
 		}
 		else if (!isOk()) {
-			return Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes() > pauseOnAbort;
+			int minutesBetween = Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes();
+			return new CrawlerStartStatus(minutesBetween > pauseOnAbort, "paused " + minutesBetween + " of " + pauseOnAbort + " minutes");
 		}
 		else if (isForced()) {
-			return true;
+			return new CrawlerStartStatus(true, "isForced");
 		}
 		else if (getDateLastCrawled() == null) {
-			return true;
+			return new CrawlerStartStatus(true, "never crawled before");
 		}
 		else {
-			return Days.daysBetween(new DateTime(getDateLastCrawled()), new DateTime()).getDays() > staleDays;
+			int daysBetween = Days.daysBetween(new DateTime(getDateLastCrawled()), new DateTime()).getDays();
+			return  new CrawlerStartStatus(daysBetween > staleDays, "waited " + daysBetween + " of " + staleDays + " days");
 		}
 	}
 	
@@ -284,14 +309,14 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		if (Mode.DEBUG.equals(mode)) {
 			return touched;
 		}
-		for (Researcher author : reader.getReseachers()) {
+		for (Researcher researcher : reader.getReseachers()) {
 			if (Mode.DISABLED.equals(mode)) {
 				status = Status.PAUSED;
 				break;
 			}
 			// sort of ugly, but this will work with the DB store and not mess things up with the CSV store
-			if (store.touch(author.getHomePageURL()) > 0) {
-				touched.add(author.getHomePageURL());
+			if (store.touch(researcher) > 0) {
+				touched.add(researcher.getHomePageURL());
 			}
 		}		
 		return touched;
@@ -307,7 +332,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 			}
 			currentAuthor = researcher;
 			// do not skip any if we are in forced mode
-			if (!Mode.FORCED_NO_SKIP.equals(mode) && store.skip(researcher.getHomePageURL())) {
+			if (!Mode.FORCED_NO_SKIP.equals(mode) && store.skip(researcher)) {
 				skippedCnt++;
 				reader.removeResearcher(researcher);
 				LOG.info("Skipping recently processed author :" + researcher);						
@@ -386,24 +411,40 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	}
 	
 	public int compareTo(AffiliationCrawler o) {
-		return this.status == o.status ? this.getAffiliationName().compareTo(o.getAffiliationName()) : this.status.compareTo(o.status);
-	}
+    	// always put active ones in the back
+    	if (this.isActive() != o.isActive()) {
+    		return this.isActive() ? 1 : -1;
+    	}	    	
+
+    	CrawlerStartStatus astatus = this.getLastStartStatus();
+    	CrawlerStartStatus bstatus = o.getLastStartStatus();	    	
+    	if (astatus != null && bstatus != null) {
+    		return astatus.compareTo(bstatus);
+    	}
+    	else if (astatus == null) {
+    		return bstatus == null ? 0 : -1;
+    	}
+    	else {
+    		return 1;
+    	}
+    } 
 	
-	static class DateComparator implements Comparator<AffiliationCrawler> {
-	    public int compare(AffiliationCrawler a, AffiliationCrawler b) {
-	    	Date aDate = a.getHowOld();
-	    	Date bDate = b.getHowOld();
-	    	if (aDate != null && bDate != null) {
-	    		return aDate.compareTo(bDate);
-	    	}
-	    	else if (aDate == null) {
-	    		return bDate == null ? 0 : -1;
-	    	}
-	    	else {
-	    		return 1;
-	    	}
-	    }
+	// pass in the name of a configuration file
+	public static void main(String[] args) {
+		try  {								
+			// get these first
+			Properties prop = new Properties();
+			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
+			prop.load(new FileReader(new File(args[0])));
+			Injector injector = Guice.createInjector(new IOModule(prop), new AffiliationCrawlerModule(prop));
+			AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);		
+			crawler.setMode("DEBUG");
+			crawler.crawl(null);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			showUse();
+		}		
 	}
- 
 	
 }

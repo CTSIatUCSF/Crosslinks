@@ -17,7 +17,6 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.Crosslinks;
-import edu.ucsf.crosslink.crawler.AffiliationCrawler.DateComparator;
 
 @Singleton
 public class AffiliationCrawlerFactory {
@@ -43,6 +42,10 @@ public class AffiliationCrawlerFactory {
 				Properties prop = new Properties();
 				prop.load(this.getClass().getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
 				prop.load(new FileReader(new File(fileName)));
+				// hack!
+				if (!prop.containsKey("Location")) {
+					prop.put("Location", "0,0");
+				}
 				Injector injector = guice.createChildInjector(new AffiliationCrawlerModule(prop));
 				AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);
 				injectors.put(crawler.getAffiliationName(), injector);		
@@ -52,19 +55,16 @@ public class AffiliationCrawlerFactory {
 	    }		
 	}
 	
-	public List<AffiliationCrawler> getLiveCrawlers() {
+	public List<AffiliationCrawler> getCurrentCrawlers() {
 		List<AffiliationCrawler> crawlers = new ArrayList<AffiliationCrawler>();
 		crawlers.addAll(liveCrawlers.values());
 		Collections.sort(crawlers);
 		return crawlers;
 	}
 
-	public List<AffiliationCrawler> getOldestCrawlers() throws FileNotFoundException, IOException {
+	public List<AffiliationCrawler> getCrawlers() throws FileNotFoundException, IOException {
 		loadNewCrawlers();
-		List<AffiliationCrawler> crawlers = new ArrayList<AffiliationCrawler>();
-		crawlers.addAll(liveCrawlers.values());
-		Collections.sort(crawlers, new DateComparator());
-		return crawlers;
+		return getCurrentCrawlers();
 	}
 
 	public AffiliationCrawler getCrawler(String affiliation) {

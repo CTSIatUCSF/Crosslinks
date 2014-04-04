@@ -26,9 +26,12 @@ public class Researcher implements Comparable<Researcher> {
 	private List<String> imageURLs = new ArrayList<String>(); // we allow for grabbing more than one and then test to see if any are valid when saving
 	private String thumbnailURL;
 	private String orcidId;
-	private int externalCoauthorCount;
 	private int readErrorCount = 0;
 	private Collection<Integer> pmids= new HashSet<Integer>();
+	
+	// display data
+	private int externalCoauthorCount;
+	private int sharedPublicationCount;	
 
 	public Researcher(Affiliation affiliation, String url) {
     	this.setAffiliation(affiliation);
@@ -44,13 +47,14 @@ public class Researcher implements Comparable<Researcher> {
 	// for loading from the DB
 	public Researcher(Affiliation affiliation,
 			String homePageURL, String uri, String label, String imageURL, String thumbnailURL, 
-			String orcidId, int externalCoauthorCount) {		
+			String orcidId, int externalCoauthorCount, int sharedPublicationCount) {		
 		this(affiliation, homePageURL, label);
 		this.setURI(uri);
 		this.addImageURL(imageURL);
 		this.setOrcidId(orcidId);
     	this.thumbnailURL = thumbnailURL;
     	this.externalCoauthorCount = externalCoauthorCount;
+    	this.sharedPublicationCount = sharedPublicationCount;
     }
     
     public String getLabel() {
@@ -189,8 +193,14 @@ public class Researcher implements Comparable<Researcher> {
 	}
 
 	public int compareTo(Researcher arg0) {
-		return this.readErrorCount == arg0.readErrorCount ? 
-					this.toString().compareTo(arg0.toString()) : Integer.compare(this.readErrorCount, arg0.readErrorCount);
+		if (this.readErrorCount != arg0.readErrorCount) {
+			return Integer.compare(this.readErrorCount, arg0.readErrorCount);
+		}
+		else {
+			String thisStr = (label != null ? label.trim() : " ") + homePageURL;
+			String oStr = (arg0.label != null ? arg0.label.trim() : " ") + arg0.homePageURL;
+			return thisStr.compareTo(oStr);
+		}
 	}
 	
 	public String getName() {
@@ -201,6 +211,10 @@ public class Researcher implements Comparable<Researcher> {
 		return externalCoauthorCount;
 	}    
 	
+	public int getSharedPublicationCount() {
+		return sharedPublicationCount;
+	}    
+
 	public static void main(String[] args) {
 		// simple test
 		try {

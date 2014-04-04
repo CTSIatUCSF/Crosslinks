@@ -19,7 +19,7 @@ import edu.ucsf.crosslink.Crosslinks;
 import edu.ucsf.crosslink.crawler.AffiliationCrawlerModule;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.IOModule;
-import edu.ucsf.crosslink.io.JenaPersistance;
+import edu.ucsf.crosslink.io.JenaHelper;
 import edu.ucsf.crosslink.io.ThumbnailGenerator;
 import edu.ucsf.crosslink.model.Researcher;
 
@@ -32,10 +32,10 @@ public class RDFAuthorshipParser implements AuthorParser {
 	private static final Logger LOG = Logger.getLogger(RDFAuthorshipParser.class.getName());
 
 	private SiteReader siteReader;
-	private JenaPersistance jenaPersistance;
+	private JenaHelper jenaPersistance;
 	
     @Inject
-    public RDFAuthorshipParser(SiteReader siteReader, JenaPersistance jenaPersistance) {
+    public RDFAuthorshipParser(SiteReader siteReader, JenaHelper jenaPersistance) {
     	this.siteReader = siteReader;
     	this.jenaPersistance = jenaPersistance;
     }

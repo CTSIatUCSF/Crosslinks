@@ -8,7 +8,9 @@ import com.google.inject.name.Names;
 
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
+import edu.ucsf.crosslink.io.AffiliationJenaPersistance;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
+import edu.ucsf.crosslink.io.JenaHelper;
 import edu.ucsf.crosslink.job.quartz.AffiliationCrawlerJob;
 import edu.ucsf.crosslink.model.Affiliation;
 
@@ -31,6 +33,7 @@ public class AffiliationCrawlerModule extends AbstractModule {
 		// AffiliationCrawler items
 		bind(String.class).annotatedWith(Names.named("Affiliation")).toInstance(prop.getProperty("Affiliation"));
 		bind(String.class).annotatedWith(Names.named("BaseURL")).toInstance(prop.getProperty("BaseURL"));
+		bind(String.class).annotatedWith(Names.named("Location")).toInstance(prop.getProperty("Location"));
 		bind(Affiliation.class);
 		
 		bind(AffiliationCrawler.Mode.class).toInstance(AffiliationCrawler.Mode.valueOf(prop.getProperty("crawlingMode").toUpperCase()));
@@ -39,6 +42,8 @@ public class AffiliationCrawlerModule extends AbstractModule {
 		bind(Integer.class).annotatedWith(Names.named("authorReadErrorThreshold")).toInstance(Integer.parseInt(prop.getProperty("authorReadErrorThreshold")));
 
 		bind(Integer.class).annotatedWith(Names.named("staleDays")).toInstance(Integer.parseInt(prop.getProperty("staleDays")));
+        // just for now...
+        bind(AffiliationJenaPersistance.class);
 		try {
 			bind(CrosslinkPersistance.class).to((Class<? extends CrosslinkPersistance>) Class.forName(prop.getProperty("AuthorshipPersistance"))).in(Scopes.SINGLETON);
 			bind(SiteReader.class).to((Class<? extends SiteReader>) Class.forName(prop.getProperty("Reader"))).in(Scopes.SINGLETON);			
@@ -50,6 +55,7 @@ public class AffiliationCrawlerModule extends AbstractModule {
 
 		bind(AffiliationCrawler.class).in(Scopes.SINGLETON);
         bind(AffiliationCrawlerJob.class);
+        
 	}
 
 }

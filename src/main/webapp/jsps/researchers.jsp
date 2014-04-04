@@ -70,9 +70,11 @@
 			<a href = 'http://orcid.org/<c:out value="${r.orcidId}"/>'>Orcid profile for <c:out value="${r.name}"/></a>&nbsp;
 		</c:if>
 		<c:if test="${r.externalCoauthorCount > 0}">
-			List of <c:out value="${r.externalCoauthorCount}"/> external co-authors and PMID's for <c:out value="${r.name}"/>&nbsp;
-			<a href = '../coauthors?authorURL=<c:out value="${r.homePageURL}"/>&format=CSV'> (CSV)</a>&nbsp;
-			<a href = '../coauthors?authorURL=<c:out value="${r.homePageURL}"/>&format=JSON'> (JSON)</a>
+			List of <c:out value="${r.externalCoauthorCount}"/> external co-authors and <c:out value="${r.sharedPublicationCount}"/> shared publications for <c:out value="${r.name}"/>&nbsp;
+			<a href = '../coauthors?researcherURI=<c:out value="${r.URI}"/>&format=JSON-LD'> (JSON-LD)</a>
+			<a href = '../coauthors?researcherURI=<c:out value="${r.URI}"/>&format=CSV'> (CSV)</a>&nbsp;
+			<a href = '../coauthors?researcherURI=<c:out value="${r.URI}"/>&format=XML'> (XML)</a>&nbsp;
+			<a href = '../coauthors?researcherURI=<c:out value="${r.URI}"/>&format=JSON'> (JSON)</a>&nbsp;
 		</c:if>
 		</li>
 	</c:forEach>

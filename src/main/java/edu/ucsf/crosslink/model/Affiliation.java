@@ -9,26 +9,33 @@ public class Affiliation {
 	private String baseURL;
 	private int researcherCount;
 	private int pmidCount;
-	private float latitude;
-	private float longitude;
+	private String latitude;
+	private String longitude;
 
 	@Inject
-	public Affiliation(@Named("Affiliation") String affiliationName, @Named("BaseURL") String baseURL) {
+	public Affiliation(@Named("Affiliation") String affiliationName, @Named("BaseURL") String baseURL, @Named("Location") String location) {
 		this.name = affiliationName;
 		this.baseURL = baseURL;
+		if (location != null) {
+			String [] geoCodes = location.split(",");
+			this.latitude = geoCodes[0];
+			this.longitude = geoCodes[1];
+		}
 	}
 	
-	public Affiliation(String name, String baseURL, int researcherCount, int pmidCount, float latitude, float longitude) {
-		this(name, baseURL);
+	public Affiliation(String name, String baseURL, String location, int researcherCount, int pmidCount) {
+		this(name, baseURL, null);
 		this.researcherCount = researcherCount;		
 		this.pmidCount = pmidCount;
-		this.latitude = latitude;
-		this.longitude = longitude;
 	}
 	
 	@Override
 	public String toString() {
 		return getName();
+	}
+	
+	public String getURI() {
+		return getBaseURL(); 
 	}
 
 	public String getName() {
@@ -47,11 +54,11 @@ public class Affiliation {
 		return pmidCount;
 	}
 	
-	public float getLatitude() {
+	public String getLatitude() {
 		return latitude;
 	}
 	
-	public float getLongitude() {
+	public String getLongitude() {
 		return longitude;
 	}
 }

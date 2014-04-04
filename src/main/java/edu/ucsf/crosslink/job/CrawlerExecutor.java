@@ -40,8 +40,8 @@ public class CrawlerExecutor implements Runnable, Stoppable {
 
 	public void run() {
 		try {
-		    for (AffiliationCrawler crawler : factory.getOldestCrawlers()) {
-		    	if (!crawler.okToStart()) {
+		    for (AffiliationCrawler crawler : factory.getCrawlers()) {
+		    	if (!crawler.okToStart().isOkToStart()) {
 		    		// not necessary but this helps keep the scheduler free
 		    		continue;
 		    	}
@@ -68,7 +68,7 @@ public class CrawlerExecutor implements Runnable, Stoppable {
 		
 		public void run() {
 			try {
-				crawler.crawl();
+				crawler.crawl(null);
 			}
 			catch (Exception e) {
 				LOG.log(Level.WARNING, "Exception while crawling" + crawler, e);

@@ -10,7 +10,9 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -26,32 +28,42 @@ import javax.ws.rs.core.MediaType;
 
 import com.google.gson.stream.JsonWriter;
 import com.google.inject.Inject;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.sun.jersey.api.view.Viewable;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
-import edu.ucsf.crosslink.io.DBUtil;
+import edu.ucsf.crosslink.io.JenaHelper;
 import edu.ucsf.crosslink.job.quartz.AffiliationCrawlerJob;
+import edu.ucsf.crosslink.job.quartz.MetaCrawlerJob;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
+import edu.ucsf.ctsi.r2r.DBUtil;
+import edu.ucsf.ctsi.r2r.R2ROntology;
+import edu.ucsf.ctsi.r2r.jena.JsonLDService;
 import au.com.bytecode.opencsv.CSVWriter;
 
 
 /**
  * Root resource (exposed at "list" path)
  */
-@Path("")
+@Path("/tmp")
 public class RestMethods {
 
 	private static final Logger LOG = Logger.getLogger(RestMethods.class.getName());
 	
 	private DBUtil dbUtil;
 	private AffiliationCrawlerFactory factory;
+	private JenaHelper jenaPersistance;
+	private JsonLDService jsonLDService;
 	
 	@Inject
-	public RestMethods(DBUtil dbUtil, AffiliationCrawlerFactory factory) {
+	public RestMethods(DBUtil dbUtil, AffiliationCrawlerFactory factory, JenaHelper jenaPersistance) {
 		this.dbUtil = dbUtil;
 		this.factory = factory;
+		this.jenaPersistance = jenaPersistance;
+		this.jsonLDService = new JsonLDService();
 	}
 
 	@GET
@@ -66,8 +78,12 @@ public class RestMethods {
 	@Path("/status")
 	public Viewable status(@Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws Exception {
-		request.setAttribute("crawlers", factory.getLiveCrawlers());
+		List<AffiliationCrawler> crawlers = factory.getCurrentCrawlers();
+		// reverse them so that the active ones show up at the top
+		Collections.reverse(crawlers);
+		request.setAttribute("crawlers", crawlers);
 		request.setAttribute("history", AffiliationCrawlerJob.getCrawlerJobHistory());
+		request.setAttribute("metaHistory", MetaCrawlerJob.getMetaCrawlerHistory());
 		return new Viewable("/jsps/status.jsp", null);
 	}
 
@@ -149,6 +165,9 @@ public class RestMethods {
 			if ("JSON".equalsIgnoreCase(format)) {
 				return getAsJSON(ps.executeQuery());
 			}
+			else if ("JSONLD".equalsIgnoreCase(format)) {
+				return getAsJSONLD(ps.executeQuery());
+			}
 			else {
 				return getAsCSV(ps.executeQuery());
 			}
@@ -164,6 +183,26 @@ public class RestMethods {
         return "Error";
     }
     
+    // think about best way to add latitude and longitude into here.  Maybe at the affiliation level?
+    private String getAsJSONLD(ResultSet rs) throws Exception {
+    	Map<String, Researcher> researchers = new HashMap<String, Researcher>();
+		while (rs.next()) {
+			Researcher researcher = researchers.get(rs.getString("URL"));
+			if (researcher == null) {
+				researcher = new Researcher(getAffiliation(rs.getString("affiliationName")),
+					rs.getString("URL"), null, rs.getString("displayName"), rs.getString("imageUrl"), 
+					rs.getString("thumbnailUrl"), rs.getString("orcidId"), 0, 0);
+				researchers.put(researcher.getHomePageURL(), researcher);
+			}
+			researcher.addPubMedPublication(rs.getInt("PMID"));
+		}
+		Model model = R2ROntology.createDefaultModel();
+		for (Researcher researcher : researchers.values()) {
+			model.add(jenaPersistance.getModelFor(researcher, true));
+		}
+		return jsonLDService.getJSONString(model);
+    }
+
     private String getAsJSON(ResultSet rs) throws SQLException, IOException {
 		StringWriter sw = new StringWriter();
 		JsonWriter writer = new JsonWriter(sw);
@@ -199,13 +238,13 @@ public class RestMethods {
 
     private List<Affiliation> getAffiliations() {
     	List<Affiliation> affiliations = new ArrayList<Affiliation>();
-		String sql = "select affiliation, baseURL, researcherCount, PMIDCount, latitude, longitude from vw_AffiliationList";
+		String sql = "select affiliation, baseURL, cast(latitude as varchar) + ',' + cast(longitude as varchar), researcherCount, PMIDCount from vw_AffiliationList";
 		Connection conn = dbUtil.getConnection();
 		try {
 			PreparedStatement ps = conn.prepareStatement(sql);
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
-				affiliations.add(new Affiliation(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getInt(4), rs.getFloat(5), rs.getFloat(6)));
+				affiliations.add(new Affiliation(rs.getString(1), rs.getString(2), rs.getString(3), rs.getInt(4), rs.getInt(5)));
 			}
 		}
 		catch (Exception se) {
@@ -220,14 +259,14 @@ public class RestMethods {
     }
     
     public Affiliation getAffiliation(String affiliation) {
-		String sql = "select affiliation, baseURL, researcherCount, PMIDCount, latitude, longitude from vw_AffiliationList where affiliation = ?";
+		String sql = "select affiliation, baseURL, cast(latitude as varchar) + ',' + cast(longitude as varchar), researcherCount, PMIDCount from vw_AffiliationList where affiliation = ?";
 		Connection conn = dbUtil.getConnection();
 		try {
 			PreparedStatement ps = conn.prepareStatement(sql);
 			ps.setString(1, affiliation);
 			ResultSet rs = ps.executeQuery();
 			if (rs.next()) {
-				return new Affiliation(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getInt(4), rs.getFloat(5), rs.getFloat(6));
+				return new Affiliation(rs.getString(1), rs.getString(2), rs.getString(3), rs.getInt(4), rs.getInt(5));
 			}
 		}
 		catch (Exception se) {
@@ -250,7 +289,7 @@ public class RestMethods {
 			ps.setString(1, affiliation.getName());
 			ResultSet rs = ps.executeQuery();
 			while (rs.next()) {
-				researchers.add( new Researcher(affiliation, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getInt(7)) );
+				researchers.add( new Researcher(affiliation, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getInt(7), -1) );
 			}
 		}
 		catch (Exception se) {

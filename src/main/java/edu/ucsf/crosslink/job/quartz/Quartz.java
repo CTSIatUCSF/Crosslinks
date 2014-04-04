@@ -18,6 +18,8 @@ import static org.quartz.TriggerBuilder.newTrigger;
 
 
 
+
+
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -27,6 +29,7 @@ import edu.ucsf.crosslink.Crosslinks;
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.io.IOModule;
 import edu.ucsf.crosslink.web.Stoppable;
+import edu.ucsf.ctsi.r2r.DBUtil;
 
 @Singleton
 public class Quartz implements Stoppable {
@@ -37,6 +40,7 @@ public class Quartz implements Stoppable {
 	private static final String GROUP = "meta";
 
 	private final Scheduler scheduler;
+	private final DBUtil dbUtil;
 
 	public static void main(String[] args) {
 		try {
@@ -53,9 +57,10 @@ public class Quartz implements Stoppable {
 	@Inject
 	public Quartz(final SchedulerFactory factory,
 			final GuiceJobFactory jobFactory,
-			@Named("scanInterval") Integer scanInterval) throws SchedulerException {
+			@Named("scanInterval") Integer scanInterval, DBUtil dbUtil) throws SchedulerException {
 		scheduler = factory.getScheduler();
 		scheduler.setJobFactory(jobFactory);
+		this.dbUtil = dbUtil;
 		
 	    JobDetail job = newJob(MetaCrawlerJob.class)
 		        .withIdentity(META_JOB, GROUP)
@@ -86,10 +91,13 @@ public class Quartz implements Stoppable {
 
 	public void shutdown() {
 		try {
-			scheduler.shutdown();
+			scheduler.shutdown();		
 		} catch (SchedulerException e) {
 			// ... handle it
 			LOG.log(Level.SEVERE, e.getMessage(), e);
+		}
+		if (dbUtil != null) {
+			dbUtil.unloadDrivers();
 		}
 	}
 

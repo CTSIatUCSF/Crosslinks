@@ -64,9 +64,9 @@ public class CrosslinksServletFilter implements Filter {
         		((HttpServletResponse)response).sendRedirect(newPath);
         		return;
         	}
-            String email = servletRequest.getHeader("Shibmail");  
-    		if (administrators.isEmpty() || (email != null && administrators.contains(email))) {
-    			request.setAttribute(ADMINISTRATOR, email != null ? email : Boolean.TRUE.toString());
+            String eppn = servletRequest.getHeader("eppn");  
+    		if (administrators.isEmpty() || (eppn != null && administrators.contains(eppn))) {
+    			request.setAttribute(ADMINISTRATOR, eppn != null ? eppn : Boolean.TRUE.toString());
     			request.setAttribute("memoryStats", getMemoryStats());
     		}
         }		

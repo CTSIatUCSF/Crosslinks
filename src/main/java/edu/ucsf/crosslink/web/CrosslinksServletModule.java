@@ -2,9 +2,13 @@ package edu.ucsf.crosslink.web;
 
 import java.util.Properties;
 
+import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import com.sun.jersey.guice.JerseyServletModule;
 import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
+
+import edu.ucsf.ctsi.r2r.jena.FusekiClient;
+import edu.ucsf.ctsi.r2r.jena.FusekiHttpClient;
 
 
 
@@ -21,6 +25,8 @@ public class CrosslinksServletModule extends JerseyServletModule {
 		bind(String.class).annotatedWith(Names.named("thumbnailRootURL")).toInstance(prop.getProperty("thumbnailRootURL"));		
 		bind(String[].class).annotatedWith(Names.named("administrators")).toInstance(prop.getProperty("administrators").split(","));
 		bind(RestMethods.class);
+		bind(FusekiClient.class).toInstance(new FusekiHttpClient(prop.getProperty("r2r.fusekiUrl")));
+		bind(FusekiRestMethods.class);
 		serve("/*").with(GuiceContainer.class);
 		filter("/*").through(CrosslinksServletFilter.class);
 	}

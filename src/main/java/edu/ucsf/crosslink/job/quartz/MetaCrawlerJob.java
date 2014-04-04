@@ -4,9 +4,10 @@ import static org.quartz.JobBuilder.newJob;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
-
-
 
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
@@ -19,7 +20,7 @@ import com.google.inject.Inject;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
-
+import edu.ucsf.crosslink.crawler.CrawlerStartStatus;
 
 @DisallowConcurrentExecution
 public class MetaCrawlerJob implements Job {
@@ -27,10 +28,16 @@ public class MetaCrawlerJob implements Job {
 	private static final Logger LOG = Logger.getLogger(MetaCrawlerJob.class.getName());
 	private static final String TRIGGER_PREFIX = "trigger";
 	private static final String GROUP = "crawlers";
+	private static int historyMaxSize = 100;
 
 	private final Quartz quartz;
 	private AffiliationCrawlerFactory factory;
+	private static LinkedList<String> metaCrawlerHistory = new LinkedList<String>();
 	
+	public static List<String> getMetaCrawlerHistory() {
+		return metaCrawlerHistory;
+	}
+
 	@Inject
 	public MetaCrawlerJob(Quartz quartz, AffiliationCrawlerFactory factory) {
 		this.quartz = quartz;
@@ -40,8 +47,15 @@ public class MetaCrawlerJob implements Job {
 	public void execute(JobExecutionContext context)
 			throws JobExecutionException {
 		try {
-		    for (AffiliationCrawler crawler : factory.getOldestCrawlers()) {
-		    	if (!crawler.okToStart()) {
+		    for (AffiliationCrawler crawler : factory.getCrawlers()) {
+		    	CrawlerStartStatus reason = crawler.okToStart();
+				synchronized (metaCrawlerHistory) {
+					metaCrawlerHistory.addFirst("Trigger status for " + crawler.getAffiliationName() + " : " + reason);
+					if (metaCrawlerHistory.size() > historyMaxSize) {
+						metaCrawlerHistory.removeLast();
+					}
+				}
+		    	if (!reason.isOkToStart()) {
 		    		// not necessary but this helps keep the scheduler free
 		    		continue;
 		    	}
@@ -64,6 +78,7 @@ public class MetaCrawlerJob implements Job {
 		    }
 		}
 		catch (Exception e) {
+			LOG.log(Level.SEVERE, e.getMessage(), e);
 			throw new JobExecutionException(e);
 		}
 	}

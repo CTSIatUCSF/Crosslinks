@@ -20,11 +20,17 @@
 		</c:if>
 		&nbsp;<c:out value="${i.counts}"/>&nbsp;<c:out value="${i.dates}"/><p>
  	    <c:out value="${i.currentAuthor}"/><p>
+ 	    <c:out value="${i.lastStartStatus}"/><p>
  	    <hr>
 	</c:forEach>
 
-    <h2>Completed crawlers</h2>
+    <h2>Exited crawlers</h2>
 	<c:forEach var="i" items="${history}">
+ 	    <c:out value="${i}"/><p>
+	</c:forEach>
+
+    <h2>Metacrawler trigger history</h2>
+	<c:forEach var="i" items="${metaHistory}">
  	    <c:out value="${i}"/><p>
 	</c:forEach>
 </body>

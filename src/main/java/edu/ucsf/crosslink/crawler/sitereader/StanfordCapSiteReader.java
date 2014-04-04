@@ -52,8 +52,8 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
     	}
     	Document doc = getDocument(researcher.getHomePageURL());
     	// read name from title    	
-		if (doc != null && (doc.title().endsWith(" | Stanford Profiles") || doc.title().endsWith(" | Stanford Medicine"))) {
-			String fullName = StringEscapeUtils.escapeHtml4(doc.title().split("\\|")[0].split(",")[0]);
+		if (doc != null && (doc.title().contains(" | Stanford"))) {
+			String fullName = StringEscapeUtils.escapeHtml4(doc.title().split("\\|")[0].split(",")[0]).trim();
 			researcher.setLabel(fullName);
 			Elements links = doc.select("a[href]");	
 			
@@ -75,8 +75,9 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
     
     public static void main(String[] args) {
     	try {
-    		StanfordCapSiteReader reader = new StanfordCapSiteReader(null);
-    		reader.readResearcher(new Researcher(null, args[0]));
+    		Affiliation stanford = new Affiliation("Stanford", "https://med.stanford.edu/profiles", null);
+    		StanfordCapSiteReader reader = new StanfordCapSiteReader(stanford);
+    		reader.readResearcher(new Researcher(stanford, "https://med.stanford.edu/profiles/michael-halaas"));
     	}
     	catch (Exception e) {
     		e.printStackTrace();

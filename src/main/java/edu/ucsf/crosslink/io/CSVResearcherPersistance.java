@@ -75,11 +75,14 @@ public class CSVResearcherPersistance implements CrosslinkPersistance {
 		}
 		
 	}
-
 	
 	public void saveResearcher(Researcher author) throws Exception {
 		this.saveAuthorships(author.getAuthorships());
 		flush();
+	}
+	
+	public Collection<Researcher> getResearchers() {
+		return null;
 	}
 	
 	private void saveAuthorships(Collection<Authorship> authorships) throws Exception {
@@ -91,12 +94,12 @@ public class CSVResearcherPersistance implements CrosslinkPersistance {
 		}
 	}
 
-	public boolean skip(String url) {
-		return existingEntries.contains(url);
+	public boolean skip(Researcher researcher) {
+		return existingEntries.contains(researcher.getHomePageURL());
 	}
 	
-	public int touch(String url) {
-		return existingEntries.contains(url) ? 1 : -1;
+	public int touch(Researcher researcher) {
+		return existingEntries.contains(researcher.getHomePageURL()) ? 1 : -1;
 	}
 	
 	public void close() throws IOException {

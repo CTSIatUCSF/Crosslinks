@@ -15,6 +15,7 @@ import org.quartz.UnableToInterruptJobException;
 import com.google.inject.Inject;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
+import edu.ucsf.crosslink.crawler.CrawlerStartStatus;
 
 @DisallowConcurrentExecution
 public class AffiliationCrawlerJob implements InterruptableJob {
@@ -40,9 +41,10 @@ public class AffiliationCrawlerJob implements InterruptableJob {
 		boolean didSomething = false;
 		try {
 			currentExecutionThread = Thread.currentThread();
-			if (crawler.okToStart()) {
+			CrawlerStartStatus startStatus = crawler.okToStart();
+			if (startStatus.isOkToStart()) {
 				didSomething = true;
-				crawler.crawl();
+				crawler.crawl(startStatus);
 			}
 		} 
 		catch (Exception e) {

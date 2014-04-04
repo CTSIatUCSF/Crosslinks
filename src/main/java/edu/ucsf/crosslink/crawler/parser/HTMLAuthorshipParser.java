@@ -13,7 +13,7 @@ import edu.ucsf.crosslink.Crosslinks;
 import edu.ucsf.crosslink.crawler.AffiliationCrawlerModule;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.IOModule;
-import edu.ucsf.crosslink.io.JenaPersistance;
+import edu.ucsf.crosslink.io.JenaHelper;
 import edu.ucsf.crosslink.io.ThumbnailGenerator;
 import edu.ucsf.crosslink.model.Researcher;
 
@@ -30,7 +30,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
 	private RDFAuthorshipParser rdfParser;
 	
 	@Inject
-    public HTMLAuthorshipParser(SiteReader siteReader, JenaPersistance jenaPersistance) {
+    public HTMLAuthorshipParser(SiteReader siteReader, JenaHelper jenaPersistance) {
     	this.siteReader = siteReader;
     	this.rdfParser = new RDFAuthorshipParser(siteReader, jenaPersistance); 		    	
     }

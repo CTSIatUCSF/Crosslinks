@@ -7,8 +7,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,6 +23,7 @@ import com.thoughtworks.xstream.XStream;
 
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
+import edu.ucsf.ctsi.r2r.DBUtil;
 
 public class DBResearcherPersistance implements CrosslinkPersistance {
 	
@@ -30,7 +35,7 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	private Set<String> recentIndexedAuthors = new HashSet<String>();
 	
 	private ThumbnailGenerator thumbnailGenerator;
-	private JenaPersistance jenaPersistance;
+	private AffiliationJenaPersistance jenaPersistance;
 		
 	@Inject
 	public DBResearcherPersistance(Affiliation affiliation, @Named("daysConsideredOld") Integer daysConsideredOld, DBUtil dbUtil) {
@@ -45,7 +50,7 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	}
 	
 	@Inject
-	public void setJenaPersistance(JenaPersistance jenaPersistance) {
+	public void setJenaPersistance(AffiliationJenaPersistance jenaPersistance) {
 		this.jenaPersistance = jenaPersistance;
 	}
 
@@ -72,8 +77,45 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 		return null;
 	}
 	
+	public Collection<Researcher> getResearchers() {
+		String sql = "select homePageURL, URI, Label, imageURL, thumbnailURL, orcidId, externalCoauthorCount, authorshipId from vw_ResearcherList where affiliationName = ?";
+    	Map<Integer, Researcher> researchers = new HashMap<Integer, Researcher>();
+		Connection conn = dbUtil.getConnection();
+		try {
+			PreparedStatement ps = conn.prepareStatement(sql);
+			ps.setString(1, affiliation.getName());
+			ResultSet rs = ps.executeQuery();
+			while (rs.next()) {
+				researchers.put(rs.getInt(8), new Researcher(affiliation, rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getInt(7), -1) );
+			}
+
+			// now load the publications
+			ps = conn.prepareStatement("select PMID from AuthorshipWork where authorshipId = ?");
+			for (Integer rid : researchers.keySet()) {
+				ps.setInt(1, rid);
+				rs = ps.executeQuery();
+				while (rs.next()) {					
+					researchers.get(rid).addPubMedPublication(rs.getInt(1));
+				}				
+			}
+		}
+		catch (Exception se) {
+	        LOG.log(Level.SEVERE, "Error reading ", se);
+		}
+		finally {
+			try { conn.close(); } catch (SQLException se) {
+		        LOG.log(Level.SEVERE, "Error closing connection", se);
+			}
+		}
+		
+		return researchers.values();
+	}
+	
 	
 	public void start() throws Exception {
+		if (jenaPersistance != null) {
+			jenaPersistance.start();
+		}
 		Connection conn = dbUtil.getConnection();
 		try {
 	        CallableStatement cs = conn
@@ -131,11 +173,15 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 		}
 	}
 
-	public boolean skip(String url) {
-		return recentIndexedAuthors.contains(url);
+	public boolean skip(Researcher researcher) {
+		return recentIndexedAuthors.contains(researcher.getHomePageURL());
 	}
 
-	public int touch(String url) throws SQLException {
+	public int touch(Researcher researcher) throws Exception {
+		if (jenaPersistance != null) {
+			jenaPersistance.touch(researcher);
+		}
+		String url = researcher.getHomePageURL();
         Integer authorId = null;
 		Connection conn = dbUtil.getConnection();
 		try {
@@ -155,6 +201,9 @@ public class DBResearcherPersistance implements CrosslinkPersistance {
 	}
 
 	public void finish() throws Exception {
+		if (jenaPersistance != null) {
+			jenaPersistance.finish();
+		}
 		Connection conn = dbUtil.getConnection();
 		try {
 	        CallableStatement cs = conn

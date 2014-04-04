@@ -5,7 +5,7 @@ import java.util.Properties;
 import com.google.inject.AbstractModule;
 import com.google.inject.name.Names;
 
-import edu.ucsf.crosslink.io.DBUtil;
+import edu.ucsf.ctsi.r2r.DBUtil;
 import edu.ucsf.ctsi.r2r.jena.LODService;
 
 public class IOModule extends AbstractModule {
@@ -35,7 +35,7 @@ public class IOModule extends AbstractModule {
 		// Jena		
 		bind(String.class).annotatedWith(Names.named("r2r.fusekiUrl")).toInstance(prop.getProperty("r2r.fusekiUrl"));
 		bind(LODService.class);
-		bind(JenaPersistance.class);		
+		bind(JenaHelper.class);		
 	}
 
 }

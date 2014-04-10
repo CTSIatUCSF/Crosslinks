@@ -41,13 +41,7 @@ public class CrawlerExecutor implements Runnable, Stoppable {
 	public void run() {
 		try {
 		    for (AffiliationCrawler crawler : factory.getCrawlers()) {
-		    	if (!crawler.okToStart().isOkToStart()) {
-		    		// not necessary but this helps keep the scheduler free
-		    		continue;
-		    	}
-		    	else {
-		    		executorService.execute(new AffiliationCrawlerRunner(crawler));
-		    	}
+	    		executorService.execute(crawler);
 		    }
 		}
 		catch (Exception e) {
@@ -57,23 +51,6 @@ public class CrawlerExecutor implements Runnable, Stoppable {
 	
 	public void shutdown() {
 		executorService.shutdownNow();
-	}
-	
-	private class AffiliationCrawlerRunner implements Runnable {
-		private AffiliationCrawler crawler;
-		
-		private AffiliationCrawlerRunner(AffiliationCrawler crawler) {
-			this.crawler = crawler;
-		}
-		
-		public void run() {
-			try {
-				crawler.crawl(null);
-			}
-			catch (Exception e) {
-				LOG.log(Level.WARNING, "Exception while crawling" + crawler, e);
-			}
-		}
 	}
 
 }

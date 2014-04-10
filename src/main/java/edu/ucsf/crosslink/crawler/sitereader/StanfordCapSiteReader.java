@@ -1,6 +1,7 @@
 package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.IOException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -54,6 +55,10 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
     	// read name from title    	
 		if (doc != null && (doc.title().contains(" | Stanford"))) {
 			String fullName = StringEscapeUtils.escapeHtml4(doc.title().split("\\|")[0].split(",")[0]).trim();
+			if (fullName.isEmpty()) {
+				LOG.log(Level.WARNING, "no name found for " + researcher + " going to derive one from page");
+				fullName = researcher.getHomePageURL().substring(getAffiliation().getBaseURL().length() + 1);
+			}
 			researcher.setLabel(fullName);
 			Elements links = doc.select("a[href]");	
 			

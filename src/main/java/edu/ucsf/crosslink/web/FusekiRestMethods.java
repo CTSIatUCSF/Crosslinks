@@ -1,18 +1,9 @@
 package edu.ucsf.crosslink.web;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.StringBufferInputStream;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServletRequest;
@@ -28,32 +19,22 @@ import javax.ws.rs.core.MediaType;
 import org.json.JSONException;
 
 import com.github.jsonldjava.core.JsonLdError;
-import com.google.gson.stream.JsonWriter;
 import com.google.inject.Inject;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.ModelFactory;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.Statement;
-import com.hp.hpl.jena.rdf.model.StmtIterator;
 import com.sun.jersey.api.view.Viewable;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
-import edu.ucsf.crosslink.io.JenaHelper;
-import edu.ucsf.crosslink.job.quartz.AffiliationCrawlerJob;
 import edu.ucsf.crosslink.job.quartz.MetaCrawlerJob;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.DBUtil;
 import edu.ucsf.ctsi.r2r.R2RConstants;
-import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.FusekiClient;
 import edu.ucsf.ctsi.r2r.jena.JsonLDService;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
-import au.com.bytecode.opencsv.CSVWriter;
 
 
 /**
@@ -75,7 +56,7 @@ public class FusekiRestMethods implements R2RConstants {
 			R2R_FROM_RN_WEBSITE + "> ?a} . OPTIONAL {?r <" + R2R_CONTRIBUTED_TO + "> ?cw } } GROUP BY ?a ?lat ?lon";
 	
 	private static final String RESEARCHERS_SPARQL = "SELECT ?hp ?r ?l ?i ?t ?o (count(distinct ?er) as ?erc) (count(distinct ?cw) as ?cwc) WHERE { {?r <" + 
-			R2R_FROM_RN_WEBSITE + "> <%1$s> } . {?r <" + FOAF_HOMEPAGE + "> ?hp} .{?r <" + RDFS_LABEL + "> ?l} . OPTIONAL {?r <" +
+			R2R_FROM_RN_WEBSITE + "> <%1$s> } . {?r <" + R2R_HOMEPAGE_PATH + "> ?hp} .{?r <" + RDFS_LABEL + "> ?l} . OPTIONAL {?r <" +
 			PRNS_MAIN_IMAGE + "> ?i} . OPTIONAL {?r <" + R2R_THUMBNAIL + "> ?t} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?o} . OPTIONAL {{?r <" + 
 			R2R_CONTRIBUTED_TO + "> ?cw } . {?er <" + R2R_CONTRIBUTED_TO + "> ?cw } . {?er <" + R2R_FROM_RN_WEBSITE + 
 			"> ?ea} FILTER (?ea != <%1$s>)}} GROUP BY ?hp ?r ?l ?i ?t ?o";
@@ -114,11 +95,11 @@ public class FusekiRestMethods implements R2RConstants {
 	@Path("/status")
 	public Viewable status(@Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws Exception {
-		List<AffiliationCrawler> crawlers = factory.getCurrentCrawlers();
-		// reverse them so that the active ones show up at the top
-		Collections.reverse(crawlers);
+		List<AffiliationCrawler> crawlers = new ArrayList<AffiliationCrawler>();
+		crawlers.addAll(factory.getCurrentCrawlers());
+		// sort them so that the active ones show up at the top
+		Collections.sort(crawlers);
 		request.setAttribute("crawlers", crawlers);
-		request.setAttribute("history", AffiliationCrawlerJob.getCrawlerJobHistory());
 		request.setAttribute("metaHistory", MetaCrawlerJob.getMetaCrawlerHistory());
 		return new Viewable("/jsps/status.jsp", null);
 	}

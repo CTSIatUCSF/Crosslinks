@@ -85,6 +85,10 @@ public class Researcher implements Comparable<Researcher> {
 		return homePageURL;
 	}
 	
+	public String getHomePagePath() {
+		return homePageURL.substring(affiliation.getBaseURL().length());				
+	}
+	
 	private void setHomePageURL(String homePageURL) {
 		this.homePageURL = homePageURL;
 	}

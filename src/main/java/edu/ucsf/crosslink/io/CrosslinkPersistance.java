@@ -19,10 +19,10 @@ public interface CrosslinkPersistance {
 	
 	int touch(Researcher researcher) throws Exception;
 	
-	void close()  throws Exception;
+	void close();
 
 	// only call this when things are good, not during an abort
-	void finish()  throws Exception;
+	void finish() throws Exception;
 	
 	Collection<Researcher> getResearchers();
 }

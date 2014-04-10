@@ -5,7 +5,6 @@ import java.util.logging.Logger;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.RDFNode;
@@ -19,7 +18,6 @@ import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.FusekiCache;
 import edu.ucsf.ctsi.r2r.jena.FusekiClient;
-import edu.ucsf.ctsi.r2r.jena.FusekiHttpClient;
 import edu.ucsf.ctsi.r2r.jena.LODService;
 
 @Singleton
@@ -27,14 +25,13 @@ public class JenaHelper implements R2RConstants {
 	private static final Logger LOG = Logger.getLogger(JenaHelper.class.getName());
 	
 	private LODService lodService;
-	private FusekiClient fusekiClient;
 	private FusekiCache fusekiCache;
 	private R2ROntology r2r;
 	
 	@Inject
-	public JenaHelper(@Named("r2r.fusekiUrl") String fusekiUrl, LODService lodService) throws Exception {
+	public JenaHelper(FusekiClient fusekiClient, LODService lodService) throws Exception {
 		this.lodService = lodService;
-		this.fusekiClient = new FusekiHttpClient(fusekiUrl);
+		lodService.acceptAllHosts();
 		this.fusekiCache = new FusekiCache(fusekiClient, lodService);
 		this.r2r = new R2ROntology();
 		// make sure we have the latest info
@@ -121,8 +118,8 @@ public class JenaHelper implements R2RConstants {
 			
     	// homepage
     	model.add(researcherResource, 
-    			model.createProperty(FOAF_HOMEPAGE), 
-				model.createTypedLiteral(researcher.getHomePageURL()));        	
+    			model.createProperty(R2R_HOMEPAGE_PATH), 
+				model.createTypedLiteral(researcher.getHomePagePath()));        	
 
     	// thumbnail        	
     	if (researcher.getThumbnailURL() != null) {

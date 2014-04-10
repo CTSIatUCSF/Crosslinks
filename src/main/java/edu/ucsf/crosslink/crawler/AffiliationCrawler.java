@@ -14,10 +14,6 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-
-
-
-
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.Minutes;
@@ -34,9 +30,10 @@ import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.io.IOModule;
 import edu.ucsf.crosslink.job.quartz.AffiliationCrawlerJob;
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
-public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
+public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runnable {
 
 	private static final Logger LOG = Logger.getLogger(AffiliationCrawler.class.getName());
 
@@ -50,7 +47,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	private Date ended;
 	private CrawlerStartStatus lastStartStatus;
 
-	private String affiliation;
+	private Affiliation affiliation;
 	private SiteReader reader;
 	private AuthorParser parser;
 	private CrosslinkPersistance store;
@@ -77,12 +74,8 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		System.out.println("Pass in the name of the properties file");
 	}	
 
-	public AffiliationCrawler(@Named("Affiliation") String affiliation, SiteReader reader, AuthorParser parser, CrosslinkPersistance store) {
-		this(affiliation, reader, parser, store, Mode.ENABLED);
-	}
-			
 	@Inject
-	public AffiliationCrawler(@Named("Affiliation") String affiliation, SiteReader reader, AuthorParser parser, CrosslinkPersistance store,
+	public AffiliationCrawler(Affiliation affiliation, SiteReader reader, AuthorParser parser, CrosslinkPersistance store,
 			Mode crawlingMode) {
 		this.affiliation = affiliation;
 		this.reader = reader;
@@ -136,7 +129,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		return store.dateOfLastCrawl();
 	}
 	
-	public String getAffiliationName() {
+	public Affiliation getAffiliation() {
 		return affiliation;
 	}
 	
@@ -197,9 +190,12 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		return currentAuthor;
 	}
 
-	public synchronized void crawl(CrawlerStartStatus startStatus) throws Exception {
+	public void run() {
+		lastStartStatus = getStartStatus();
+		if (!lastStartStatus.isOkToStart()) {
+			return;
+		}
 		crawlingThread = Thread.currentThread();
-		lastStartStatus = startStatus;
 		try {
 			if (Arrays.asList(Status.IDLE, Status.FINISHED, Status.ERROR).contains(status)) {
 				// fresh start
@@ -207,12 +203,6 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 				started = new Date();
 				gatherURLs();
 				store.start();
-			}
-			else if (isActive()) {
-				// something way bad happened
-				latestError = "Restarting in status : " + status + ", should not be possible. Will pause in error mode for a while.";
-				status = Status.ERROR;
-				return;
 			}
 			else {
 				// we are resuming
@@ -262,15 +252,6 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 		}
 		writer.flush();
 		return sw.toString();
-	}
-
-	public CrawlerStartStatus okToStart() {
-		CrawlerStartStatus status = getStartStatus();
-		// if we are not active, go ahead and set this
-		if (!isActive()) {
-			lastStartStatus = status;
-		}
-		return status;
 	}
 
 	private CrawlerStartStatus getStartStatus() {
@@ -411,9 +392,9 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 	}
 	
 	public int compareTo(AffiliationCrawler o) {
-    	// always put active ones in the back
+    	// always put active ones in the front
     	if (this.isActive() != o.isActive()) {
-    		return this.isActive() ? 1 : -1;
+    		return this.isActive() ? -1 : 1;
     	}	    	
 
     	CrawlerStartStatus astatus = this.getLastStartStatus();
@@ -439,7 +420,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler> {
 			Injector injector = Guice.createInjector(new IOModule(prop), new AffiliationCrawlerModule(prop));
 			AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);		
 			crawler.setMode("DEBUG");
-			crawler.crawl(null);
+			crawler.run();
 		}
 		catch (Exception e) {
 			e.printStackTrace();

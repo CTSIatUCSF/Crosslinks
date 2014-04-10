@@ -5,7 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,21 +48,18 @@ public class AffiliationCrawlerFactory {
 				}
 				Injector injector = guice.createChildInjector(new AffiliationCrawlerModule(prop));
 				AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);
-				injectors.put(crawler.getAffiliationName(), injector);		
-				propertyFiles.put(crawler.getAffiliationName(), fileName);
-				liveCrawlers.put(crawler.getAffiliationName(), crawler);				
+				injectors.put(crawler.getAffiliation().getName(), injector);		
+				propertyFiles.put(crawler.getAffiliation().getName(), fileName);
+				liveCrawlers.put(crawler.getAffiliation().getName(), crawler);				
 	    	}
 	    }		
 	}
 	
-	public List<AffiliationCrawler> getCurrentCrawlers() {
-		List<AffiliationCrawler> crawlers = new ArrayList<AffiliationCrawler>();
-		crawlers.addAll(liveCrawlers.values());
-		Collections.sort(crawlers);
-		return crawlers;
+	public Collection<AffiliationCrawler> getCurrentCrawlers() {
+		return liveCrawlers.values();
 	}
 
-	public List<AffiliationCrawler> getCrawlers() throws FileNotFoundException, IOException {
+	public Collection<AffiliationCrawler> getCrawlers() throws FileNotFoundException, IOException {
 		loadNewCrawlers();
 		return getCurrentCrawlers();
 	}

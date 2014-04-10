@@ -9,7 +9,9 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+
 
 
 import com.google.inject.Inject;
@@ -102,8 +104,13 @@ public class CSVResearcherPersistance implements CrosslinkPersistance {
 		return existingEntries.contains(researcher.getHomePageURL()) ? 1 : -1;
 	}
 	
-	public void close() throws IOException {
-		writer.close();
+	public void close() {
+		try {
+			writer.close();
+		} 
+		catch (IOException e) {
+			LOG.log(Level.SEVERE, "Error closing CSV writer for " + affiliationName, e);
+		}
 	}
 	
 	public void finish() throws IOException {

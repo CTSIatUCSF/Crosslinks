@@ -1,9 +1,10 @@
 package edu.ucsf.crosslink.job.quartz;
 
 import static org.quartz.JobBuilder.newJob;
-import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
+import java.text.DateFormat;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
@@ -14,13 +15,16 @@ import org.quartz.Job;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.quartz.JobKey;
+import org.quartz.SchedulerException;
 import org.quartz.Trigger;
+import org.quartz.impl.matchers.GroupMatcher;
 
 import com.google.inject.Inject;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
-import edu.ucsf.crosslink.crawler.CrawlerStartStatus;
+import edu.ucsf.crosslink.model.Affiliation;
 
 @DisallowConcurrentExecution
 public class MetaCrawlerJob implements Job {
@@ -43,33 +47,47 @@ public class MetaCrawlerJob implements Job {
 		this.quartz = quartz;
 		this.factory = factory;
 	}
+	
+	private boolean isScheduled(AffiliationCrawler crawler) throws SchedulerException {
+		for (JobKey key : quartz.getScheduler().getJobKeys(GroupMatcher.jobGroupEquals(GROUP))) {
+			if (key.getName().equals(crawler.getAffiliation().getName())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean isExecuting(AffiliationCrawler crawler) throws SchedulerException {
+		for (JobExecutionContext context : quartz.getScheduler().getCurrentlyExecutingJobs()) {
+			if (context.getJobDetail().getKey().getName().equals(crawler.getAffiliation().getName())) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	public void execute(JobExecutionContext context)
 			throws JobExecutionException {
 		try {
 		    for (AffiliationCrawler crawler : factory.getCrawlers()) {
-		    	CrawlerStartStatus reason = crawler.okToStart();
+		    	if (isScheduled(crawler) || isExecuting(crawler)) {
+		    		continue;
+		    	}
 				synchronized (metaCrawlerHistory) {
-					metaCrawlerHistory.addFirst("Trigger status for " + crawler.getAffiliationName() + " : " + reason);
+					metaCrawlerHistory.addFirst("Scheduling " + crawler.getAffiliation() + " at " + DateFormat.getDateTimeInstance().format(new Date()));
 					if (metaCrawlerHistory.size() > historyMaxSize) {
 						metaCrawlerHistory.removeLast();
 					}
 				}
-		    	if (!reason.isOkToStart()) {
-		    		// not necessary but this helps keep the scheduler free
-		    		continue;
-		    	}
-		    	String affiliation = crawler.getAffiliationName();
+		    	Affiliation affiliation = crawler.getAffiliation();
 			    JobDetail job = newJob(AffiliationCrawlerJob.class)
-			        .withIdentity(affiliation, GROUP)
+			        .withIdentity(affiliation.getName(), GROUP)
 			        .build();
 	
-			    // Trigger the job to run once now, and to not re-fire if it can't run now
+			    // Trigger the job to run now or as soon as possible
 			    Trigger trigger = newTrigger()
-			        .withIdentity(TRIGGER_PREFIX + affiliation, GROUP)
+			        .withIdentity(TRIGGER_PREFIX + affiliation.getName(), GROUP)
 			        .startNow()
-			        .withSchedule(simpleSchedule()
-			        		.withMisfireHandlingInstructionNextWithRemainingCount()) 
 			        .forJob(job)
 			        .build();
 	

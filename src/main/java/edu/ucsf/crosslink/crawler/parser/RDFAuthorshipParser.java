@@ -25,7 +25,6 @@ import edu.ucsf.crosslink.model.Researcher;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 
 public class RDFAuthorshipParser implements AuthorParser {
 

@@ -1,11 +1,12 @@
 package edu.ucsf.crosslink.io;
 
-import java.io.File;
-import java.io.FileReader;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
+import java.util.logging.Logger;
 
 import org.joda.time.DateTime;
 
@@ -29,23 +30,28 @@ import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.FusekiClient;
-import edu.ucsf.ctsi.r2r.jena.FusekiHttpClient;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 
 public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RConstants {
+
+	private static final Logger LOG = Logger.getLogger(AffiliationJenaPersistance.class.getName());
 
 	private Affiliation affiliation;
 	private FusekiClient fusekiClient;
 	private Integer daysConsideredOld;
 	private JenaHelper jenaHelper;
 	private ThumbnailGenerator thumbnailGenerator;
-
+	private final Set<String> recentlyProcessedAuthors = new HashSet<String>();
+	
+	private static final String SKIP_RESEARCHERS_SPARQL = "SELECT ?hp WHERE {?s <" + R2R_FROM_RN_WEBSITE + "> <%s> . ?s <" +
+			R2R_HOMEPAGE_PATH + "> ?hp . ?s <" + R2R_WORK_VERIFIED_DT + "> ?ts . FILTER (?ts > %d)}";
+	
 	@Inject
-	public AffiliationJenaPersistance(Affiliation affiliation, @Named("r2r.fusekiUrl") String fusekiUrl, 
+	public AffiliationJenaPersistance(Affiliation affiliation, FusekiClient fusekiClient, 
 			@Named("daysConsideredOld") Integer daysConsideredOld, JenaHelper jenaHelper) throws Exception {
     	// create affiliation. Should we add latitude and longitude to this?
 		this.affiliation = affiliation;
-		this.fusekiClient = new FusekiHttpClient(fusekiUrl);
+		this.fusekiClient = fusekiClient;
 		this.daysConsideredOld = daysConsideredOld;
 		this.jenaHelper = jenaHelper;
 		
@@ -73,7 +79,19 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 	}
 		
 	public void start() throws Exception {
-		updateTimestampFieldFor(affiliation.getURI(), R2R_CRAWL_START_DT);
+		Date now = updateTimestampFieldFor(affiliation.getURI(), R2R_CRAWL_START_DT);
+		
+		String sparql = String.format(SKIP_RESEARCHERS_SPARQL, affiliation.getURI(), new DateTime(now).minusDays(daysConsideredOld).getMillis());
+		LOG.info(sparql);
+		fusekiClient.select(sparql, new ResultSetConsumer() {
+			public void useResultSet(ResultSet rs) {
+				while (rs.hasNext()) {				
+					QuerySolution qs = rs.next();
+					recentlyProcessedAuthors.add(qs.getLiteral("?hp").getString());
+				}								
+			}
+		});
+		LOG.info("Found " + recentlyProcessedAuthors.size() + " recently processed authors");
 	}
 
 	public void finish() throws Exception {
@@ -83,6 +101,8 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 			"?s <" + R2R_FROM_RN_WEBSITE + "> <" + affiliation.getURI() + "> . " +
 			"?s <" + R2R_VERIFIED_DT + "> ?ta FILTER(?ta < ?cst) ?s ?p ?o}";
 		fusekiClient.update(sparql);
+		// clear the list
+		recentlyProcessedAuthors.clear();
 	}
 
 	public void saveResearcher(Researcher researcher) throws Exception {
@@ -90,7 +110,7 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 			thumbnailGenerator.generateThumbnail(researcher);
 		}		
 		delete(researcher, R2R_FROM_RN_WEBSITE);
-		delete(researcher, FOAF_HOMEPAGE);
+		delete(researcher, R2R_HOMEPAGE_PATH);
 		delete(researcher, R2R_THUMBNAIL);
 		delete(researcher, R2R_VERIFIED_DT);
 		delete(researcher, R2R_WORK_VERIFIED_DT);
@@ -99,21 +119,14 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 	}
 
 	public Date dateOfLastCrawl() {
-		String sparql = "SELECT ?o WHERE {<" + affiliation.getURI() + "> <" + R2R_CRAWL_END_DT + "> ?dt}";
+		String sparql = "SELECT ?dt WHERE {<" + affiliation.getURI() + "> <" + R2R_CRAWL_END_DT + "> ?dt}";
 		DateResultSetConsumer consumer = new DateResultSetConsumer();
 		fusekiClient.select(sparql, consumer);
 		return consumer.getDate();
 	}
 
 	public boolean skip(Researcher researcher) {
-		// see when there work was last updated
-		if (researcher.getHomePageURL() != null && daysConsideredOld != null) {
-			String sparql = "ASK WHERE {{?s <" + FOAF_HOMEPAGE + "> ?hp . FILTER (?hp = \"" + researcher.getHomePageURL() + "\")} . {?s <" +
-					R2R_WORK_VERIFIED_DT +"> ?dt} FILTER (?dt > " +
-					new DateTime().minusDays(daysConsideredOld).getMillis() + ")}";
-			return fusekiClient.ask(sparql);
-		}
-		return false;
+		return recentlyProcessedAuthors.contains(researcher.getHomePagePath());
 	}
 
 	// update the researcherVerifiedDT
@@ -185,8 +198,8 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 			
     	// homepage
     	model.add(researcherResource, 
-    			model.createProperty(FOAF_HOMEPAGE), 
-				model.createTypedLiteral(researcher.getHomePageURL()));        	
+    			model.createProperty(R2R_HOMEPAGE_PATH), 
+				model.createTypedLiteral(researcher.getHomePagePath()));        	
 
     	// thumbnail        	
     	if (researcher.getThumbnailURL() != null) {
@@ -218,7 +231,7 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 		return model;
 	}
 
-	public void close() throws Exception {
+	public void close() {
 		// TODO Auto-generated method stub
 		
 	}
@@ -233,7 +246,7 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 		public void useResultSet(ResultSet rs) {
 			if (rs.hasNext()) {				
 				QuerySolution qs = rs.next();
-				dt = new Date(qs.getLiteral("?dt").getLong());
+				dt = qs.getLiteral("?dt") != null ? new Date(qs.getLiteral("?dt").getLong()) : null;
 			}				
 		}	
 		
@@ -256,14 +269,14 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 			
 			AffiliationCrawlerFactory factory = injector.getInstance(AffiliationCrawlerFactory.class);
 			for (AffiliationCrawler crawler : factory.getCrawlers()) {
-				System.out.println(crawler.getAffiliationName());
-				if ("USC".equals(crawler.getAffiliationName())) {
-					DBResearcherPersistance dbrp = factory.getInjector(crawler.getAffiliationName()).getInstance(DBResearcherPersistance.class);
+				System.out.println(crawler.getAffiliation().getName());
+				if ("USC".equals(crawler.getAffiliation().getName())) {
+					DBResearcherPersistance dbrp = factory.getInjector(crawler.getAffiliation().getName()).getInstance(DBResearcherPersistance.class);
 
 					Collection<Researcher> researchers = dbrp.getResearchers();					
 					System.out.println(researchers.size());
 					
-					AffiliationJenaPersistance ajp = factory.getInjector(crawler.getAffiliationName()).getInstance(AffiliationJenaPersistance.class);
+					AffiliationJenaPersistance ajp = factory.getInjector(crawler.getAffiliation().getName()).getInstance(AffiliationJenaPersistance.class);
 					for (Researcher researcher : researchers) {
 						System.out.println("Storing " + researcher);
 						try {

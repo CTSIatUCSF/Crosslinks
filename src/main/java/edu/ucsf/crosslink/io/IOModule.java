@@ -3,6 +3,7 @@ package edu.ucsf.crosslink.io;
 import java.util.Properties;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Scopes;
 import com.google.inject.name.Names;
 
 import edu.ucsf.ctsi.r2r.DBUtil;
@@ -23,19 +24,18 @@ public class IOModule extends AbstractModule {
 		bind(String.class).annotatedWith(Names.named("thumbnailRootURL")).toInstance(prop.getProperty("thumbnailRootURL"));
 		bind(Integer.class).annotatedWith(Names.named("thumbnailWidth")).toInstance(Integer.parseInt(prop.getProperty("thumbnailWidth")));
 		bind(Integer.class).annotatedWith(Names.named("thumbnailHeight")).toInstance(Integer.parseInt(prop.getProperty("thumbnailHeight")));
-        bind(ThumbnailGenerator.class);
+        bind(ThumbnailGenerator.class).asEagerSingleton();
 		
 		bind(String.class).annotatedWith(Names.named("dbUrl")).toInstance(prop.getProperty("dbUrl"));
 		bind(String.class).annotatedWith(Names.named("dbUser")).toInstance(prop.getProperty("dbUser"));
 		bind(String.class).annotatedWith(Names.named("dbPassword")).toInstance(prop.getProperty("dbPassword"));
-		bind(DBUtil.class);
+		bind(DBUtil.class).asEagerSingleton();
 
 		bind(Integer.class).annotatedWith(Names.named("daysConsideredOld")).toInstance(Integer.parseInt(prop.getProperty("daysConsideredOld")));
 		
 		// Jena		
-		bind(String.class).annotatedWith(Names.named("r2r.fusekiUrl")).toInstance(prop.getProperty("r2r.fusekiUrl"));
-		bind(LODService.class);
-		bind(JenaHelper.class);		
+		bind(LODService.class).asEagerSingleton();
+		bind(JenaHelper.class).asEagerSingleton();		
 	}
 
 }

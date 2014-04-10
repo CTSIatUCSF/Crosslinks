@@ -78,11 +78,11 @@ public class RestMethods {
 	@Path("/status")
 	public Viewable status(@Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws Exception {
-		List<AffiliationCrawler> crawlers = factory.getCurrentCrawlers();
-		// reverse them so that the active ones show up at the top
-		Collections.reverse(crawlers);
+		List<AffiliationCrawler> crawlers = new ArrayList<AffiliationCrawler>();
+		crawlers.addAll(factory.getCurrentCrawlers());
+		// sort them so that the active ones show up at the top
+		Collections.sort(crawlers);
 		request.setAttribute("crawlers", crawlers);
-		request.setAttribute("history", AffiliationCrawlerJob.getCrawlerJobHistory());
 		request.setAttribute("metaHistory", MetaCrawlerJob.getMetaCrawlerHistory());
 		return new Viewable("/jsps/status.jsp", null);
 	}

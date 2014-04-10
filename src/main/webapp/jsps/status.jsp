@@ -7,7 +7,7 @@
     Administrator = <c:out value="${administrator}"/><p>
     <c:out value="${memoryStats}" escapeXml="false"/><p>
 	<c:forEach var="i" items="${crawlers}">
-	   <a href='./<c:out value="${i.affiliationName}"/>'><c:out value="${i.affiliationName}"/></a>&nbsp;
+	   <a href='./<c:out value="${i.affiliation.name}"/>'><c:out value="${i.affiliation.name}"/></a>&nbsp;
 		<c:if test="${not i.active and i.ok}">
 		   <c:out value="${i.state}"/>
 		</c:if>
@@ -24,12 +24,7 @@
  	    <hr>
 	</c:forEach>
 
-    <h2>Exited crawlers</h2>
-	<c:forEach var="i" items="${history}">
- 	    <c:out value="${i}"/><p>
-	</c:forEach>
-
-    <h2>Metacrawler trigger history</h2>
+    <h2>Scheduling history</h2>
 	<c:forEach var="i" items="${metaHistory}">
  	    <c:out value="${i}"/><p>
 	</c:forEach>

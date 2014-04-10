@@ -36,7 +36,7 @@
 
 <html>
 <body>
-	<h2>List of ${fn:length(researchers)} reseachers indexed from <c:out value="${affiliation.name}"/></h2>
+	<h2>List of ${fn:length(researchers)} researchers indexed from <c:out value="${affiliation.name}"/></h2>
 	<a href="../">Home</a><p>	
 	<a href="?clearCache=true">Refresh results from the database</a><p>	
 
@@ -65,7 +65,7 @@
 		<c:if test="${r.thumbnailURL != null}">
 			<img src='<c:out value="${r.thumbnailURL}"/>' width='20'/>&nbsp;
 		</c:if>
-		<a href = '<c:out value="${r.homePageURL}"/>'><c:out value="${r.name}"/> at <c:out value="${affiliation.name}"/></a>&nbsp;
+		<a href = '<c:out value="${affiliation.baseURL}"/><c:out value="${r.homePageURL}"/>'><c:out value="${r.name}"/> at <c:out value="${affiliation.name}"/></a>&nbsp;
 		<c:if test="${r.orcidId != null}">
 			<a href = 'http://orcid.org/<c:out value="${r.orcidId}"/>'>Orcid profile for <c:out value="${r.name}"/></a>&nbsp;
 		</c:if>

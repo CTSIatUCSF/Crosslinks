@@ -38,7 +38,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
 	public boolean readResearcher(Researcher researcher) throws IOException, InterruptedException {
     	Document doc = siteReader.getDocument(researcher.getHomePageURL());
     	boolean foundResearcherInfo = false;
-		if (doc != null && rdfParser.getPersonOnlyFromURL(researcher, doc)) {	
+		if (doc != null && rdfParser.getPersonDataOnly(researcher, doc)) {	
 			foundResearcherInfo = true;
 	    	Elements links = doc.select("a[href]");	
 		    for (Element link : links) {

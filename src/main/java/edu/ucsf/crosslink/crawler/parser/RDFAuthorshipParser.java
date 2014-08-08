@@ -48,7 +48,7 @@ public class RDFAuthorshipParser implements AuthorParser {
     	if (resource != null) {
     		// read the researcher basic info if we still need to
         	if (!foundResearcherInfo) {
-    			getPersonOnlyFromURL(researcher, doc);
+    			getPersonDataOnly(researcher, doc);
     			foundResearcherInfo = true;
     		}
 			StmtIterator rsi = resource.listProperties();
@@ -88,10 +88,14 @@ public class RDFAuthorshipParser implements AuthorParser {
     	return foundResearcherInfo;
     }
     
-    boolean getPersonOnlyFromURL(Researcher researcher, Document doc) {
-    	String rdfUrl = getPersonRDFURLFromHTMLURL(researcher.getHomePageURL(), doc);
-    	Resource resource = jenaPersistance.getResourceFromRdfURL(rdfUrl);
-    	return addResearcherDetails(researcher, resource);
+    boolean getPersonDataOnly(Researcher researcher, Document doc) {
+    	if (researcher.getURI() != null) {
+        	return addResearcherDetails(researcher, jenaPersistance.getResource(researcher.getURI()));    		
+    	}
+    	else {
+	    	String rdfUrl = getPersonRDFURLFromHTMLURL(researcher.getHomePageURL(), doc);
+	    	return addResearcherDetails(researcher, jenaPersistance.getResourceFromRdfURL(rdfUrl));
+    	}
     }
     
     private boolean addResearcherDetails(Researcher researcher, Resource resource) {

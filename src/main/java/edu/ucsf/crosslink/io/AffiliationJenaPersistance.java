@@ -3,9 +3,9 @@ package edu.ucsf.crosslink.io;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import org.joda.time.DateTime;
@@ -18,6 +18,7 @@ import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Property;
+import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.Resource;
 
 import edu.ucsf.crosslink.Crosslinks;
@@ -41,9 +42,9 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 	private Integer daysConsideredOld;
 	private JenaHelper jenaHelper;
 	private ThumbnailGenerator thumbnailGenerator;
-	private final Set<String> recentlyProcessedAuthors = new HashSet<String>();
+	private final Map<String, Long> recentlyProcessedAuthors = new HashMap<String, Long>();
 	
-	private static final String SKIP_RESEARCHERS_SPARQL = "SELECT ?hp WHERE {?s <" + R2R_FROM_RN_WEBSITE + "> <%s> . ?s <" +
+	private static final String SKIP_RESEARCHERS_SPARQL = "SELECT ?hp ?ts WHERE {?s <" + R2R_FROM_RN_WEBSITE + "> <%s> . ?s <" +
 			R2R_HOMEPAGE_PATH + "> ?hp . ?s <" + R2R_WORK_VERIFIED_DT + "> ?ts . FILTER (?ts > %d)}";
 	
 	@Inject
@@ -56,21 +57,20 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 		this.jenaHelper = jenaHelper;
 		
 		Model model = R2ROntology.createDefaultModel();
-		model.add(model.createResource(affiliation.getURI()),
-				model.createProperty(RDFS_LABEL), 
-				model.createTypedLiteral(affiliation.getName()));
-		model.add(model.createResource(affiliation.getURI()),
-				model.createProperty(RDF_TYPE), 
-				model.createResource(R2R_RN_WEBSITE));
-		model.add(model.createResource(affiliation.getURI()),
-				model.createProperty(PRNS_LATITUDE), 
-				model.createTypedLiteral(affiliation.getLatitude()));
-		model.add(model.createResource(affiliation.getURI()),
-				model.createProperty(PRNS_LONGITUDE), 
-				model.createTypedLiteral(affiliation.getLongitude()));
+		model.add(fusekiClient.describe(affiliation.getURI()));
+		Resource s = model.createResource(affiliation.getURI());
+		replace(model, s, model.createProperty(RDFS_LABEL), model.createTypedLiteral(affiliation.getName()));
+		replace(model, s, model.createProperty(RDF_TYPE), model.createResource(R2R_RN_WEBSITE));
+		replace(model, s, model.createProperty(PRNS_LATITUDE), model.createTypedLiteral(affiliation.getLatitude()));
+		replace(model, s, model.createProperty(PRNS_LONGITUDE),	model.createTypedLiteral(affiliation.getLongitude()));
 		// remove the old one first.  This will not affect any researchers
 		fusekiClient.deleteSubject(affiliation.getURI());
     	fusekiClient.add(model);
+	}
+	
+	private static void replace(Model model, Resource s, Property p, RDFNode n) {
+		model.removeAll(s, p, null);
+		model.add(s, p, n);
 	}
 	
 	@Inject
@@ -87,7 +87,7 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
-					recentlyProcessedAuthors.add(qs.getLiteral("?hp").getString());
+					recentlyProcessedAuthors.put(qs.getLiteral("?hp").getString(), qs.getLiteral("?ts").getLong());
 				}								
 			}
 		});
@@ -116,6 +116,8 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 		delete(researcher, R2R_WORK_VERIFIED_DT);
 		delete(researcher, R2R_CONTRIBUTED_TO);
 		fusekiClient.add(createR2RDataFor(researcher));
+		// add to processed list
+		recentlyProcessedAuthors.put(researcher.getHomePagePath(), new Date().getTime());
 	}
 
 	public Date dateOfLastCrawl() {
@@ -126,7 +128,8 @@ public class AffiliationJenaPersistance implements CrosslinkPersistance, R2RCons
 	}
 
 	public boolean skip(Researcher researcher) {
-		return recentlyProcessedAuthors.contains(researcher.getHomePagePath());
+		Long ts = recentlyProcessedAuthors.get(researcher.getHomePagePath());
+		return ts != null && ts > new DateTime().minusDays(daysConsideredOld).getMillis();
 	}
 
 	// update the researcherVerifiedDT

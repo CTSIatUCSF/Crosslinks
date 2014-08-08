@@ -58,7 +58,9 @@ public class VivoDataserviceReader extends SiteReader {
 		
 		// now grab all the individual URI's
 		for (VIVOPerson person : people) {
-			addResearcher(new Researcher(getAffiliation(), person.URI));
+			Researcher r = new Researcher(getAffiliation(), person.URI);
+			r.setURI(person.URI);
+			addResearcher(r);
 		}
 		LOG.info("Found " + getReseachers().size() + " unique URI's");
     }

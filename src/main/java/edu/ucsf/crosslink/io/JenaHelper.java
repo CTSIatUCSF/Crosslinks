@@ -31,7 +31,6 @@ public class JenaHelper implements R2RConstants {
 	@Inject
 	public JenaHelper(FusekiClient fusekiClient, LODService lodService) throws Exception {
 		this.lodService = lodService;
-		lodService.acceptAllHosts();
 		this.fusekiCache = new FusekiCache(fusekiClient, lodService);
 		this.r2r = new R2ROntology();
 		// make sure we have the latest info

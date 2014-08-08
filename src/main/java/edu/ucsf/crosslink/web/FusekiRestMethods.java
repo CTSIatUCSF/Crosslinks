@@ -45,32 +45,34 @@ public class FusekiRestMethods implements R2RConstants {
 
 	private static final Logger LOG = Logger.getLogger(FusekiRestMethods.class.getName());
 	
-	private static final String ALL_AFFILIATIONS_SPARQL = "SELECT ?l ?a ?lat ?lon (count(distinct ?r) as ?rc) (count(distinct ?cw) as ?cwc) WHERE { { ?a <" +
-			RDF_TYPE + "> <" + R2R_RN_WEBSITE + "> } . {?a <" + RDFS_LABEL +  "> ?l} . {?a <" + 
-			PRNS_LATITUDE + "> ?lat} . {?a <" + PRNS_LONGITUDE + "> ?lon} . {?r <" +
-			R2R_FROM_RN_WEBSITE + "> ?a} . OPTIONAL {?r <" + R2R_CONTRIBUTED_TO + "> ?cw } } GROUP BY ?l ?a ?lat ?lon";
+	private static final String ALL_AFFILIATIONS_SPARQL = "SELECT ?l ?a ?lat ?lon (count(?r) as ?rc) WHERE { ?a <" +
+			RDF_TYPE + "> <" + R2R_RN_WEBSITE + "> . ?a <" + RDFS_LABEL +  "> ?l . ?a <" + 
+			PRNS_LATITUDE + "> ?lat . ?a <" + PRNS_LONGITUDE + "> ?lon. ?r <" +
+			R2R_FROM_RN_WEBSITE + "> ?a} GROUP BY ?l ?a ?lat ?lon";
 
-	private static final String AFFILIATION_SPARQL = "SELECT ?a ?lat ?lon (count(distinct ?r) as ?rc) (count(distinct ?cw) as ?cwc) WHERE { { ?a <" +
-			RDF_TYPE + "> <" + R2R_RN_WEBSITE + "> } . {?a <" + RDFS_LABEL +  "> ?l} . FILTER (?l = \"%s\") . {?a <" + 
-			PRNS_LATITUDE + "> ?lat} . {?a <" + PRNS_LONGITUDE + "> ?lon} . {?r <" +
-			R2R_FROM_RN_WEBSITE + "> ?a} . OPTIONAL {?r <" + R2R_CONTRIBUTED_TO + "> ?cw } } GROUP BY ?a ?lat ?lon";
+	private static final String AFFILIATION_SPARQL = "SELECT ?a ?lat ?lon (count(?r) as ?rc) WHERE { ?a <" +
+			RDF_TYPE + "> <" + R2R_RN_WEBSITE + "> . ?a <" + RDFS_LABEL +  "> ?l . FILTER (?l = \"%s\") . ?a <" + 
+			PRNS_LATITUDE + "> ?lat . ?a <" + PRNS_LONGITUDE + "> ?lon . ?r <" +
+			R2R_FROM_RN_WEBSITE + "> ?a} GROUP BY ?a ?lat ?lon";
 	
-	private static final String RESEARCHERS_SPARQL = "SELECT ?hp ?r ?l ?i ?t ?o (count(distinct ?er) as ?erc) (count(distinct ?cw) as ?cwc) WHERE { {?r <" + 
-			R2R_FROM_RN_WEBSITE + "> <%1$s> } . {?r <" + R2R_HOMEPAGE_PATH + "> ?hp} .{?r <" + RDFS_LABEL + "> ?l} . OPTIONAL {?r <" +
-			PRNS_MAIN_IMAGE + "> ?i} . OPTIONAL {?r <" + R2R_THUMBNAIL + "> ?t} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?o} . OPTIONAL {{?r <" + 
-			R2R_CONTRIBUTED_TO + "> ?cw } . {?er <" + R2R_CONTRIBUTED_TO + "> ?cw } . {?er <" + R2R_FROM_RN_WEBSITE + 
-			"> ?ea} FILTER (?ea != <%1$s>)}} GROUP BY ?hp ?r ?l ?i ?t ?o";
+	private static final String RESEARCHERS_SPARQL = "SELECT ?hp ?r ?l ?i ?t ?o (count(distinct ?er) as ?erc) (count(distinct ?cw) as ?cwc) WHERE {?r <" + 
+			R2R_FROM_RN_WEBSITE + "> <%1$s>  . ?r <" + R2R_HOMEPAGE_PATH + "> ?hp .?r <" + RDFS_LABEL + "> ?l . OPTIONAL {?r <" +
+			PRNS_MAIN_IMAGE + "> ?i} . OPTIONAL {?r <" + R2R_THUMBNAIL + "> ?t} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?o} . OPTIONAL {?r <" + 
+			R2R_CONTRIBUTED_TO + "> ?cw  . ?er <" + R2R_CONTRIBUTED_TO + "> ?cw  . ?er <" + R2R_FROM_RN_WEBSITE + 
+			"> ?ea FILTER (?ea != <%1$s>)}} GROUP BY ?hp ?r ?l ?i ?t ?o";
 	
-	private static final String COAUTHORS_WHERE = "WHERE {{<%1$s> <" + R2R_FROM_RN_WEBSITE + "> ?a } . {<%1$s> <" +
-			R2R_CONTRIBUTED_TO + "> ?cw } . {?r <" + R2R_CONTRIBUTED_TO + "> ?cw } . {?r <" + RDFS_LABEL + "> ?rl} . OPTIONAL {?r <" +
-			PRNS_MAIN_IMAGE + "> ?mi} . OPTIONAL {?r <" + R2R_THUMBNAIL + "> ?tn} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?oi} . {?r <" +
-			R2R_FROM_RN_WEBSITE + "> ?ea} FILTER (?ea != ?a) . {?ea  <" + RDFS_LABEL + "> ?al} }";
+	private static final String COAUTHORS_WHERE = "WHERE {<%1$s> <" + R2R_FROM_RN_WEBSITE + "> ?a . <%1$s> <" +
+			R2R_CONTRIBUTED_TO + "> ?cw  . ?r <" + R2R_CONTRIBUTED_TO + "> ?cw  . ?r <" + RDFS_LABEL + "> ?rl . OPTIONAL {?r <" +
+			PRNS_MAIN_IMAGE + "> ?mi} . OPTIONAL {?r <" + R2R_THUMBNAIL + "> ?tn} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?oi} . ?r <" +
+			R2R_FROM_RN_WEBSITE + "> ?ea FILTER (?ea != ?a) . ?ea <" + RDFS_LABEL + "> ?al . ?ea <" + PRNS_LATITUDE + 
+			"> ?ealat . ?ea <" + PRNS_LONGITUDE + "> ?ealon}";
 			
 	private static final String COAUTHORS_SELECT = "SELECT (?r as ?researcherURI) (?rl as ?researcherLabel) (?cw as ?contributedWork) (?mi as ?mainImage) (?tn as ?thumbnail) (?oi as ?orchidId) (?ea as ?researchNetworkingSite) (?al as ?affiliation)" + COAUTHORS_WHERE;
 	
 	private static final String COAUTHORS_CONSTRUCT = "CONSTRUCT {?r <" + R2R_CONTRIBUTED_TO + "> ?cw . ?r <" +
 			RDFS_LABEL + "> ?rl . ?r <" + PRNS_MAIN_IMAGE + "> ?mi . ?r <" + R2R_THUMBNAIL + "> ?tn. ?r <" + VIVO_ORCID_ID + "> ?oi . ?r  <" +
-			R2R_FROM_RN_WEBSITE + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al} " + COAUTHORS_WHERE;
+			R2R_FROM_RN_WEBSITE + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . ?ea <" + PRNS_LATITUDE + 
+			"> ?ealat . ?ea <" + PRNS_LONGITUDE + "> ?ealon} " + COAUTHORS_WHERE;
 
 	private AffiliationCrawlerFactory factory;
 	private FusekiClient fusekiClient;
@@ -198,7 +200,7 @@ public class FusekiRestMethods implements R2RConstants {
 					QuerySolution qs = rs.next();
 					Affiliation affiliationObj =  new Affiliation(qs.getLiteral("?l").getString(), qs.getResource("?a").getURI(),
 							qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString(),
-							qs.getLiteral("?rc").getInt(), qs.getLiteral("?cwc").getInt());
+							qs.getLiteral("?rc").getInt(), 0);
 					affiliations.add(affiliationObj);
 				}								
 			}
@@ -215,7 +217,7 @@ public class FusekiRestMethods implements R2RConstants {
 					QuerySolution qs = rs.next();
 					Affiliation affiliationObj =  new Affiliation(affiliation, qs.getResource("?a").getURI(),
 							qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString(),
-							qs.getLiteral("?rc").getInt(), qs.getLiteral("?cwc").getInt());
+							qs.getLiteral("?rc").getInt(), 0);
 					affiliations.add(affiliationObj);
 				}
 		    }

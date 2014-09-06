@@ -39,7 +39,7 @@ public class ProfilesSitemapReader extends SiteReader  {
 		for (SitemapUrl url : urls) {
 			addResearcher(new Researcher(getAffiliation(), url.getUrl().toString()));
 		}
-		LOG.info("Found " + getReseachers().size() + " profile pages");
+		LOG.info("Found " + getResearchers().size() + " profile pages");
     }
     
 }

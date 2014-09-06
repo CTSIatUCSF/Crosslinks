@@ -25,16 +25,15 @@ import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.sun.jersey.api.view.Viewable;
 
-import edu.ucsf.crosslink.crawler.AffiliationCrawler;
-import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
+import edu.ucsf.crosslink.crawler.Crawler;
+import edu.ucsf.crosslink.crawler.CrawlerFactory;
 import edu.ucsf.crosslink.job.quartz.MetaCrawlerJob;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
-import edu.ucsf.ctsi.r2r.DBUtil;
 import edu.ucsf.ctsi.r2r.R2RConstants;
-import edu.ucsf.ctsi.r2r.jena.FusekiClient;
 import edu.ucsf.ctsi.r2r.jena.JsonLDService;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
+import edu.ucsf.ctsi.r2r.jena.SparqlUpdateClient;
 
 
 /**
@@ -46,42 +45,42 @@ public class FusekiRestMethods implements R2RConstants {
 	private static final Logger LOG = Logger.getLogger(FusekiRestMethods.class.getName());
 	
 	private static final String ALL_AFFILIATIONS_SPARQL = "SELECT ?l ?a ?lat ?lon (count(?r) as ?rc) WHERE { ?a <" +
-			RDF_TYPE + "> <" + R2R_RN_WEBSITE + "> . ?a <" + RDFS_LABEL +  "> ?l . ?a <" + 
+			RDF_TYPE + "> <" + R2R_AFFILIATION + "> . ?a <" + RDFS_LABEL +  "> ?l . ?a <" + 
 			PRNS_LATITUDE + "> ?lat . ?a <" + PRNS_LONGITUDE + "> ?lon. ?r <" +
-			R2R_FROM_RN_WEBSITE + "> ?a} GROUP BY ?l ?a ?lat ?lon";
+			R2R_HAS_AFFILIATION + "> ?a} GROUP BY ?l ?a ?lat ?lon";
 
 	private static final String AFFILIATION_SPARQL = "SELECT ?a ?lat ?lon (count(?r) as ?rc) WHERE { ?a <" +
-			RDF_TYPE + "> <" + R2R_RN_WEBSITE + "> . ?a <" + RDFS_LABEL +  "> ?l . FILTER (?l = \"%s\") . ?a <" + 
+			RDF_TYPE + "> <" + R2R_AFFILIATION + "> . ?a <" + RDFS_LABEL +  "> ?l . FILTER (?l = \"%s\") . ?a <" + 
 			PRNS_LATITUDE + "> ?lat . ?a <" + PRNS_LONGITUDE + "> ?lon . ?r <" +
-			R2R_FROM_RN_WEBSITE + "> ?a} GROUP BY ?a ?lat ?lon";
+			R2R_HAS_AFFILIATION + "> ?a} GROUP BY ?a ?lat ?lon";
 	
 	private static final String RESEARCHERS_SPARQL = "SELECT ?hp ?r ?l ?i ?t ?o (count(distinct ?er) as ?erc) (count(distinct ?cw) as ?cwc) WHERE {?r <" + 
-			R2R_FROM_RN_WEBSITE + "> <%1$s>  . ?r <" + R2R_HOMEPAGE_PATH + "> ?hp .?r <" + RDFS_LABEL + "> ?l . OPTIONAL {?r <" +
+			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + R2R_PRETTY_URL + "> ?hp .?r <" + RDFS_LABEL + "> ?l . OPTIONAL {?r <" +
 			PRNS_MAIN_IMAGE + "> ?i} . OPTIONAL {?r <" + R2R_THUMBNAIL + "> ?t} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?o} . OPTIONAL {?r <" + 
-			R2R_CONTRIBUTED_TO + "> ?cw  . ?er <" + R2R_CONTRIBUTED_TO + "> ?cw  . ?er <" + R2R_FROM_RN_WEBSITE + 
+			R2R_CONTRIBUTED_TO + "> ?cw  . ?er <" + R2R_CONTRIBUTED_TO + "> ?cw  . ?er <" + R2R_HAS_AFFILIATION + 
 			"> ?ea FILTER (?ea != <%1$s>)}} GROUP BY ?hp ?r ?l ?i ?t ?o";
 	
-	private static final String COAUTHORS_WHERE = "WHERE {<%1$s> <" + R2R_FROM_RN_WEBSITE + "> ?a . <%1$s> <" +
+	private static final String COAUTHORS_WHERE = "WHERE {<%1$s> <" + R2R_HAS_AFFILIATION + "> ?a . <%1$s> <" +
 			R2R_CONTRIBUTED_TO + "> ?cw  . ?r <" + R2R_CONTRIBUTED_TO + "> ?cw  . ?r <" + RDFS_LABEL + "> ?rl . OPTIONAL {?r <" +
 			PRNS_MAIN_IMAGE + "> ?mi} . OPTIONAL {?r <" + R2R_THUMBNAIL + "> ?tn} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?oi} . ?r <" +
-			R2R_FROM_RN_WEBSITE + "> ?ea FILTER (?ea != ?a) . ?ea <" + RDFS_LABEL + "> ?al . ?ea <" + PRNS_LATITUDE + 
+			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + RDFS_LABEL + "> ?al . ?ea <" + PRNS_LATITUDE + 
 			"> ?ealat . ?ea <" + PRNS_LONGITUDE + "> ?ealon}";
 			
 	private static final String COAUTHORS_SELECT = "SELECT (?r as ?researcherURI) (?rl as ?researcherLabel) (?cw as ?contributedWork) (?mi as ?mainImage) (?tn as ?thumbnail) (?oi as ?orchidId) (?ea as ?researchNetworkingSite) (?al as ?affiliation)" + COAUTHORS_WHERE;
 	
 	private static final String COAUTHORS_CONSTRUCT = "CONSTRUCT {?r <" + R2R_CONTRIBUTED_TO + "> ?cw . ?r <" +
 			RDFS_LABEL + "> ?rl . ?r <" + PRNS_MAIN_IMAGE + "> ?mi . ?r <" + R2R_THUMBNAIL + "> ?tn. ?r <" + VIVO_ORCID_ID + "> ?oi . ?r  <" +
-			R2R_FROM_RN_WEBSITE + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . ?ea <" + PRNS_LATITUDE + 
+			R2R_HAS_AFFILIATION + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . ?ea <" + PRNS_LATITUDE + 
 			"> ?ealat . ?ea <" + PRNS_LONGITUDE + "> ?ealon} " + COAUTHORS_WHERE;
 
-	private AffiliationCrawlerFactory factory;
-	private FusekiClient fusekiClient;
+	private CrawlerFactory factory;
+	private SparqlUpdateClient sparqlClient;
 	private JsonLDService jsonLDService;
 	
 	@Inject
-	public FusekiRestMethods(DBUtil dbUtil, AffiliationCrawlerFactory factory, FusekiClient fusekiClient, JsonLDService jsonLDService) {
+	public FusekiRestMethods(CrawlerFactory factory, SparqlUpdateClient fusekiClient, JsonLDService jsonLDService) {
 		this.factory = factory;
-		this.fusekiClient = fusekiClient;
+		this.sparqlClient = fusekiClient;
 		this.jsonLDService = jsonLDService;
 	}
 
@@ -97,7 +96,7 @@ public class FusekiRestMethods implements R2RConstants {
 	@Path("/status")
 	public Viewable status(@Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws Exception {
-		List<AffiliationCrawler> crawlers = new ArrayList<AffiliationCrawler>();
+		List<Crawler> crawlers = new ArrayList<Crawler>();
 		crawlers.addAll(factory.getCurrentCrawlers());
 		// sort them so that the active ones show up at the top
 		Collections.sort(crawlers);
@@ -110,7 +109,7 @@ public class FusekiRestMethods implements R2RConstants {
 	@Path("{affiliation}/status")
 	public Viewable statusDetail(@PathParam("affiliation") String affiliation, @Context HttpServletRequest request,
 			@Context HttpServletResponse response, @QueryParam("mode") String mode) throws Exception {
-		AffiliationCrawler crawler = factory.getCrawler(affiliation);
+		Crawler crawler = factory.getCrawler(affiliation);
 		if (CrosslinksServletFilter.isAdministrator(request) && mode != null) {
 			crawler.setMode(mode);
 		}
@@ -169,14 +168,14 @@ public class FusekiRestMethods implements R2RConstants {
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
     public String getCoauthors(@QueryParam("researcherURI") String researcherURI, @QueryParam("format") String format) throws JSONException, JsonLdError {
 		if ("JSON-LD".equals(format)) {
-			return jsonLDService.getJSONString(fusekiClient.construct(String.format(COAUTHORS_CONSTRUCT, researcherURI)));
+			return jsonLDService.getJSONString(sparqlClient.construct(String.format(COAUTHORS_CONSTRUCT, researcherURI)));
 		}
 		return getFormattedResults(String.format(COAUTHORS_SELECT, researcherURI), format).toString();
     }
     
     private ByteArrayOutputStream getFormattedResults(final String sparql, final String format) {
     	final ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-    	fusekiClient.select(sparql, new ResultSetConsumer() {
+    	sparqlClient.select(sparql, new ResultSetConsumer() {
 			public void useResultSet(ResultSet resultSet) {
 				if ("CSV".equals(format)) {
 					ResultSetFormatter.outputAsCSV(outStream, resultSet);
@@ -194,7 +193,7 @@ public class FusekiRestMethods implements R2RConstants {
     
     private List<Affiliation> getAffiliations() {
     	final List<Affiliation> affiliations = new ArrayList<Affiliation>();
-    	fusekiClient.select(ALL_AFFILIATIONS_SPARQL, new ResultSetConsumer() {
+    	sparqlClient.select(ALL_AFFILIATIONS_SPARQL, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
@@ -211,7 +210,7 @@ public class FusekiRestMethods implements R2RConstants {
     public Affiliation getAffiliation(final String affiliation) {
     	String sparql = String.format(AFFILIATION_SPARQL, affiliation);
     	final List<Affiliation> affiliations = new ArrayList<Affiliation>();
-    	fusekiClient.select(sparql, new ResultSetConsumer() {
+    	sparqlClient.select(sparql, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				if (rs.hasNext()) {		
 					QuerySolution qs = rs.next();
@@ -228,7 +227,7 @@ public class FusekiRestMethods implements R2RConstants {
     public List<Researcher> getResearchers(final Affiliation affiliation) {
 		String sparql = String.format(RESEARCHERS_SPARQL, affiliation.getURI()); 
     	final List<Researcher> researchers = new ArrayList<Researcher>();
-    	fusekiClient.select(sparql, new ResultSetConsumer() {
+    	sparqlClient.select(sparql, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();

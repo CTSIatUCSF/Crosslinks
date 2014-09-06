@@ -41,23 +41,23 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 		    			addResearcher( new Researcher(getAffiliation(), href));
 			    	}
 		        }
-			    LOG.info("Found " + getReseachers().size() + " profile pages so far, onto page " + page);
+			    LOG.info("Found " + getResearchers().size() + " profile pages so far, onto page " + page);
 			}
     	} while(!onLastPage);
-	    LOG.info("Found " + getReseachers().size() + " total profile pages");
+	    LOG.info("Found " + getResearchers().size() + " total profile pages");
     }
 
     public boolean readResearcher(Researcher researcher) throws IOException, InterruptedException {
-    	if (researcher.getHomePageURL().endsWith("/browse")) {
+    	if (researcher.getURI().endsWith("/browse")) {
     		return false;
     	}
-    	Document doc = getDocument(researcher.getHomePageURL());
+    	Document doc = getDocument(researcher.getURI());
     	// read name from title    	
 		if (doc != null && (doc.title().contains(" | Stanford"))) {
 			String fullName = StringEscapeUtils.escapeHtml4(doc.title().split("\\|")[0].split(",")[0]).trim();
 			if (fullName.isEmpty()) {
 				LOG.log(Level.WARNING, "no name found for " + researcher + " going to derive one from page");
-				fullName = researcher.getHomePageURL().substring(getAffiliation().getBaseURL().length() + 1);
+				fullName = researcher.getURI().substring(getAffiliation().getBaseURL().length() + 1);
 			}
 			researcher.setLabel(fullName);
 			Elements links = doc.select("a[href]");	

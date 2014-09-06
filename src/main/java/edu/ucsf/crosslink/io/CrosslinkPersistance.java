@@ -3,6 +3,7 @@ package edu.ucsf.crosslink.io;
 import java.util.Date;
 import java.util.Collection;
 
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
 
@@ -13,6 +14,8 @@ public interface CrosslinkPersistance {
 	
 	void saveResearcher(Researcher researcher) throws Exception;
 	
+	void upsertAffiliation(Affiliation affiliation) throws Exception;
+
 	Date dateOfLastCrawl();
 
 	boolean skip(Researcher researcher);
@@ -20,9 +23,14 @@ public interface CrosslinkPersistance {
 	int touch(Researcher researcher) throws Exception;
 	
 	void close();
-
+	
 	// only call this when things are good, not during an abort
 	void finish() throws Exception;
 	
 	Collection<Researcher> getResearchers();
+
+	void startTransaction();
+
+	void endTransaction() throws Exception;
+
 }

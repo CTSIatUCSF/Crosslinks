@@ -15,22 +15,23 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import com.hp.cache4guice.adapters.ehcache.EhCacheModule;
 
 import edu.ucsf.crosslink.Crosslinks;
 
 @Singleton
-public class AffiliationCrawlerFactory {
+public class CrawlerFactory {
 
 	public static final String AFFILIATION = "AFFILIATION";
 	
 	private Injector guice;
 	private String configurationDirectory;
-	private Map<String, AffiliationCrawler> liveCrawlers = new HashMap<String, AffiliationCrawler>();
+	private Map<String, Crawler> liveCrawlers = new HashMap<String, Crawler>();
 	private Map<String, String> propertyFiles = new HashMap<String, String>(); 
 	private Map<String, Injector> injectors = new HashMap<String, Injector>(); 
 	
 	@Inject
-	public AffiliationCrawlerFactory(final Injector guice, @Named("configurationDirectory") String configurationDirectory) {
+	public CrawlerFactory(final Injector guice, @Named("configurationDirectory") String configurationDirectory) {
 		this.guice = guice;
 		this.configurationDirectory = configurationDirectory;
 	}
@@ -46,25 +47,25 @@ public class AffiliationCrawlerFactory {
 				if (!prop.containsKey("Location")) {
 					prop.put("Location", "0,0");
 				}
-				Injector injector = guice.createChildInjector(new AffiliationCrawlerModule(prop));
-				AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);
-				injectors.put(crawler.getAffiliation().getName(), injector);		
-				propertyFiles.put(crawler.getAffiliation().getName(), fileName);
-				liveCrawlers.put(crawler.getAffiliation().getName(), crawler);				
+				Injector injector = guice.createChildInjector(new CrawlerModule(prop));
+				Crawler crawler = injector.getInstance(Crawler.class);
+				injectors.put(crawler.getName(), injector);		
+				propertyFiles.put(crawler.getName(), fileName);
+				liveCrawlers.put(crawler.getName(), crawler);				
 	    	}
 	    }		
 	}
 	
-	public Collection<AffiliationCrawler> getCurrentCrawlers() {
+	public Collection<Crawler> getCurrentCrawlers() {
 		return liveCrawlers.values();
 	}
 
-	public Collection<AffiliationCrawler> getCrawlers() throws FileNotFoundException, IOException {
+	public Collection<Crawler> getCrawlers() throws FileNotFoundException, IOException {
 		loadNewCrawlers();
 		return getCurrentCrawlers();
 	}
 
-	public AffiliationCrawler getCrawler(String affiliation) {
+	public Crawler getCrawler(String affiliation) {
 		return liveCrawlers.get(affiliation);
 	}
 

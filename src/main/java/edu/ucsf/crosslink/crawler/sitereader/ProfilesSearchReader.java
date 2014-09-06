@@ -56,10 +56,10 @@ public class ProfilesSearchReader extends SiteReader {
 			    	}
 		        }
 			}
-			LOG.info("Found " + getReseachers().size() + " profile pages so far onto page " + page);		
+			LOG.info("Found " + getResearchers().size() + " profile pages so far onto page " + page);		
 		}
 		while (!findingSamePeople);
-		LOG.info("Found " + getReseachers().size() + " profile pages");
+		LOG.info("Found " + getResearchers().size() + " profile pages");
     }
 
 }

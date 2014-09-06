@@ -29,11 +29,11 @@ import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.io.IOModule;
-import edu.ucsf.crosslink.job.quartz.AffiliationCrawlerJob;
+import edu.ucsf.crosslink.job.quartz.CrawlerJob;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
-public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runnable {
+public class AffiliationCrawler implements Crawler {
 
 	private static final Logger LOG = Logger.getLogger(AffiliationCrawler.class.getName());
 
@@ -59,7 +59,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runna
 	private String latestError = null;
 	private Researcher currentAuthor = null;
 	
-	private AffiliationCrawlerJob job;
+	private CrawlerJob job;
 	private Thread crawlingThread;
 	
 	public enum Status {
@@ -97,7 +97,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runna
 	}
 	
 	@Inject 
-	public void setQuartzItems(AffiliationCrawlerJob job) {
+	public void setQuartzItems(CrawlerJob job) {
 		this.job = job;
 	}
 	
@@ -218,7 +218,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runna
 				if (isForced()) {
 					// don't leave in forced mode
 					mode = Mode.ENABLED;
-				}				
+				}
 			}	
 		}
 		catch (Exception e) {
@@ -281,7 +281,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runna
 		// Now index the site
 		status = Status.GATHERING_URLS;
 		reader.collectResearchers();					
-		LOG.info("Found " + reader.getReseachers().size() + " potential Profile pages for " + affiliation);		
+		LOG.info("Found " + reader.getResearchers().size() + " potential Profile pages for " + affiliation);		
 	}
 	
 	private Set<String> touchResearchers() throws Exception {
@@ -290,23 +290,27 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runna
 		if (Mode.DEBUG.equals(mode)) {
 			return touched;
 		}
-		for (Researcher researcher : reader.getReseachers()) {
+		int cnt = 0;
+		store.startTransaction();
+		for (Researcher researcher : reader.getResearchers()) {
 			if (Mode.DISABLED.equals(mode)) {
 				status = Status.PAUSED;
 				break;
 			}
 			// sort of ugly, but this will work with the DB store and not mess things up with the CSV store
 			if (store.touch(researcher) > 0) {
-				touched.add(researcher.getHomePageURL());
+				touched.add(researcher.getURI());
 			}
+			LOG.info("Touch " + researcher + " " + cnt++);
 		}		
+		store.endTransaction();
 		return touched;
 	}
 	
 	private boolean readResearchers(Set<String> knownReseacherURLs) {
 		int currentErrorCnt = 0;
 		status = Status.READING_RESEARCHERS;
-		for (Researcher researcher : reader.getReseachers()) {
+		for (Researcher researcher : reader.getResearchers()) {
 			if (Mode.DISABLED.equals(mode)) {
 				status = Status.PAUSED;
 				break;
@@ -326,12 +330,12 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runna
 						savedCnt++;
 					}
 					else {
-						if (knownReseacherURLs.contains(researcher.getHomePageURL())) {
-							throw new Exception("Error reading known researcher URL: " + researcher.getHomePageURL() );
+						if (knownReseacherURLs.contains(researcher.getURI())) {
+							throw new Exception("Error reading known researcher URL: " + researcher.getURI() );
 						}
 						else {
 							avoided.add(researcher);
-							LOG.info("Skipping " + researcher.getHomePageURL() + " because we could not read it's contents, and it is new to us");
+							LOG.info("Skipping " + researcher.getURI() + " because we could not read it's contents, and it is new to us");
 						}
 					}
 					// if we make it here, we've processed the author
@@ -339,9 +343,9 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runna
 				}
 				catch (Exception e) {
 					// see if it's likely to be a bad page
-					if (isProbablyNotAProfilePage(researcher.getHomePageURL())) {
+					if (isProbablyNotAProfilePage(researcher.getURI())) {
 						avoided.add(researcher);
-						LOG.log(Level.INFO, "Skipping " + researcher.getHomePageURL() + " because it does not appear to be a profile page", e);	
+						LOG.log(Level.INFO, "Skipping " + researcher.getURI() + " because it does not appear to be a profile page", e);	
 						reader.removeResearcher(researcher);
 						continue;
 					}
@@ -391,8 +395,12 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runna
 		}
 	}
 	
-	public int compareTo(AffiliationCrawler o) {
+	public int compareTo(Crawler other) {
     	// always put active ones in the front
+		if (!(other instanceof AffiliationCrawler)) {
+			return 1;
+		}
+		AffiliationCrawler o = (AffiliationCrawler)other;
     	if (this.isActive() != o.isActive()) {
     		return this.isActive() ? -1 : 1;
     	}	    	
@@ -410,6 +418,10 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runna
     	}
     } 
 	
+	public String getName() {
+		return getAffiliation().getName();
+	}
+	
 	// pass in the name of a configuration file
 	public static void main(String[] args) {
 		try  {								
@@ -417,7 +429,7 @@ public class AffiliationCrawler implements Comparable<AffiliationCrawler>, Runna
 			Properties prop = new Properties();
 			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
 			prop.load(new FileReader(new File(args[0])));
-			Injector injector = Guice.createInjector(new IOModule(prop), new AffiliationCrawlerModule(prop));
+			Injector injector = Guice.createInjector(new IOModule(prop), new CrawlerModule(prop));
 			AffiliationCrawler crawler = injector.getInstance(AffiliationCrawler.class);		
 			crawler.setMode("DEBUG");
 			crawler.run();

@@ -40,7 +40,6 @@ public class Quartz implements Stoppable {
 	private static final String GROUP = "meta";
 
 	private final Scheduler scheduler;
-	private final DBUtil dbUtil;
 
 	public static void main(String[] args) {
 		try {
@@ -57,10 +56,9 @@ public class Quartz implements Stoppable {
 	@Inject
 	public Quartz(final SchedulerFactory factory,
 			final GuiceJobFactory jobFactory,
-			@Named("scanInterval") Integer scanInterval, DBUtil dbUtil) throws SchedulerException {
+			@Named("scanInterval") Integer scanInterval) throws SchedulerException {
 		scheduler = factory.getScheduler();
 		scheduler.setJobFactory(jobFactory);
-		this.dbUtil = dbUtil;
 		
 	    JobDetail job = newJob(MetaCrawlerJob.class)
 		        .withIdentity(META_JOB, GROUP)
@@ -95,9 +93,6 @@ public class Quartz implements Stoppable {
 		} catch (SchedulerException e) {
 			// ... handle it
 			LOG.log(Level.SEVERE, e.getMessage(), e);
-		}
-		if (dbUtil != null) {
-			dbUtil.unloadDrivers();
 		}
 	}
 

@@ -56,7 +56,7 @@ public class LokiSiteReader extends SiteReader implements AuthorParser {
     }
 
     public boolean readResearcher(Researcher researcher) throws IOException, InterruptedException {
-    	Document doc = getDocument(researcher.getHomePageURL() + "&hitCount=500");
+    	Document doc = getDocument(researcher.getURI() + "&hitCount=500");
 		if (doc != null) {
 			Elements links = doc.select("a[href]");	
 			

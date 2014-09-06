@@ -3,10 +3,8 @@ package edu.ucsf.crosslink.io;
 import java.util.Properties;
 
 import com.google.inject.AbstractModule;
-import com.google.inject.Scopes;
 import com.google.inject.name.Names;
 
-import edu.ucsf.ctsi.r2r.DBUtil;
 import edu.ucsf.ctsi.r2r.jena.LODService;
 
 public class IOModule extends AbstractModule {
@@ -26,16 +24,7 @@ public class IOModule extends AbstractModule {
 		bind(Integer.class).annotatedWith(Names.named("thumbnailHeight")).toInstance(Integer.parseInt(prop.getProperty("thumbnailHeight")));
         bind(ThumbnailGenerator.class).asEagerSingleton();
 		
-		bind(String.class).annotatedWith(Names.named("dbUrl")).toInstance(prop.getProperty("dbUrl"));
-		bind(String.class).annotatedWith(Names.named("dbUser")).toInstance(prop.getProperty("dbUser"));
-		bind(String.class).annotatedWith(Names.named("dbPassword")).toInstance(prop.getProperty("dbPassword"));
-		bind(DBUtil.class).asEagerSingleton();
-
 		bind(Integer.class).annotatedWith(Names.named("daysConsideredOld")).toInstance(Integer.parseInt(prop.getProperty("daysConsideredOld")));
-		
-		// Jena		
-		bind(LODService.class).asEagerSingleton();
-		bind(JenaHelper.class).asEagerSingleton();		
 	}
 
 }

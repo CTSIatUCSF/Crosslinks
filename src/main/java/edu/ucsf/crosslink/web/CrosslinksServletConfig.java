@@ -8,6 +8,7 @@ import javax.servlet.ServletContextEvent;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.servlet.GuiceServletContextListener;
+import com.hp.cache4guice.adapters.ehcache.EhCacheModule;
 
 import edu.ucsf.crosslink.Crosslinks;
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
@@ -25,14 +26,14 @@ public class CrosslinksServletConfig extends GuiceServletContextListener {
 		try {
 			Properties prop = new Properties();
 			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));
-			String crawler = prop.getProperty("crawler");
-			if ("quartz".equalsIgnoreCase(crawler)) {
-				injector = Guice.createInjector(new IOModule(prop), new QuartzModule(prop), new CrosslinksServletModule(prop));
+			String execution = prop.getProperty("execution");
+			if ("quartz".equalsIgnoreCase(execution)) {
+				injector = Guice.createInjector(new EhCacheModule(), new IOModule(prop), new QuartzModule(prop), new CrosslinksServletModule(prop));
 			}
 			else {
-				injector = Guice.createInjector(new IOModule(prop), new ExecutorModule(prop), new CrosslinksServletModule(prop));
+				injector = Guice.createInjector(new EhCacheModule(), new IOModule(prop), new ExecutorModule(prop), new CrosslinksServletModule(prop));
 			}
-			if (crawler != null) {
+			if (execution != null) {
 				schedulingService = injector.getInstance(Stoppable.class);
 			}
 		} catch (IOException e) {

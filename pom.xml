@@ -7,6 +7,7 @@
   <version>0.0.1-SNAPSHOT</version>
   <name>Crosslinks</name>
 
+
     <properties>
         <jersey.version>1.18</jersey.version>
         <guice.version>3.0</guice.version>
@@ -21,9 +22,27 @@
 		        <version>2.3</version>
 		    </plugin>
         </plugins>
-    </build>
+    </build>    
+
+  <repositories>
+    <repository>
+        <id>com.github.cache4guice</id>
+        <url>https://raw.github.com/dwatrous/cache4guice/mvn-repo</url>
+        <!-- use snapshot version -->
+        <snapshots>
+            <enabled>true</enabled>
+            <updatePolicy>always</updatePolicy>
+        </snapshots>
+    </repository>
+  </repositories>
+
 
   <dependencies>
+<dependency>
+        <groupId>com.github</groupId>
+        <artifactId>cache4guice</artifactId>
+        <version>0.2</version>
+</dependency>
         <dependency>
         	<groupId>com.microsoft.jdbc</groupId>
         	<artifactId>jdbc4</artifactId>

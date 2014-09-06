@@ -28,6 +28,7 @@ public abstract class SiteReader {
 	
 	private static final Logger LOG = Logger.getLogger(SiteReader.class.getName());
 
+	private Affiliation harvester;
 	private Affiliation affiliation;
 	private List<Researcher> researchers = new ArrayList<Researcher>();
 	private List<Researcher> removeList = new ArrayList<Researcher>();
@@ -37,9 +38,14 @@ public abstract class SiteReader {
 	private int getDocumentTimeout = 15000;
 	private int getDocumentSleep = 1000;
 
+	public SiteReader(Affiliation harvester, Affiliation affiliation) {
+		this.harvester = harvester;
+		this.affiliation = affiliation;
+	}
+
 	@Inject
 	public SiteReader(Affiliation affiliation) {
-		this.affiliation = affiliation;
+		this(affiliation, affiliation);
 	}
 	
 	@Inject
@@ -90,10 +96,10 @@ public abstract class SiteReader {
     	// dedupe, keep those with a name if you have a choice
     	Map<String, Researcher> rbyU = new HashMap<String, Researcher>();
     	for (Researcher r : researchers) {
-    		if (rbyU.containsKey(r.getHomePageURL()) && r.getLabel() == null) {
+    		if (rbyU.containsKey(r.getURI()) && r.getLabel() == null) {
     			continue;
     		}
-    		rbyU.put(r.getHomePageURL(), r);
+    		rbyU.put(r.getURI(), r);
     	}
     	researchers.clear();
     	researchers.addAll(rbyU.values());
@@ -111,7 +117,7 @@ public abstract class SiteReader {
     	removeList.add(researcher);
     }
     
-    public List<Researcher> getReseachers() {
+    public List<Researcher> getResearchers() {
     	return researchers;
     }
         
@@ -124,6 +130,10 @@ public abstract class SiteReader {
     	removeList.clear();
     }    
     
+    public Affiliation getHarvester() {
+    	return harvester;
+    }
+
     public Affiliation getAffiliation() {
     	return affiliation;
     }

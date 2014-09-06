@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink.io;
+package edu.ucsf.crosslink.crawler.parser;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -17,7 +17,7 @@ import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.FusekiCache;
-import edu.ucsf.ctsi.r2r.jena.FusekiClient;
+import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
 import edu.ucsf.ctsi.r2r.jena.LODService;
 
 @Singleton
@@ -29,7 +29,7 @@ public class JenaHelper implements R2RConstants {
 	private R2ROntology r2r;
 	
 	@Inject
-	public JenaHelper(FusekiClient fusekiClient, LODService lodService) throws Exception {
+	public JenaHelper(SparqlPostClient fusekiClient, LODService lodService) throws Exception {
 		this.lodService = lodService;
 		this.fusekiCache = new FusekiCache(fusekiClient, lodService);
 		this.r2r = new R2ROntology();
@@ -82,7 +82,7 @@ public class JenaHelper implements R2RConstants {
 
 	public Model getModelFor(Researcher researcher, boolean forWebOutput) throws Exception {
 		Model model = ModelFactory.createDefaultModel();
-    	String uri = researcher.getURI() != null ? researcher.getURI() : researcher.getHomePageURL();
+    	String uri = researcher.getURI() != null ? researcher.getURI() : researcher.getURI();
     	if (!contains(uri) || forWebOutput) {
     		// Must be from a site that does not have LOD.  add basic stuff
             Resource researcherResource = model.createResource(uri);
@@ -103,22 +103,24 @@ public class JenaHelper implements R2RConstants {
         			model.createProperty(PRNS_MAIN_IMAGE), 
         			model.createTypedLiteral(researcher.getImageURL()));
         	}
-
-        	researcher.setURI(uri);
         }
     	// create affiliation.  Should be smart about doing this only when necessary!
     	Resource affiliationResource = model.createResource(researcher.getAffiliation().getURI());
     	Resource researcherResource = model.createResource(uri);
     	
+    	model.add(researcherResource,
+    			model.createProperty(R2R_HARVESTED_FROM), 
+        				affiliationResource);
+			
     	// add affiliation to researcher
     	model.add(researcherResource,
-    			model.createProperty(R2R_FROM_RN_WEBSITE), 
+    			model.createProperty(R2R_HAS_AFFILIATION), 
         				affiliationResource);
 			
     	// homepage
     	model.add(researcherResource, 
-    			model.createProperty(R2R_HOMEPAGE_PATH), 
-				model.createTypedLiteral(researcher.getHomePagePath()));        	
+    			model.createProperty(R2R_PRETTY_URL), 
+				model.createTypedLiteral(researcher.getPrettyURL()));        	
 
     	// thumbnail        	
     	if (researcher.getThumbnailURL() != null) {

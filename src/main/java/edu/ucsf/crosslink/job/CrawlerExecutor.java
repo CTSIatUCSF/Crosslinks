@@ -11,19 +11,19 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.crawler.AffiliationCrawler;
-import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
+import edu.ucsf.crosslink.crawler.Crawler;
+import edu.ucsf.crosslink.crawler.CrawlerFactory;
 import edu.ucsf.crosslink.web.Stoppable;
 
 @Singleton
 public class CrawlerExecutor implements Runnable, Stoppable {
 	private static final Logger LOG = Logger.getLogger(CrawlerExecutor.class.getName());
 	
-	private AffiliationCrawlerFactory factory;
+	private CrawlerFactory factory;
 	ScheduledExecutorService executorService;
 	
 	@Inject
-	public CrawlerExecutor(AffiliationCrawlerFactory factory, @Named("scanInterval") Integer scanInterval, @Named("threadCount") Integer threadCount) {
+	public CrawlerExecutor(CrawlerFactory factory, @Named("scanInterval") Integer scanInterval, @Named("threadCount") Integer threadCount) {
 		this.factory = factory;
 		
 		// pass into some scheduled loader
@@ -40,7 +40,7 @@ public class CrawlerExecutor implements Runnable, Stoppable {
 
 	public void run() {
 		try {
-		    for (AffiliationCrawler crawler : factory.getCrawlers()) {
+		    for (Crawler crawler : factory.getCrawlers()) {
 	    		executorService.execute(crawler);
 		    }
 		}

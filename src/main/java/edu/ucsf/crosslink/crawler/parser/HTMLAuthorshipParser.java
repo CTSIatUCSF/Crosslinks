@@ -10,10 +10,9 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 
 import edu.ucsf.crosslink.Crosslinks;
-import edu.ucsf.crosslink.crawler.AffiliationCrawlerModule;
+import edu.ucsf.crosslink.crawler.CrawlerModule;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.IOModule;
-import edu.ucsf.crosslink.io.JenaHelper;
 import edu.ucsf.crosslink.io.ThumbnailGenerator;
 import edu.ucsf.crosslink.model.Researcher;
 
@@ -36,7 +35,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
     }
 
 	public boolean readResearcher(Researcher researcher) throws IOException, InterruptedException {
-    	Document doc = siteReader.getDocument(researcher.getHomePageURL());
+    	Document doc = siteReader.getDocument(researcher.getURI());
     	boolean foundResearcherInfo = false;
 		if (doc != null && rdfParser.getPersonDataOnly(researcher, doc)) {	
 			foundResearcherInfo = true;
@@ -68,7 +67,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
 			prop.load(HTMLAuthorshipParser.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
 			prop.load(HTMLAuthorshipParser.class.getResourceAsStream("/affiliations/UCSF.properties"));
 			prop.setProperty("rdfBaseDir", "C:\\Development\\R2R\\workspace\\Crosslinks\\testModel");
-			Injector injector = Guice.createInjector(new IOModule(prop), new AffiliationCrawlerModule(prop));
+			Injector injector = Guice.createInjector(new IOModule(prop), new CrawlerModule(prop));
 
 			HTMLAuthorshipParser parser = injector.getInstance(HTMLAuthorshipParser.class);
 			Researcher researcher = new Researcher(null, "http://profiles.ucsf.edu/eric.meeks");

@@ -14,17 +14,17 @@ import org.quartz.spi.TriggerFiredBundle;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 
-import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
+import edu.ucsf.crosslink.crawler.CrawlerFactory;
 
 public class GuiceJobFactory implements JobFactory {
 
 	private static final Logger LOG = Logger.getLogger(GuiceJobFactory.class.getName());
 
 	private final Injector guice;
-	private final AffiliationCrawlerFactory crawlerFactory;
+	private final CrawlerFactory crawlerFactory;
 
 	@Inject
-	public GuiceJobFactory(Injector guice, AffiliationCrawlerFactory crawlerFactory) {
+	public GuiceJobFactory(Injector guice, CrawlerFactory crawlerFactory) {
 		this.guice = guice;
 		this.crawlerFactory = crawlerFactory;
 	}
@@ -38,7 +38,7 @@ public class GuiceJobFactory implements JobFactory {
 		}
 		else {
 			try {
-				return crawlerFactory.getInjector(jobName).getInstance(AffiliationCrawlerJob.class);
+				return crawlerFactory.getInjector(jobName).getInstance(CrawlerJob.class);
 			} 
 			catch (IOException e) {
 				LOG.log(Level.SEVERE, e.getMessage(), e);

@@ -16,10 +16,9 @@ import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
 import edu.ucsf.crosslink.Crosslinks;
-import edu.ucsf.crosslink.crawler.AffiliationCrawlerModule;
+import edu.ucsf.crosslink.crawler.CrawlerModule;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.IOModule;
-import edu.ucsf.crosslink.io.JenaHelper;
 import edu.ucsf.crosslink.io.ThumbnailGenerator;
 import edu.ucsf.crosslink.model.Researcher;
 
@@ -40,11 +39,11 @@ public class RDFAuthorshipParser implements AuthorParser {
     }
     
     public boolean readResearcher(Researcher researcher) throws IOException, InterruptedException {
-    	return readResearcher(researcher, siteReader.getDocument(researcher.getHomePageURL()), false);
+    	return readResearcher(researcher, siteReader.getDocument(researcher.getURI()), false);
     }
 	
     boolean readResearcher(Researcher researcher, Document doc, boolean foundResearcherInfo) throws IOException, InterruptedException {
-    	Resource resource = jenaPersistance.getResourceFromRdfURL(getPersonRDFURLFromHTMLURL(researcher.getHomePageURL(), doc), true);
+    	Resource resource = jenaPersistance.getResourceFromRdfURL(getPersonRDFURLFromHTMLURL(researcher.getURI(), doc), true);
     	if (resource != null) {
     		// read the researcher basic info if we still need to
         	if (!foundResearcherInfo) {
@@ -93,14 +92,13 @@ public class RDFAuthorshipParser implements AuthorParser {
         	return addResearcherDetails(researcher, jenaPersistance.getResource(researcher.getURI()));    		
     	}
     	else {
-	    	String rdfUrl = getPersonRDFURLFromHTMLURL(researcher.getHomePageURL(), doc);
+	    	String rdfUrl = getPersonRDFURLFromHTMLURL(researcher.getURI(), doc);
 	    	return addResearcherDetails(researcher, jenaPersistance.getResourceFromRdfURL(rdfUrl));
     	}
     }
     
     private boolean addResearcherDetails(Researcher researcher, Resource resource) {
     	if (resource != null) {
-	     	researcher.setURI(resource.getURI());
 	    	researcher.setLabel(jenaPersistance.find(resource, "label"));
 	    	researcher.addImageURL(jenaPersistance.find(resource, "mainImage"));
 	    	researcher.setOrcidId(jenaPersistance.find(resource, "orcidId"));
@@ -144,7 +142,7 @@ public class RDFAuthorshipParser implements AuthorParser {
 			prop.load(RDFAuthorshipParser.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
 			prop.load(RDFAuthorshipParser.class.getResourceAsStream("/affiliations/WashU.properties"));
 			prop.setProperty("rdfBaseDir", "C:\\Development\\R2R\\workspace\\Crosslinks\\testModel");
-			Injector injector = Guice.createInjector(new IOModule(prop), new AffiliationCrawlerModule(prop));
+			Injector injector = Guice.createInjector(new IOModule(prop), new CrawlerModule(prop));
 
 			RDFAuthorshipParser parser = injector.getInstance(RDFAuthorshipParser.class);
 			//parser.getAuthorFromHTML("http://profiles.ucsf.edu/eric.meeks");

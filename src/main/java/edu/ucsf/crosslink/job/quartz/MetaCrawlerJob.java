@@ -22,9 +22,8 @@ import org.quartz.impl.matchers.GroupMatcher;
 
 import com.google.inject.Inject;
 
-import edu.ucsf.crosslink.crawler.AffiliationCrawler;
-import edu.ucsf.crosslink.crawler.AffiliationCrawlerFactory;
-import edu.ucsf.crosslink.model.Affiliation;
+import edu.ucsf.crosslink.crawler.Crawler;
+import edu.ucsf.crosslink.crawler.CrawlerFactory;
 
 @DisallowConcurrentExecution
 public class MetaCrawlerJob implements Job {
@@ -35,7 +34,7 @@ public class MetaCrawlerJob implements Job {
 	private static int historyMaxSize = 100;
 
 	private final Quartz quartz;
-	private AffiliationCrawlerFactory factory;
+	private CrawlerFactory factory;
 	private static LinkedList<String> metaCrawlerHistory = new LinkedList<String>();
 	
 	public static List<String> getMetaCrawlerHistory() {
@@ -43,23 +42,23 @@ public class MetaCrawlerJob implements Job {
 	}
 
 	@Inject
-	public MetaCrawlerJob(Quartz quartz, AffiliationCrawlerFactory factory) {
+	public MetaCrawlerJob(Quartz quartz, CrawlerFactory factory) {
 		this.quartz = quartz;
 		this.factory = factory;
 	}
 	
-	private boolean isScheduled(AffiliationCrawler crawler) throws SchedulerException {
+	private boolean isScheduled(Crawler crawler) throws SchedulerException {
 		for (JobKey key : quartz.getScheduler().getJobKeys(GroupMatcher.jobGroupEquals(GROUP))) {
-			if (key.getName().equals(crawler.getAffiliation().getName())) {
+			if (key.getName().equals(crawler.getName())) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	private boolean isExecuting(AffiliationCrawler crawler) throws SchedulerException {
+	private boolean isExecuting(Crawler crawler) throws SchedulerException {
 		for (JobExecutionContext context : quartz.getScheduler().getCurrentlyExecutingJobs()) {
-			if (context.getJobDetail().getKey().getName().equals(crawler.getAffiliation().getName())) {
+			if (context.getJobDetail().getKey().getName().equals(crawler.getName())) {
 				return true;
 			}
 		}
@@ -69,29 +68,29 @@ public class MetaCrawlerJob implements Job {
 	public void execute(JobExecutionContext context)
 			throws JobExecutionException {
 		try {
-		    for (AffiliationCrawler crawler : factory.getCrawlers()) {
+		    for (Crawler crawler : factory.getCrawlers()) {
 		    	if (isScheduled(crawler) || isExecuting(crawler)) {
 		    		continue;
 		    	}
 				synchronized (metaCrawlerHistory) {
-					metaCrawlerHistory.addFirst("Scheduling " + crawler.getAffiliation() + " at " + DateFormat.getDateTimeInstance().format(new Date()));
+					metaCrawlerHistory.addFirst("Scheduling " + crawler.getName() + " at " + DateFormat.getDateTimeInstance().format(new Date()));
 					if (metaCrawlerHistory.size() > historyMaxSize) {
 						metaCrawlerHistory.removeLast();
 					}
 				}
-		    	Affiliation affiliation = crawler.getAffiliation();
-			    JobDetail job = newJob(AffiliationCrawlerJob.class)
-			        .withIdentity(affiliation.getName(), GROUP)
+		    	String name = crawler.getName();
+			    JobDetail job = newJob(CrawlerJob.class)
+			        .withIdentity(name, GROUP)
 			        .build();
 	
 			    // Trigger the job to run now or as soon as possible
 			    Trigger trigger = newTrigger()
-			        .withIdentity(TRIGGER_PREFIX + affiliation.getName(), GROUP)
+			        .withIdentity(TRIGGER_PREFIX + name, GROUP)
 			        .startNow()
 			        .forJob(job)
 			        .build();
 	
-			    LOG.info("Scheduling " + affiliation);
+			    LOG.info("Scheduling " + name);
 			    quartz.getScheduler().scheduleJob(job, trigger);
 		    }
 		}

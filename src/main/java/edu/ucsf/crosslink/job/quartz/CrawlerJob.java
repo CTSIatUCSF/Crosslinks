@@ -11,18 +11,18 @@ import org.quartz.UnableToInterruptJobException;
 
 import com.google.inject.Inject;
 
-import edu.ucsf.crosslink.crawler.AffiliationCrawler;
+import edu.ucsf.crosslink.crawler.Crawler;
 
 @DisallowConcurrentExecution
-public class AffiliationCrawlerJob implements InterruptableJob {
+public class CrawlerJob implements InterruptableJob {
 	
-	private static final Logger LOG = Logger.getLogger(AffiliationCrawlerJob.class.getName());
+	private static final Logger LOG = Logger.getLogger(CrawlerJob.class.getName());
 
-	private AffiliationCrawler crawler;
+	private Crawler crawler;
 	private Thread currentExecutionThread;
 	
 	@Inject
-	public AffiliationCrawlerJob(AffiliationCrawler crawler) {
+	public CrawlerJob(Crawler crawler) {
 		this.crawler = crawler;
 	}
 	

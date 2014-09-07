@@ -3,15 +3,12 @@ package edu.ucsf.crosslink.crawler.sitereader;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -23,10 +20,7 @@ import com.google.inject.Inject;
 import com.hp.cache4guice.Cached;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.Resource;
 
-import edu.ucsf.crosslink.crawler.AffiliationCrawler.Status;
 import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
@@ -35,24 +29,21 @@ import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 import edu.ucsf.ctsi.r2r.jena.SparqlClient;
 import edu.ucsf.ctsi.r2r.R2RConstants;
-import edu.ucsf.ctsi.r2r.R2ROntology;
-import net.sourceforge.sitemaps.Sitemap;
-import net.sourceforge.sitemaps.SitemapParser;
-import net.sourceforge.sitemaps.SitemapUrl;
 import net.sourceforge.sitemaps.UnknownFormatException;
 import net.sourceforge.sitemaps.http.ProtocolException;
 
-public class MarengoSparqlReader extends SiteReader implements Crawler, AuthorParser, R2RConstants {
+public class MarengoSparqlReader extends Crawler implements AuthorParser, R2RConstants {
 
 	private static final Logger LOG = Logger.getLogger(MarengoSparqlReader.class.getName());
 
 	private static final String RESEARCHERS_SELECT = "SELECT ?s ?o WHERE { " +
 			"?s <http://marengo.info-science.uiowa.edu:2020/resource/vocab/Person_URI> ?o } OFFSET %d LIMIT %d";	
 	
-	private static final String RESEARCHER_DETAIL = "SELECT ?l ?fn ?ln WHERE { " +
+	private static final String RESEARCHER_DETAIL = "SELECT ?l ?fn ?ln ?orcid WHERE { " +
 			"<%1$s> <" + RDFS_LABEL + "> ?l ." +
-			"<%1$s> <" + FOAF + "firstName> ?fn ." +
-			"<%1$s> <" + FOAF + "lastName> ?ln}";	
+			"OPTIONAL {<%1$s> <" + FOAF + "firstName> ?fn } . " +
+			"OPTIONAL {<%1$s> <" + FOAF + "lastName> ?ln } . " +	
+			"OPTIONAL {<%1$s> <" + VIVO_ORCID_ID + "> ?orcid}}";	
 
 	private static final String RESEARCHER_PUBLICATIONS = "SELECT ?lir WHERE { " +
 			"?aia <http://vivoweb.org/ontology/core#linkedAuthor> <%s> . " +
@@ -61,43 +52,51 @@ public class MarengoSparqlReader extends SiteReader implements Crawler, AuthorPa
 
 	private static final String LIR_DETAIL = "SELECT ?pmid WHERE { " +
 			"<%s> <" + BIBO_PMID + "> ?pmid}";
+	
+	private static final int LIMIT = 50;
 
 	private SparqlClient sparqlClient = null;
 	private static final String MARENGO_PREFIX = "http://marengo.info-science.uiowa.edu:2020/resource/";
 	
+	private Affiliation harvester;
+	private SiteReader reader;
 	private CrosslinkPersistance store;
 	private ExecutorService executorService;
+	
 	private int savedCnt = 0;
 	private int queueSize = 0;
-	private boolean running = false;
+	private int found = 0;
+	private int offset = 0;
+	private int limit = LIMIT;
 	
 	// remove harvester as required item
 	@Inject
-	public MarengoSparqlReader(Affiliation harvester, CrosslinkPersistance store) {
-		super(harvester);
+	public MarengoSparqlReader(Affiliation harvester, SiteReader reader, CrosslinkPersistance store, Mode crawlingMode) {
+		super(crawlingMode);
+		this.harvester = harvester;
 		this.sparqlClient = new SparqlClient("http://marengo.info-science.uiowa.edu:2020/sparql");
+		this.reader = reader;
 		this.store = store;
 		executorService = Executors.newCachedThreadPool();
 	}
 	
-	protected void collectResearcherURLs() throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException {
-		collectResearcherURLs(0, 1000);
+	public Affiliation getHarvester() {
+		return harvester;
 	}
-
-	private int collectResearcherURLs(int offset, int limit) throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException {		
+	
+	private int collectResearcherURLs() throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException {		
 		final List<Researcher> added = new ArrayList<Researcher>();
 		sparqlClient.select(String.format(RESEARCHERS_SELECT, offset, limit), new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
-					String marengoURI = qs.getResource("?s").getURI();
+					//String marengoURI = qs.getResource("?s").getURI();
 					String personURI = qs.getLiteral("?o").getString();
 					
 					try {
 						URI uri = new URI(personURI);
-						Researcher researcher = new Researcher(getAffiliation(uri.getScheme(), uri.getHost()), personURI);
+						Researcher researcher = new Researcher(getAffiliationFor(uri), personURI);
 						researcher.setHarvester(getHarvester());
-						//addResearcher(researcher);
 						if (!store.skip(researcher)) {
 							readAndSaveResearcher(researcher);
 							LOG.info("Added " + personURI);
@@ -105,10 +104,12 @@ public class MarengoSparqlReader extends SiteReader implements Crawler, AuthorPa
 						else {
 							LOG.info("Skipping " + researcher);
 						}
+						setCurrentAuthor(researcher);
 						added.add(researcher);
 					}
 					catch (Exception e) {
-						LOG.log(Level.WARNING, "Error with " + personURI, e.getMessage());
+						setLatestError("Error collecting " + personURI + " " + e.getMessage());
+						LOG.log(Level.WARNING, "Error collecting " + personURI, e);
 					}
 				}								
 			}
@@ -125,12 +126,16 @@ public class MarengoSparqlReader extends SiteReader implements Crawler, AuthorPa
 					String label = qs.getLiteral("?l").getString();
 					String firstName = qs.getLiteral("?fn").getString();
 					String lastName = qs.getLiteral("?ln").getString();
+					String orcidId = qs.getLiteral("?orcid").getString();
 					researcher.setLabel(label);
 					if (StringUtils.isNotBlank(firstName)) {
-						researcher.addLiteral(FOAF + "firstName", firstName);
+						researcher.setLiteral(FOAF + "firstName", firstName);
 					}
 					if (StringUtils.isNotBlank(firstName)) {
-						researcher.addLiteral(FOAF + "lastName", lastName);
+						researcher.setLiteral(FOAF + "lastName", lastName);
+					}
+					if (StringUtils.isNotBlank(orcidId)) {
+						researcher.setOrcidId(orcidId);
 					}
 					LOG.info("Read " + label + " : " + firstName + " : " + lastName);
 				}								
@@ -154,7 +159,8 @@ public class MarengoSparqlReader extends SiteReader implements Crawler, AuthorPa
 			if (pmid != null) {
 				researcher.addPubMedPublication(pmid);
 			}
-		}
+		}		
+		researcher.setWorkVerifiedDt(new Date());
 		return true;
 	}
 	
@@ -179,45 +185,51 @@ public class MarengoSparqlReader extends SiteReader implements Crawler, AuthorPa
 		queueSize++;
 	}
 	
+	private Affiliation getAffiliationFor(URI uri) throws Exception {
+		Affiliation affiliation = store.findAffiliationFor(uri.toString());
+		return affiliation != null ? affiliation : getAffiliation(uri.getScheme(), uri.getHost());		
+	}
+	
 	@Cached
 	public Affiliation getAffiliation(String scheme, String host) throws Exception {
 		Affiliation affiliation = new Affiliation(host, scheme + "://" + host, "0,0");
 		// this really needs to look for an existing one first, but for now this is OK
-		store.startTransaction();
 		store.upsertAffiliation(affiliation);
-		store.endTransaction();
 		LOG.info("Upserted " + affiliation);
 		return affiliation;
 	}
 	
-	public void run() {
-		// load runners
-		running = true;
-		int found = 0;
-		int offset = 0;
-		int limit = 50;
+	public void crawl() {
+		if (Mode.FORCED_NO_SKIP.equals(getMode())) {
+			offset = 0;
+		}
+		setStatus(Status.RUNNING);
 		try {
 			do {
-				LOG.info("found, offset, limit, saved, queue " + found + ", " + offset + ", " + limit + ", " + savedCnt + ", " + queueSize);
+				LOG.info(getCounts());
 				if (queueSize > limit) {
 					Thread.sleep(10000);
 				}
 				else {
-					int newlyFound = collectResearcherURLs(offset, limit);
+					int newlyFound = collectResearcherURLs();
 					if (newlyFound > 0) {
 						found += newlyFound;
 					}
 					else {
-						running = false;
+						setStatus(Status.SHUTTING_DOWN);
 					}
 					offset += limit;
 				}
 			}
-			while(running);
+			while(Status.RUNNING.equals(getStatus()));
 			executorService.shutdown();
 			executorService.awaitTermination(10, TimeUnit.MINUTES);
+			offset = 0;
+			setStatus(Status.FINISHED);
 		}
 		catch (Exception e) {
+			setStatus(Status.PAUSED);
+			setLatestError("Error while running " + e.getMessage());
 			LOG.log(Level.SEVERE, e.getMessage(), e);
 		}
 	}
@@ -232,12 +244,15 @@ public class MarengoSparqlReader extends SiteReader implements Crawler, AuthorPa
 		public void run() {
 			try {
 				if (readResearcher(researcher)) {
+					reader.getPageItems(researcher);
 					store.saveResearcher(researcher);
 					savedCnt++;
 					LOG.info("Saved " + researcher);
 				}
 			}
 			catch (Exception e) {
+				setLatestError("Error with " + researcher + " " + e.getMessage());
+				addError(researcher);
 				LOG.log(Level.SEVERE, e.getMessage(), e);				
 			}
 			finally {
@@ -246,18 +261,13 @@ public class MarengoSparqlReader extends SiteReader implements Crawler, AuthorPa
 		}
 	}
 
-	public int compareTo(Crawler o) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
 	public String getName() {
 		return getHarvester().getName();
 	}
 
-	public void setMode(String mode) throws Exception {
-		// TODO Auto-generated method stub
-		
+	@Override
+	public String getCounts() {
+		return "found, offset, limit, saved, queue " + found + ", " + offset + ", " + limit + ", " + savedCnt + ", " + queueSize;
 	}
-	
+
 }

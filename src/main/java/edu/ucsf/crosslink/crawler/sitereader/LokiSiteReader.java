@@ -10,17 +10,18 @@ import org.jsoup.select.Elements;
 
 import com.google.inject.Inject;
 
+import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
-public class LokiSiteReader extends SiteReader implements AuthorParser {
+public class LokiSiteReader extends AffiliationCrawler implements AuthorParser {
 
 	private static final Logger LOG = Logger.getLogger(LokiSiteReader.class.getName());
 
 	@Inject
-	public LokiSiteReader(Affiliation affiliation) {
-		super(affiliation);
+	public LokiSiteReader(Affiliation affiliation, Mode crawlingMode) {
+		super(affiliation, crawlingMode);
 	}
 	
     protected void collectResearcherURLs() throws IOException, InterruptedException  {

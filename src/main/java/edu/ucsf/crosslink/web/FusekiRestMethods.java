@@ -1,9 +1,11 @@
 package edu.ucsf.crosslink.web;
 
 import java.io.ByteArrayOutputStream;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServletRequest;
@@ -197,10 +199,16 @@ public class FusekiRestMethods implements R2RConstants {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
-					Affiliation affiliationObj =  new Affiliation(qs.getLiteral("?l").getString(), qs.getResource("?a").getURI(),
-							qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString(),
-							qs.getLiteral("?rc").getInt(), 0);
-					affiliations.add(affiliationObj);
+					Affiliation affiliationObj;
+					try {
+						affiliationObj = new Affiliation(qs.getLiteral("?l").getString(), qs.getResource("?a").getURI(),
+								qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString(),
+								qs.getLiteral("?rc").getInt(), 0);
+						affiliations.add(affiliationObj);
+					} 
+					catch (URISyntaxException e) {
+						LOG.log(Level.WARNING, e.getMessage(), e);
+					}
 				}								
 			}
 		});
@@ -214,10 +222,16 @@ public class FusekiRestMethods implements R2RConstants {
 			public void useResultSet(ResultSet rs) {
 				if (rs.hasNext()) {		
 					QuerySolution qs = rs.next();
-					Affiliation affiliationObj =  new Affiliation(affiliation, qs.getResource("?a").getURI(),
-							qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString(),
-							qs.getLiteral("?rc").getInt(), 0);
-					affiliations.add(affiliationObj);
+					Affiliation affiliationObj;
+					try {
+						affiliationObj = new Affiliation(affiliation, qs.getResource("?a").getURI(),
+								qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString(),
+								qs.getLiteral("?rc").getInt(), 0);
+						affiliations.add(affiliationObj);
+					} 
+					catch (URISyntaxException e) {
+						LOG.log(Level.WARNING, e.getMessage(), e);
+					}
 				}
 		    }
 		});
@@ -225,7 +239,7 @@ public class FusekiRestMethods implements R2RConstants {
     }
     
     public List<Researcher> getResearchers(final Affiliation affiliation) {
-		String sparql = String.format(RESEARCHERS_SPARQL, affiliation.getURI()); 
+		String sparql = String.format(RESEARCHERS_SPARQL, affiliation.getBaseURL()); 
     	final List<Researcher> researchers = new ArrayList<Researcher>();
     	sparqlClient.select(sparql, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {

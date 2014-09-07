@@ -1,21 +1,24 @@
 package edu.ucsf.crosslink.model;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
 public class Affiliation {
 	
 	private String name;
-	private String baseURL;
+	private URI baseURI;
 	private int researcherCount;
 	private int pmidCount;
 	private String latitude;
 	private String longitude;
 
 	@Inject
-	public Affiliation(@Named("Affiliation") String affiliationName, @Named("BaseURL") String baseURL, @Named("Location") String location) {
+	public Affiliation(@Named("Name") String affiliationName, @Named("BaseURL") String baseURL, @Named("Location") String location) throws URISyntaxException {
 		this.name = affiliationName;
-		this.baseURL = baseURL;
+		this.baseURI = new URI(baseURL);
 		if (location != null) {
 			String [] geoCodes = location.split(",");
 			this.latitude = geoCodes[0];
@@ -23,7 +26,7 @@ public class Affiliation {
 		}
 	}
 	
-	public Affiliation(String name, String baseURL, String location, int researcherCount, int pmidCount) {
+	public Affiliation(String name, String baseURL, String location, int researcherCount, int pmidCount) throws URISyntaxException {
 		this(name, baseURL, null);
 		this.researcherCount = researcherCount;		
 		this.pmidCount = pmidCount;
@@ -34,18 +37,18 @@ public class Affiliation {
 		return getName();
 	}
 	
-	public String getURI() {
-		return getBaseURL(); 
+	public URI getURI() {
+		return baseURI; 
+	}
+
+	public String getBaseURL() {
+		return baseURI.toString(); 
 	}
 
 	public String getName() {
 		return name;
 	}
 	
-	public String getBaseURL() {
-		return baseURL;
-	}
-
 	public int getResearcherCount() {
 		return researcherCount;
 	}

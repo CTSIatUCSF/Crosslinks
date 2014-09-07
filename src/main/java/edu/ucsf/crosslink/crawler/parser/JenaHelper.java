@@ -26,15 +26,13 @@ public class JenaHelper implements R2RConstants {
 	
 	private LODService lodService;
 	private FusekiCache fusekiCache;
-	private R2ROntology r2r;
 	
 	@Inject
 	public JenaHelper(SparqlPostClient fusekiClient, LODService lodService) throws Exception {
 		this.lodService = lodService;
 		this.fusekiCache = new FusekiCache(fusekiClient, lodService);
-		this.r2r = new R2ROntology();
 		// make sure we have the latest info
-		fusekiClient.add(r2r.getR2ROntModel());		
+		fusekiClient.add(R2ROntology.createDefaultModel());		
 	}
 
 	boolean contains(String uri) {
@@ -105,7 +103,7 @@ public class JenaHelper implements R2RConstants {
         	}
         }
     	// create affiliation.  Should be smart about doing this only when necessary!
-    	Resource affiliationResource = model.createResource(researcher.getAffiliation().getURI());
+    	Resource affiliationResource = model.createResource(researcher.getAffiliation().getBaseURL());
     	Resource researcherResource = model.createResource(uri);
     	
     	model.add(researcherResource,

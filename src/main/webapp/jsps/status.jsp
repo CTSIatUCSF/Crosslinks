@@ -7,7 +7,7 @@
     Administrator = <c:out value="${administrator}"/><p>
     <c:out value="${memoryStats}" escapeXml="false"/><p>
 	<c:forEach var="i" items="${crawlers}">
-	   <a href='./<c:out value="${i.affiliation.name}"/>'><c:out value="${i.affiliation.name}"/></a>&nbsp;
+	   <a href='./<c:out value="${i.name}"/>'><c:out value="${i.name}"/></a>&nbsp;
 		<c:if test="${not i.active and i.ok}">
 		   <c:out value="${i.state}"/>
 		</c:if>

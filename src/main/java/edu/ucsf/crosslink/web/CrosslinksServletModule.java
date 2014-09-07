@@ -6,6 +6,10 @@ import com.google.inject.name.Names;
 import com.sun.jersey.guice.JerseyServletModule;
 import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
 
+import edu.ucsf.crosslink.crawler.Crawler;
+import edu.ucsf.crosslink.crawler.parser.AuthorParser;
+import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
+import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
 import edu.ucsf.ctsi.r2r.jena.SparqlUpdateClient;
 
 public class CrosslinksServletModule extends JerseyServletModule {
@@ -16,13 +20,19 @@ public class CrosslinksServletModule extends JerseyServletModule {
 		this.prop = prop;
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	protected void configureServlets() {
 		bind(String.class).annotatedWith(Names.named("thumbnailRootURL")).toInstance(prop.getProperty("thumbnailRootURL"));		
 		bind(String[].class).annotatedWith(Names.named("administrators")).toInstance(prop.getProperty("administrators").split(","));
 		bind(String.class).annotatedWith(Names.named("r2r.fusekiUrl")).toInstance(prop.getProperty("r2r.fusekiUrl"));
 		// 
-		bind(SparqlUpdateClient.class).asEagerSingleton();
+		try {
+			bind(SparqlPostClient.class).to((Class<? extends SparqlPostClient>) Class.forName(prop.getProperty("r2r.sparqlClient"))).asEagerSingleton();
+		} 
+		catch (ClassNotFoundException e) {
+			addError(e);
+		}
 		bind(FusekiRestMethods.class).asEagerSingleton();
 		serve("/*").with(GuiceContainer.class);
 		filter("/*").through(CrosslinksServletFilter.class);

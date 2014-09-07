@@ -17,11 +17,11 @@ import org.jsoup.select.Elements;
 import com.google.gson.Gson;
 import com.google.inject.Inject;
 
+import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
-
-public class VivoDataserviceReader extends SiteReader {
+public class VivoDataserviceReader extends AffiliationCrawler {
 
 	private static final Logger LOG = Logger.getLogger(VivoDataserviceReader.class.getName());
 	
@@ -30,8 +30,8 @@ public class VivoDataserviceReader extends SiteReader {
 	private int dataServiceSuffixNdx = 0;
 	
 	@Inject
-	public VivoDataserviceReader(Affiliation affiliation) {
-		super(affiliation);
+	public VivoDataserviceReader(Affiliation affiliation, Mode crawlingMode) {
+		super(affiliation, crawlingMode);
 	}
 
 	protected void collectResearcherURLs() throws Exception {

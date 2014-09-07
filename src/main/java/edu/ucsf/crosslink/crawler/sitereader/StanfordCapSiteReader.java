@@ -11,17 +11,18 @@ import org.jsoup.select.Elements;
 
 import com.google.inject.Inject;
 
+import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
-public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
+public class StanfordCapSiteReader extends AffiliationCrawler implements AuthorParser {
 
 	private static final Logger LOG = Logger.getLogger(StanfordCapSiteReader.class.getName());
 
 	@Inject
-	public StanfordCapSiteReader(Affiliation affiliation) {
-		super(affiliation);
+	public StanfordCapSiteReader(Affiliation affiliation, Mode crawlingMode) {
+		super(affiliation, crawlingMode);
 	}
 	
 	protected void collectResearcherURLs() throws IOException, InterruptedException {
@@ -69,10 +70,10 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
 	        }
 
 		    for (Element src : doc.select("[src]")) {
-		    	   if (src.tagName().equals("img") && src.attr("abs:src").contains("viewImage")) {
-		    		   researcher.addImageURL(src.attr("abs:src"));
-		    	   }
-			    }
+	    	   if (src.tagName().equals("img") && src.attr("abs:src").contains("viewImage")) {
+	    		   researcher.addImageURL(src.attr("abs:src"));
+	    	   }
+		    }
 		}
     	return doc != null;
     }
@@ -81,7 +82,7 @@ public class StanfordCapSiteReader extends SiteReader implements AuthorParser {
     public static void main(String[] args) {
     	try {
     		Affiliation stanford = new Affiliation("Stanford", "https://med.stanford.edu/profiles", null);
-    		StanfordCapSiteReader reader = new StanfordCapSiteReader(stanford);
+    		StanfordCapSiteReader reader = new StanfordCapSiteReader(stanford, Mode.FORCED);
     		reader.readResearcher(new Researcher(stanford, "https://med.stanford.edu/profiles/michael-halaas"));
     	}
     	catch (Exception e) {

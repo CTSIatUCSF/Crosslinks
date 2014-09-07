@@ -15,7 +15,10 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
 
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.ctsi.r2r.R2RConstants;
@@ -35,6 +38,7 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 	private String orcidId;
 	private int readErrorCount = 0;
 	private Collection<Integer> pmids= new HashSet<Integer>();
+	
 	private Resource resource;
 	
 	// display data
@@ -44,6 +48,7 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 	private Researcher(String uri) {
 		this.URI = uri;
 		Model model = R2ROntology.createDefaultModel();
+		//Model model = R2ROntology.createR2ROntModel();
 		resource = model.createResource(uri);		
 	}
 
@@ -223,85 +228,78 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 	public Resource getResource() throws Exception {
 		Model model = resource.getModel();
 		
-    	// person
+    	// person, safe to add this many times
         model.add(resource, 
         		model.createProperty(RDF_TYPE), 
         		model.createLiteral(FOAF_PERSON));
 
-        // label
-        model.add(resource, 
-        		model.createProperty(RDFS_LABEL), 
-        		model.createTypedLiteral(getLabel()));
-    	
-        // mainImage
-    	if (getImageURL() != null) {
-    			model.add(resource, 
-    			model.createProperty(PRNS_MAIN_IMAGE), 
-    			model.createTypedLiteral(getImageURL()));
-    	}
+        setLiteral(RDFS_LABEL, getLabel());
+		setResource(R2R_HARVESTED_FROM, getHarvester().getBaseURL());
+		setResource(R2R_HAS_AFFILIATION, getAffiliation().getBaseURL());
+        setLiteral(R2R_PRETTY_URL, getPrettyURL());
+        setLiteral(PRNS_MAIN_IMAGE, getImageURL());
+        setLiteral(R2R_THUMBNAIL, getThumbnailURL());
 
-    	if (getHarvester() != null) {
-    		Resource affiliationResource = model.createResource(getHarvester().getURI());
-        	// add affiliation to researcher
-        	model.add(resource,
-        			model.createProperty(R2R_HARVESTED_FROM), 
-            				affiliationResource);    			
-    	}
-
-    	// create affiliation.  Should be smart about doing this only when necessary!
-    	if (getAffiliation() != null) {
-    		Resource affiliationResource = model.createResource(getAffiliation().getURI());
-        	// add affiliation to researcher
-        	model.add(resource,
-        			model.createProperty(R2R_HAS_AFFILIATION), 
-            				affiliationResource);
-    			
-    	}
-
-    	// homepage
-    	if (getPrettyURL() != null) {
-	    	model.add(resource, 
-	    			model.createProperty(R2R_PRETTY_URL), 
-					model.createTypedLiteral(getPrettyURL()));
-    	}
-
-    	// thumbnail        	
-    	if (getThumbnailURL() != null) {
-    		model.add(resource, 
-    				model.createProperty(R2R_THUMBNAIL), 
-    				model.createTypedLiteral(getThumbnailURL()));    		    	
-    	}
-
-    	// timestamps
-    	Date now = new Date();
-    	model.add(resource, 
-    			model.createProperty(R2R_VERIFIED_DT), 
-				model.createTypedLiteral(now.getTime()));        	
-
-    	model.add(resource, 
-    			model.createProperty(R2R_WORK_VERIFIED_DT), 
-				model.createTypedLiteral(now.getTime()));        	
-    	
     	// publications
+    	Property pubsProperty = model.createProperty(R2R_CONTRIBUTED_TO);
+		model.removeAll(resource, pubsProperty, null);
     	if (!getPubMedPublications().isEmpty()) {
     		for (Integer pmid : getPubMedPublications()) {
                 Resource pmidResource = model.createResource("http:" + AuthorParser.PUBMED_SECTION + pmid);
         		// Associate to Researcher
-        		model.add(resource, 
-        				model.createProperty(R2R_CONTRIBUTED_TO), 
-        				pmidResource);    			
+        		model.add(resource, pubsProperty, pmidResource);    			
     		}
     	}    	
 		return resource;
 	}
 
-	public void addLiteral(String predicate, String literal) {
-		Model model = resource.getModel();
-        model.add(resource, 
-        		model.createProperty(predicate), 
-        		model.createTypedLiteral(literal));		
+	public Date getWorkVerifiedDt() {
+		Statement stmnt = getStatement(R2R_WORK_VERIFIED_DT);
+		if (stmnt != null) {
+			new Date(stmnt.getLong());
+		}
+		return null;
+	}
+
+	public void setWorkVerifiedDt(Date workVerifiedOn) {
+		setLiteral(R2R_WORK_VERIFIED_DT, workVerifiedOn != null ? String.valueOf(workVerifiedOn.getTime()) : null);
+	}
+
+	public Date getVerifiedDt() {
+		Statement stmnt = getStatement(R2R_VERIFIED_DT);
+		if (stmnt != null) {
+			new Date(stmnt.getLong());
+		}
+		return null;
+	}
+
+	public void setVerifiedDt(Date verifiedOn) {
+		setLiteral(R2R_VERIFIED_DT, verifiedOn != null ? String.valueOf(verifiedOn.getTime()) : null);
 	}
 	
+	private Statement getStatement(String predicate) {
+		return resource.getProperty(resource.getModel().createProperty(predicate));
+	}
+
+	public void setLiteral(String predicate, String literal) {		
+		Model model = resource.getModel();
+		Property property = model.createProperty(predicate);
+		model.removeAll(resource, property, null);
+		if (literal != null) {
+	        model.add(resource, model.createProperty(predicate), model.createTypedLiteral(literal));
+		}
+	}
+	
+	private void setResource(String predicate, String objectURI) {		
+		Model model = resource.getModel();
+		Property property = model.createProperty(predicate);
+		model.removeAll(resource, property, null);
+		Resource objectResource = model.createResource(objectURI);
+    	model.add(resource,
+    			model.createProperty(R2R_HAS_AFFILIATION), 
+    			objectResource);
+	}
+
 	public static void main(String[] args) {
 		// simple test
 		try {
@@ -309,9 +307,23 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 			foo.addPubMedPublication("1234");
 			foo.addPubMedPublication("https://www.ncbi.nlm.nih.gov/pubmed/?otool=uchsclib&term=17874365");
 			foo.addPubMedPublication("http://www.ncbi.nlm.nih.gov/pubmed/24303259");
+			foo.setLiteral(FOAF + "firstName", "Eric");
+			foo.setLiteral(FOAF + "lastName", "Meeks");
+			foo.setLiteral(FOAF + "firstName", "Joe");
+			foo.setLiteral(R2R_PRETTY_URL, "http://test.one");
+			foo.setLiteral(R2R_PRETTY_URL, "http://test.two");
+			foo.setLiteral(R2R_PRETTY_URL, "http://test.one");
+			// force this, add to constructor or such
+			foo.setLabel("Eric Meeks");
+			StmtIterator si = foo.getResource().listProperties();
+			while (si.hasNext()) {
+				System.out.println(si.next().toString());
+			}
+			//RDFDataMgr.write(System.out, foo.getResource().getModel(), RDFFormat.RDFXML);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
+
 }

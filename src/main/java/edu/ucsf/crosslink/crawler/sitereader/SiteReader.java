@@ -1,55 +1,36 @@
 package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
-
-
-
 
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.Connection.Response;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
+import edu.ucsf.ctsi.r2r.R2RConstants;
 
-
-public abstract class SiteReader {
+public class SiteReader implements R2RConstants {
 	
 	private static final Logger LOG = Logger.getLogger(SiteReader.class.getName());
 
-	private Affiliation harvester;
-	private Affiliation affiliation;
-	private List<Researcher> researchers = new ArrayList<Researcher>();
-	private List<Researcher> removeList = new ArrayList<Researcher>();
 	private Map<String, String> cookies = new HashMap<String, String>();	
 
 	private int getDocumentRetry = 10;
 	private int getDocumentTimeout = 15000;
 	private int getDocumentSleep = 1000;
 
-	public SiteReader(Affiliation harvester, Affiliation affiliation) {
-		this.harvester = harvester;
-		this.affiliation = affiliation;
-	}
-
 	@Inject
-	public SiteReader(Affiliation affiliation) {
-		this(affiliation, affiliation);
-	}
-	
-	@Inject
-	public void setDocumentReadParameters(@Named("getDocumentRetry") Integer getDocumentRetry, @Named("getDocumentTimeout") Integer getDocumentTimeout, 
+	public SiteReader(@Named("getDocumentRetry") Integer getDocumentRetry, @Named("getDocumentTimeout") Integer getDocumentTimeout, 
 			@Named("getDocumentSleep") Integer getDocumentSleep) {
 		this.getDocumentRetry = getDocumentRetry;
 		this.getDocumentTimeout = getDocumentTimeout;
@@ -89,56 +70,98 @@ public abstract class SiteReader {
             return s;
     }
     
-    public void collectResearchers() throws Exception {
-    	researchers.clear();
-    	removeList.clear();
-    	collectResearcherURLs();
-    	// dedupe, keep those with a name if you have a choice
-    	Map<String, Researcher> rbyU = new HashMap<String, Researcher>();
-    	for (Researcher r : researchers) {
-    		if (rbyU.containsKey(r.getURI()) && r.getLabel() == null) {
+    // this should arguably be the source of the verifiedDT
+    public String getPageItems(Researcher researcher) throws IOException, InterruptedException {    	
+    	Document doc = getDocument(researcher.getURI());
+		researcher.setVerifiedDt(new Date());
+    	if (!doc.location().equalsIgnoreCase(researcher.getURI())) {
+    		researcher.setPrettyURL(doc.location());
+    	}
+    	for (Element src : doc.select("[src]")) {
+    		if (!src.tagName().equals("img")) {
     			continue;
     		}
-    		rbyU.put(r.getURI(), r);
+    		// from HTML author parser
+    		//  try a few more tricks to look for a photo, this particular method works with VIVO
+    		if (src.className().equals("individual-photo") && !src.attr("abs:src").contains("unknown") ) { 
+    			return src.attr("abs:src");
+    		}
+    		// from RDF author parser
+    		//  look for a photo
+    		if (src.attr("class").contains("photo") && !src.attr("title").equals("no image")) {
+    			return src.attr("abs:src");
+    		}
+    		// Profiles
+    		if (src.attr("abs:src").contains("PhotoHandler.ashx")) {
+    			return src.attr("abs:src");
+    		}
+    		// from loki
+    		if (src.attr("abs:src").contains("displayPhoto")) {
+    			return src.attr("abs:src");
+    		}
+    		// from stanford
+    		if (src.attr("abs:src").contains("viewImage")) {
+    			return src.attr("abs:src");
+    		}
     	}
-    	researchers.clear();
-    	researchers.addAll(rbyU.values());
-    	Collections.sort(researchers);
-    }
-    	
-	
-    protected abstract void collectResearcherURLs() throws Exception;
-    
-    protected void addResearcher(Researcher researcher) {
-    	researchers.add(researcher);
+    	return null;
     }
     
-    public void removeResearcher(Researcher researcher) {
-    	removeList.add(researcher);
-    }
-    
-    public List<Researcher> getResearchers() {
-    	return researchers;
-    }
-        
-    public int getRemainingAuthorsSize() {
-    	return researchers.size() - removeList.size();
-    }
-        
-    public void purgeProcessedAuthors() {
-    	researchers.removeAll(removeList);
-    	removeList.clear();
-    }    
-    
-    public Affiliation getHarvester() {
-    	return harvester;
-    }
-
-    public Affiliation getAffiliation() {
-    	return affiliation;
-    }
-
-    public String getSiteRoot() {
-    	return affiliation.getBaseURL();
+    public static void main(String[] args) {
+    	Map<String, String> cookies = new HashMap<String, String>();
+    	String url = "http://profiles.ucsf.edu/profile/368698";
+    	try {
+        	int attempts = 0;
+        	Document doc = null;
+        	while (attempts++ < 10) {
+            	try {
+            	    Connection connection = Jsoup.connect(url);
+            	    for (Entry<String, String> cookie : cookies.entrySet()) {
+            	        connection.cookie(cookie.getKey(), cookie.getValue());
+            	    }
+            	    Response response = connection.timeout(2000).execute();
+            	    cookies.putAll(response.cookies());
+            	    doc = response.parse();
+            		break;
+            	}
+            	catch (java.net.SocketTimeoutException ex) {
+            		ex.printStackTrace();
+            	}
+        	}
+    		
+        	String img = null;
+        	for (Element src : doc.select("[src]")) {
+        		// from HTML author parser
+        		//  try a few more tricks to look for a photo, this particular method works with VIVO
+        		if (!src.tagName().equals("img")) {
+        			continue;
+        		}
+        		if (src.tagName().equals("img") && src.className().equals("individual-photo") && !src.attr("abs:src").contains("unknown") ) { 
+        			img =  src.attr("abs:src");
+        		}
+        		// from RDF author parser
+        		//  look for a photo
+        		if (src.tagName().equals("img") && src.attr("class").contains("photo") && !src.attr("title").equals("no image")) {
+        			img =  src.attr("abs:src");
+        		}
+        		// Profiles
+        		if (src.attr("abs:src").contains("PhotoHandler.ashx")) {
+        			img =  src.attr("abs:src");
+        		}
+        		// from loki
+        		if (src.tagName().equals("img") && src.attr("abs:src").contains("displayPhoto")) {
+        			img =  src.attr("abs:src");
+        		}
+        		// from stanford
+        		if (src.tagName().equals("img") && src.attr("abs:src").contains("viewImage")) {
+        			img =  src.attr("abs:src");
+        		}
+        	}
+        	System.out.println(img);
+    		
+    	}
+    	catch (Exception e) {
+    		e.printStackTrace();
+    	}
     }
 }

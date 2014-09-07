@@ -5,23 +5,27 @@ import java.util.logging.Logger;
 
 
 
+
+
+
+
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.inject.Inject;
 
+import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
-
-public class ProfilesSearchReader extends SiteReader {
+public class ProfilesSearchReader extends AffiliationCrawler {
 
 	private static final Logger LOG = Logger.getLogger(ProfilesSearchReader.class.getName());
 
 	@Inject
-	public ProfilesSearchReader(Affiliation affiliation) {
-		super(affiliation);
+	public ProfilesSearchReader(Affiliation affiliation, Mode crawlingMode) {
+		super(affiliation, crawlingMode);
 	}
 
 	protected void collectResearcherURLs() throws IOException, InterruptedException {
@@ -61,5 +65,4 @@ public class ProfilesSearchReader extends SiteReader {
 		while (!findingSamePeople);
 		LOG.info("Found " + getResearchers().size() + " profile pages");
     }
-
 }

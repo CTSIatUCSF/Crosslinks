@@ -5,8 +5,6 @@ import java.net.URL;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.lang3.StringUtils;
-
 import net.coobird.thumbnailator.Thumbnails;
 
 import com.google.inject.Inject;
@@ -41,7 +39,7 @@ public class ThumbnailGenerator {
 	public boolean generateThumbnail(Researcher researcher) {
 		if (researcher.getURI() != null && researcher.getImageURLs().size() > 0 && researcher.getThumbnailURL() == null) {
 			int id = researcher.getURI().toLowerCase().hashCode();
-			String loc = StringUtils.remove(researcher.getAffiliation().getName(), " ") + "/" + ("" + (100 + (Math.abs(id) % 100))).substring(1) + "/" + id + ".jpg";
+			String loc = researcher.getAffiliation().getURI().getHost() + "/" + ("" + (100 + (Math.abs(id) % 100))).substring(1) + "/" + id + ".jpg";
 			for (String imageURL : researcher.getImageURLs()) {
 				try {
 					File thumbnail = new File(thumbnailDir + "/" + loc );

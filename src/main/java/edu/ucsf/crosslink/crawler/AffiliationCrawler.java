@@ -87,7 +87,7 @@ public abstract class AffiliationCrawler extends Crawler {
 	public String getCounts() {
 		// found is dynamic
 		int remaining = getRemainingAuthorsSize();
-		return "(saved, skipped, avoided, error, remaining) = > (" + savedCnt + ", " + skippedCnt + ", " + getAvoided().size() + ", " + getErrors().size() + ", " + remaining + ")";
+		return super.getCounts() + ", Saved : " + savedCnt + ", Skipped : " + skippedCnt + ", Remaining : " +  remaining;
 	}
 
 	public String getDates() {
@@ -103,7 +103,8 @@ public abstract class AffiliationCrawler extends Crawler {
 		return affiliation;
 	}
 
-	private void clearCounts() {
+	@Override
+	protected void clear() {
 		super.clear();
 		savedCnt = 0;
 		skippedCnt = 0;
@@ -113,7 +114,7 @@ public abstract class AffiliationCrawler extends Crawler {
 		try {
 			if (Arrays.asList(Status.IDLE, Status.FINISHED, Status.ERROR).contains(getStatus())) {
 				// fresh start
-				clearCounts();
+				clear();
 				started = new Date();
 				gatherURLs();
 				recentlyProcessedAuthors = store.startCrawl(getAffiliation());

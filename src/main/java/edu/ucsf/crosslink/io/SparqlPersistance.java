@@ -54,22 +54,10 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 			@Named("daysConsideredOld") Integer daysConsideredOld) throws Exception {
 		this.sparqlClient = sparqlClient;
 		this.daysConsideredOld = daysConsideredOld;
+		// make sure we have the latest model
+		sparqlClient.add(R2ROntology.createR2ROntModel());
+		// by loading these now, we make sure that we do not collide with calls to upsertAffiliation
 		loadAffiliations();
-	}
-	
-	public void upsertAffiliation(Affiliation affiliation) throws Exception {
-		sparqlClient.startTransaction();
-		Model model = R2ROntology.createR2ROntModel();
-		model.add(sparqlClient.describe(affiliation.getBaseURL()));
-		Resource resource = model.createResource(affiliation.getBaseURL());
-		replace(model, resource, model.createProperty(RDFS_LABEL), model.createTypedLiteral(affiliation.getName()));
-		replace(model, resource, model.createProperty(RDF_TYPE), model.createResource(R2R_AFFILIATION));
-		replace(model, resource, model.createProperty(PRNS_LATITUDE), model.createTypedLiteral(affiliation.getLatitude()));
-		replace(model, resource, model.createProperty(PRNS_LONGITUDE),	model.createTypedLiteral(affiliation.getLongitude()));
-		// remove the old one first.  This will not affect any researchers
-		sparqlClient.deleteSubject(affiliation.getBaseURL());
-		sparqlClient.add(resource);		
-		sparqlClient.endTransaction();
 	}
 	
 	private void loadAffiliations() {
@@ -89,6 +77,21 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 		});		
 	}
 
+	public void upsertAffiliation(Affiliation affiliation) throws Exception {
+		sparqlClient.startTransaction();
+		Model model = R2ROntology.createR2ROntModel();
+		model.add(sparqlClient.describe(affiliation.getBaseURL()));
+		Resource resource = model.createResource(affiliation.getBaseURL());
+		replace(model, resource, model.createProperty(RDFS_LABEL), model.createTypedLiteral(affiliation.getName()));
+		replace(model, resource, model.createProperty(RDF_TYPE), model.createResource(R2R_AFFILIATION));
+		replace(model, resource, model.createProperty(PRNS_LATITUDE), model.createTypedLiteral(affiliation.getLatitude()));
+		replace(model, resource, model.createProperty(PRNS_LONGITUDE),	model.createTypedLiteral(affiliation.getLongitude()));
+		// remove the old one first.  This will not affect any researchers
+		sparqlClient.deleteSubject(affiliation.getBaseURL());
+		sparqlClient.add(resource);		
+		sparqlClient.endTransaction();
+	}
+	
 	public Affiliation findAffiliationFor(String uri) {
 		for (Affiliation affiliation : knownAffiliations) {
 			if (uri.toLowerCase().startsWith(affiliation.getBaseURL().toLowerCase())) {

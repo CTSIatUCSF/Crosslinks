@@ -123,7 +123,7 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 		}
 		else if (Status.FINISHED.equals(status) && isForced()) {
 			// don't leave in forced mode
-			mode = mode.ENABLED;
+			mode = Mode.ENABLED;
 		}
 		this.status = status;
 	}
@@ -153,7 +153,9 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 		return getName() + " : " + getState() + " " + getCounts() + ", " + getDates() + ", " + getDuration(); 
 	}
 		
-	public abstract String getCounts();
+	public String getCounts() {
+		return "Errors : " + getErrors().size() + ", Avoids : " + getAvoided().size();		
+	}
 
 	public String getDates() {
 		return "Started : " + started + ", Ended : " + ended;				

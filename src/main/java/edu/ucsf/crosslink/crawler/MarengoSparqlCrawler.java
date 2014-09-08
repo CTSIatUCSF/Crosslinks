@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink.crawler.sitereader;
+package edu.ucsf.crosslink.crawler;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -21,8 +21,8 @@ import com.hp.cache4guice.Cached;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 
-import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
+import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
@@ -32,9 +32,9 @@ import edu.ucsf.ctsi.r2r.R2RConstants;
 import net.sourceforge.sitemaps.UnknownFormatException;
 import net.sourceforge.sitemaps.http.ProtocolException;
 
-public class MarengoSparqlReader extends Crawler implements AuthorParser, R2RConstants {
+public class MarengoSparqlCrawler extends Crawler implements AuthorParser, R2RConstants {
 
-	private static final Logger LOG = Logger.getLogger(MarengoSparqlReader.class.getName());
+	private static final Logger LOG = Logger.getLogger(MarengoSparqlCrawler.class.getName());
 
 	private static final String RESEARCHERS_SELECT = "SELECT ?s ?o WHERE { " +
 			"?s <http://marengo.info-science.uiowa.edu:2020/resource/vocab/Person_URI> ?o } OFFSET %d LIMIT %d";	
@@ -71,12 +71,13 @@ public class MarengoSparqlReader extends Crawler implements AuthorParser, R2RCon
 	
 	// remove harvester as required item
 	@Inject
-	public MarengoSparqlReader(Affiliation harvester, SiteReader reader, CrosslinkPersistance store, Mode crawlingMode) {
+	public MarengoSparqlCrawler(Affiliation harvester, SiteReader reader, CrosslinkPersistance store, Mode crawlingMode) throws Exception {
 		super(crawlingMode);
 		this.harvester = harvester;
 		this.sparqlClient = new SparqlClient("http://marengo.info-science.uiowa.edu:2020/sparql");
 		this.reader = reader;
 		this.store = store;
+		this.store.upsertAffiliation(harvester);
 		executorService = Executors.newCachedThreadPool();
 	}
 	
@@ -90,13 +91,18 @@ public class MarengoSparqlReader extends Crawler implements AuthorParser, R2RCon
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
-					//String marengoURI = qs.getResource("?s").getURI();
+					String marengoURI = qs.getResource("?s").getURI();
 					String personURI = qs.getLiteral("?o").getString();
 					
 					try {
 						URI uri = new URI(personURI);
 						Researcher researcher = new Researcher(getAffiliationFor(uri), personURI);
 						researcher.setHarvester(getHarvester());
+						if (marengoURI.endsWith("Ext")) {
+							LOG.info("Avoiding " + marengoURI + " because it appears to be a stub profile page");
+							addAvoided(researcher);
+							continue;
+						}
 						if (!store.skip(researcher)) {
 							readAndSaveResearcher(researcher);
 							LOG.info("Added " + personURI);
@@ -225,6 +231,7 @@ public class MarengoSparqlReader extends Crawler implements AuthorParser, R2RCon
 			executorService.shutdown();
 			executorService.awaitTermination(10, TimeUnit.MINUTES);
 			offset = 0;
+			clear();
 			setStatus(Status.FINISHED);
 		}
 		catch (Exception e) {
@@ -244,7 +251,14 @@ public class MarengoSparqlReader extends Crawler implements AuthorParser, R2RCon
 		public void run() {
 			try {
 				if (readResearcher(researcher)) {
-					reader.getPageItems(researcher);
+					try {
+						reader.getPageItems(researcher);
+					}
+					catch (Exception e) {
+						setLatestError("Error reading page items for " + researcher + " " + e.getMessage());
+						addError(researcher);
+						LOG.log(Level.SEVERE, e.getMessage(), e);										
+					}
 					store.saveResearcher(researcher);
 					savedCnt++;
 					LOG.info("Saved " + researcher);
@@ -267,7 +281,7 @@ public class MarengoSparqlReader extends Crawler implements AuthorParser, R2RCon
 
 	@Override
 	public String getCounts() {
-		return "found, offset, limit, saved, queue " + found + ", " + offset + ", " + limit + ", " + savedCnt + ", " + queueSize;
+		return super.getCounts() + ", Found : " + found + ", Offset : " + offset + ", Limit : " + limit + ", Saved : " + savedCnt + ", Queue : " + queueSize;
 	}
 
 }

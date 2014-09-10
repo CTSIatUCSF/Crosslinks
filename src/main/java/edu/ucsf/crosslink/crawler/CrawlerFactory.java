@@ -15,7 +15,6 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
-import com.hp.cache4guice.adapters.ehcache.EhCacheModule;
 
 import edu.ucsf.crosslink.Crosslinks;
 

@@ -6,27 +6,30 @@
     <h2>Scheduled and running crawlers</h2>
     Administrator = <c:out value="${administrator}"/><p>
     <c:out value="${memoryStats}" escapeXml="false"/><p>
-	<c:forEach var="i" items="${crawlers}">
-	   <a href='./<c:out value="${i.name}"/>'><c:out value="${i.name}"/></a>&nbsp;
-		<c:if test="${not i.active and i.ok}">
-		   <c:out value="${i.state}"/>
+	<c:forEach var="crawler" items="${crawlers}">
+	   <a href='./<c:out value="${crawler.name}"/>'><c:out value="${crawler.name}"/></a>&nbsp;
+		<c:if test="${not crawler.active and crawler.ok}">
+		   <c:out value="${crawler.state}"/><p>
 		</c:if>
-		<c:if test="${i.active}">
-		   <span style="color:#008000"><c:out value="${i.state}"/></span>
+		<c:if test="${crawler.active}">
+		   <span style="color:#008000"><c:out value="${crawler.state}"/></span><p>
 		</c:if>
-		<c:if test="${not i.ok}">
-		   <span style="color:#ff0000"><c:out value="${i.state}"/></span><p>
-		   &nbsp;<span style="color:#ff0000"><c:out value="${i.latestError}"/></span>
+		<c:if test="${not crawler.ok}">
+		   <span style="color:#ff0000"><c:out value="${crawler.state}"/></span><p>
+		   &nbsp;<span style="color:#ff0000"><c:out value="${crawler.latestError}"/></span><p>
 		</c:if>
-		&nbsp;<c:out value="${i.counts}"/>&nbsp;<c:out value="${i.dates}"/><p>
- 	    <c:out value="${i.currentAuthor}"/><p>
- 	    <c:out value="${i.lastStartStatus}"/><p>
+		<c:out value="${crawler.counts}"/>&nbsp;<c:out value="${crawler.dates}"/><p>
+ 	    <c:out value="${crawler.rates}"/><p>
+		<c:if test="${not empty crawler.lastSavedAuthor}">
+	 	    Last Saved = <c:out value="${crawler.lastSavedAuthor}"/><p>
+		</c:if>
+ 	    <c:out value="${crawler.lastStartStatus}"/><p>
  	    <hr>
 	</c:forEach>
 
     <h2>Scheduling history</h2>
 	<c:forEach var="i" items="${metaHistory}">
- 	    <c:out value="${i}"/><p>
+ 	    <c:out value="${crawler}"/><p>
 	</c:forEach>
 </body>
 </html>

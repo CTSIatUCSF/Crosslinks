@@ -5,8 +5,6 @@ import java.util.Properties;
 import com.google.inject.AbstractModule;
 import com.google.inject.name.Names;
 
-import edu.ucsf.ctsi.r2r.jena.LODService;
-
 public class IOModule extends AbstractModule {
 
 	

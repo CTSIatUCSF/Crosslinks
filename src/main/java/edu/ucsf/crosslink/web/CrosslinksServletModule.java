@@ -6,11 +6,7 @@ import com.google.inject.name.Names;
 import com.sun.jersey.guice.JerseyServletModule;
 import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
 
-import edu.ucsf.crosslink.crawler.Crawler;
-import edu.ucsf.crosslink.crawler.parser.AuthorParser;
-import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
-import edu.ucsf.ctsi.r2r.jena.SparqlUpdateClient;
 
 public class CrosslinksServletModule extends JerseyServletModule {
 

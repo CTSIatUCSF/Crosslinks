@@ -39,7 +39,7 @@ public class ThumbnailGenerator {
 	public boolean generateThumbnail(Researcher researcher) {
 		if (researcher.getURI() != null && researcher.getImageURLs().size() > 0 && researcher.getThumbnailURL() == null) {
 			int id = researcher.getURI().toLowerCase().hashCode();
-			String loc = researcher.getAffiliation().getURI().getHost() + "/" + ("" + (100 + (Math.abs(id) % 100))).substring(1) + "/" + id + ".jpg";
+			String loc = researcher.getAffiliation().getURIObject().getHost() + "/" + ("" + (100 + (Math.abs(id) % 100))).substring(1) + "/" + id + ".jpg";
 			for (String imageURL : researcher.getImageURLs()) {
 				try {
 					File thumbnail = new File(thumbnailDir + "/" + loc );

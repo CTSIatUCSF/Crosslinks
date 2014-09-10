@@ -1,7 +1,7 @@
 package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.IOException;
-import java.util.Date;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -71,12 +71,16 @@ public class SiteReader implements R2RConstants {
     }
     
     // this should arguably be the source of the verifiedDT
-    public String getPageItems(Researcher researcher) throws IOException, InterruptedException {    	
+    public void getPageItems(Researcher researcher) throws IOException, InterruptedException {    	
     	Document doc = getDocument(researcher.getURI());
-		researcher.setVerifiedDt(new Date());
+		researcher.setVerifiedDt(Calendar.getInstance());
     	if (!doc.location().equalsIgnoreCase(researcher.getURI())) {
-    		researcher.setPrettyURL(doc.location());
+    		researcher.setHomepage(doc.location());
     	}
+		researcher.addImageURL(getImage(doc));
+    }
+    
+    private String getImage(Document doc) {
     	for (Element src : doc.select("[src]")) {
     		if (!src.tagName().equals("img")) {
     			continue;

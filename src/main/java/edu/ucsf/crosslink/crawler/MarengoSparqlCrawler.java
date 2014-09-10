@@ -5,7 +5,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -14,9 +14,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.StopWatch;
+import org.joda.time.Period;
+import org.joda.time.format.PeriodFormat;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import com.hp.cache4guice.Cached;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
@@ -47,8 +50,7 @@ public class MarengoSparqlCrawler extends Crawler implements AuthorParser, R2RCo
 
 	private static final String RESEARCHER_PUBLICATIONS = "SELECT ?lir WHERE { " +
 			"?aia <http://vivoweb.org/ontology/core#linkedAuthor> <%s> . " +
-			"?aia <" + VIVO + "linkedInformationResource> ?lir  . OPTIONAL { " +
-			"}}";	
+			"?aia <" + VIVO + "linkedInformationResource> ?lir }";	
 
 	private static final String LIR_DETAIL = "SELECT ?pmid WHERE { " +
 			"<%s> <" + BIBO_PMID + "> ?pmid}";
@@ -61,24 +63,32 @@ public class MarengoSparqlCrawler extends Crawler implements AuthorParser, R2RCo
 	private Affiliation harvester;
 	private SiteReader reader;
 	private CrosslinkPersistance store;
-	private ExecutorService executorService;
+
+	private ExecutorService readResearcherExecutiveService;
+	private ExecutorService pageItemExecutiveService;	
 	
-	private int savedCnt = 0;
-	private int queueSize = 0;
-	private int found = 0;
+	private long readListTime = 0;
+	private long readResearcherTime = 0;
+	private long pageItemsTime = 0;
+	
+	private int readQueueSize = 0;
+	private int pageItemQueueSize = 0;
 	private int offset = 0;
 	private int limit = LIMIT;
 	
 	// remove harvester as required item
 	@Inject
-	public MarengoSparqlCrawler(Affiliation harvester, SiteReader reader, CrosslinkPersistance store, Mode crawlingMode) throws Exception {
-		super(crawlingMode);
+	public MarengoSparqlCrawler(Affiliation harvester, SiteReader reader, 
+			CrosslinkPersistance store, Mode crawlingMode, 
+			@Named("sparqlDetailThreadCount") Integer sparqlDetailThreadCount, @Named("pageItemThreadCount") Integer pageItemThreadCount) throws Exception {
+		super(crawlingMode, harvester, store);
 		this.harvester = harvester;
 		this.sparqlClient = new SparqlClient("http://marengo.info-science.uiowa.edu:2020/sparql");
 		this.reader = reader;
 		this.store = store;
-		this.store.upsertAffiliation(harvester);
-		executorService = Executors.newCachedThreadPool();
+
+		readResearcherExecutiveService = sparqlDetailThreadCount > 0 ? Executors.newFixedThreadPool(sparqlDetailThreadCount) : Executors.newCachedThreadPool();
+		pageItemExecutiveService = pageItemThreadCount > 0 ? Executors.newFixedThreadPool(pageItemThreadCount) : Executors.newCachedThreadPool();
 	}
 	
 	public Affiliation getHarvester() {
@@ -87,9 +97,11 @@ public class MarengoSparqlCrawler extends Crawler implements AuthorParser, R2RCo
 	
 	private int collectResearcherURLs() throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException {		
 		final List<Researcher> added = new ArrayList<Researcher>();
+		StopWatch sw = new StopWatch();
+		sw.start();
 		sparqlClient.select(String.format(RESEARCHERS_SELECT, offset, limit), new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
-				while (rs.hasNext()) {				
+				while (rs.hasNext() && !isPaused()) {				
 					QuerySolution qs = rs.next();
 					String marengoURI = qs.getResource("?s").getURI();
 					String personURI = qs.getLiteral("?o").getString();
@@ -105,53 +117,60 @@ public class MarengoSparqlCrawler extends Crawler implements AuthorParser, R2RCo
 						}
 						if (!store.skip(researcher)) {
 							readAndSaveResearcher(researcher);
-							LOG.info("Added " + personURI);
 						}
 						else {
-							LOG.info("Skipping " + researcher);
+							addSkip(researcher);
 						}
-						setCurrentAuthor(researcher);
+						setLastFoundAuthor(researcher);
 						added.add(researcher);
 					}
 					catch (Exception e) {
-						setLatestError("Error collecting " + personURI + " " + e.getMessage());
+						setLatestError("Error collecting " + personURI + " " + e.getMessage(), e);
 						LOG.log(Level.WARNING, "Error collecting " + personURI, e);
 					}
-				}								
+				}	
 			}
 		});
+		sw.stop();
+		readListTime += sw.getTime();
 		// if we are still finding researchers, then return true so we can some back for more
 		return added.size();
     }
+	
+	private static String getOptionalLiteral(QuerySolution qs, String field) {
+		return qs.getLiteral(field) != null ? qs.getLiteral(field).getString() : null;		
+	}
 
 	public boolean readResearcher(final Researcher researcher) throws Exception {
+		if (isPaused()) {
+			return false;
+		}
+
 		sparqlClient.select(String.format(RESEARCHER_DETAIL, MARENGO_PREFIX + researcher.getURI()), new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
-				while (rs.hasNext()) {				
+				if (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
 					String label = qs.getLiteral("?l").getString();
-					String firstName = qs.getLiteral("?fn").getString();
-					String lastName = qs.getLiteral("?ln").getString();
-					String orcidId = qs.getLiteral("?orcid").getString();
+					String firstName = getOptionalLiteral(qs, "?fn");
+					String lastName = getOptionalLiteral(qs, "?ln");
+					String orcidId = getOptionalLiteral(qs, "?orcid");
+
 					researcher.setLabel(label);
-					if (StringUtils.isNotBlank(firstName)) {
-						researcher.setLiteral(FOAF + "firstName", firstName);
-					}
-					if (StringUtils.isNotBlank(firstName)) {
-						researcher.setLiteral(FOAF + "lastName", lastName);
-					}
-					if (StringUtils.isNotBlank(orcidId)) {
-						researcher.setOrcidId(orcidId);
-					}
+					researcher.setFOAFName(firstName, lastName);
+					researcher.setOrcidId(orcidId);
 					LOG.info("Read " + label + " : " + firstName + " : " + lastName);
 				}								
 			}
 		});
+		
+		if (isPaused()) {
+			return false;
+		}
 
 		final List<String> lirs = new ArrayList<String>();
 		sparqlClient.select(String.format(RESEARCHER_PUBLICATIONS, MARENGO_PREFIX + researcher.getURI()), new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
-				while (rs.hasNext()) {				
+				while (rs.hasNext() && !isPaused()) {				
 					QuerySolution qs = rs.next();
 					String lir = qs.getResource("?lir").getURI();
 					lirs.add( lir );
@@ -160,13 +179,17 @@ public class MarengoSparqlCrawler extends Crawler implements AuthorParser, R2RCo
 			}
 		});
 
+		if (isPaused()) {
+			return false;
+		}
+
 		for (String lir : lirs) {
 			Integer pmid = getPMID(lir);
 			if (pmid != null) {
 				researcher.addPubMedPublication(pmid);
 			}
 		}		
-		researcher.setWorkVerifiedDt(new Date());
+		researcher.setWorkVerifiedDt(Calendar.getInstance());
 		return true;
 	}
 	
@@ -187,8 +210,8 @@ public class MarengoSparqlCrawler extends Crawler implements AuthorParser, R2RCo
 	}
 	
 	private void readAndSaveResearcher(Researcher researcher) {
-		executorService.submit(new ReadAndSaveResearcher(researcher));
-		queueSize++;
+		readQueueSize++;
+		readResearcherExecutiveService.submit(new ReadResearcherAndPublications(researcher));
 	}
 	
 	private Affiliation getAffiliationFor(URI uri) throws Exception {
@@ -200,77 +223,97 @@ public class MarengoSparqlCrawler extends Crawler implements AuthorParser, R2RCo
 	public Affiliation getAffiliation(String scheme, String host) throws Exception {
 		Affiliation affiliation = new Affiliation(host, scheme + "://" + host, "0,0");
 		// this really needs to look for an existing one first, but for now this is OK
-		store.upsertAffiliation(affiliation);
-		LOG.info("Upserted " + affiliation);
+		store.save(affiliation);
+		LOG.info("Saved " + affiliation);
 		return affiliation;
 	}
 	
-	public void crawl() {
+	public boolean crawl() throws InterruptedException, UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException {
 		if (Mode.FORCED_NO_SKIP.equals(getMode())) {
 			offset = 0;
 		}
-		setStatus(Status.RUNNING);
-		try {
-			do {
-				LOG.info(getCounts());
-				if (queueSize > limit) {
-					Thread.sleep(10000);
-				}
-				else {
-					int newlyFound = collectResearcherURLs();
-					if (newlyFound > 0) {
-						found += newlyFound;
-					}
-					else {
-						setStatus(Status.SHUTTING_DOWN);
-					}
-					offset += limit;
-				}
+
+		int newlyFound = 0;
+		do {
+			LOG.info(getCounts());
+			LOG.info(getRates());
+			if (readQueueSize > limit || pageItemQueueSize > limit) {
+				Thread.sleep(10000);
 			}
-			while(Status.RUNNING.equals(getStatus()));
-			executorService.shutdown();
-			executorService.awaitTermination(10, TimeUnit.MINUTES);
-			offset = 0;
-			clear();
-			setStatus(Status.FINISHED);
+			else {
+				newlyFound = collectResearcherURLs();
+				offset += limit;
+			}
 		}
-		catch (Exception e) {
-			setStatus(Status.PAUSED);
-			setLatestError("Error while running " + e.getMessage());
-			LOG.log(Level.SEVERE, e.getMessage(), e);
-		}
+		while (newlyFound > 0 && !isPaused());
+		
+		readResearcherExecutiveService.shutdown();
+		readResearcherExecutiveService.awaitTermination(10, TimeUnit.MINUTES);
+		pageItemExecutiveService.shutdown();
+		pageItemExecutiveService.awaitTermination(10, TimeUnit.MINUTES);
+		offset = 0;
+		return false;
 	}
 	
-	private class ReadAndSaveResearcher implements Runnable {
+	private class ReadResearcherAndPublications implements Runnable {
 		private Researcher researcher = null;
 		
-		private ReadAndSaveResearcher(Researcher researcher) {
+		private ReadResearcherAndPublications(Researcher researcher) {
+			this.researcher = researcher;
+		}
+		
+		public void run() {
+			StopWatch rrsw = new StopWatch();
+			rrsw.start();
+			try {
+				if (readResearcher(researcher)) {
+					setLastReadAuthor(researcher);
+					pageItemQueueSize++;
+					pageItemExecutiveService.submit(new ReadPageItemsAndSave(researcher));
+				}
+			}
+			catch (Exception e) {
+				setLatestError("Error reading details for " + researcher + " " + e.getMessage(), e);
+				addError(researcher);
+			}
+			finally {
+				readQueueSize--;
+				rrsw.stop();
+				readResearcherTime += rrsw.getTime();						
+			}
+		}
+	}
+
+	private class ReadPageItemsAndSave implements Runnable {
+		private Researcher researcher = null;
+		
+		private ReadPageItemsAndSave(Researcher researcher) {
 			this.researcher = researcher;
 		}
 		
 		public void run() {
 			try {
-				if (readResearcher(researcher)) {
-					try {
-						reader.getPageItems(researcher);
-					}
-					catch (Exception e) {
-						setLatestError("Error reading page items for " + researcher + " " + e.getMessage());
-						addError(researcher);
-						LOG.log(Level.SEVERE, e.getMessage(), e);										
-					}
-					store.saveResearcher(researcher);
-					savedCnt++;
-					LOG.info("Saved " + researcher);
+				StopWatch pisw = new StopWatch();
+				pisw.start();
+				try {
+					reader.getPageItems(researcher);
 				}
+				catch (Exception e) {
+					setLatestError("Error reading page items for " + researcher + " " + e.getMessage(), e);
+					addError(researcher);
+				}
+				finally {
+					pisw.stop();
+					pageItemsTime += pisw.getTime();						
+				}
+				save(researcher);
 			}
 			catch (Exception e) {
-				setLatestError("Error with " + researcher + " " + e.getMessage());
+				setLatestError("Error with " + researcher + " " + e.getMessage(), e);
 				addError(researcher);
-				LOG.log(Level.SEVERE, e.getMessage(), e);				
 			}
 			finally {
-				queueSize--;
+				pageItemQueueSize--;
 			}
 		}
 	}
@@ -281,7 +324,15 @@ public class MarengoSparqlCrawler extends Crawler implements AuthorParser, R2RCo
 
 	@Override
 	public String getCounts() {
-		return super.getCounts() + ", Found : " + found + ", Offset : " + offset + ", Limit : " + limit + ", Saved : " + savedCnt + ", Queue : " + queueSize;
+		return super.getCounts() + ", ReadQueue " + readQueueSize + ", PageItemQueue " + pageItemQueueSize + ", Limit = " + limit;
 	}
-
+	
+	@Override
+	public String getRates() {
+		int saved = Math.max(1, getSavedCnt());
+		return super.getRates() + 
+				", Query/person : " + PeriodFormat.getDefault().print(new Period(readListTime/saved)) +
+				", Read/person : " + PeriodFormat.getDefault().print(new Period(readResearcherTime/saved)) + 
+				", PageItems/person : " +  PeriodFormat.getDefault().print(new Period(pageItemsTime/saved));
+	}
 }

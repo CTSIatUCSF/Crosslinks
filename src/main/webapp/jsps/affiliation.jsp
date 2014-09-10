@@ -3,7 +3,7 @@
 <html>
 <body>
 	<a href=".">Home</a><p>	
-	<a href = '<c:out value="${affiliation.baseURL}"/>'><c:out value="${affiliation.name}"/> Research Networking Site</a><p>						
+	<a href = '<c:out value="${affiliation.URI}"/>'><c:out value="${affiliation.name}"/> Research Networking Site</a><p>						
 	<a href = '<c:out value="${affiliation.name}"/>/researchers'>Indexed researchers from <c:out value="${affiliation.name}"/></a>&nbsp;
 		<c:out value="${affiliation.researcherCount}"/> researchers indexed<p>
 	<p>Links to help us clean up our data.<p>				

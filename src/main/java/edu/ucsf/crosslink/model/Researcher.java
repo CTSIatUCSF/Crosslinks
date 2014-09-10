@@ -3,8 +3,8 @@ package edu.ucsf.crosslink.model;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.logging.Level;
@@ -15,49 +15,36 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.NodeIterator;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.ctsi.r2r.R2RConstants;
-import edu.ucsf.ctsi.r2r.R2ROntology;
 
-
-public class Researcher implements Comparable<Researcher>, R2RConstants {
+public class Researcher extends R2RResourceObject implements Comparable<Researcher>, R2RConstants {
 	private static final Logger LOG = Logger.getLogger(Researcher.class.getName());
 	
 	private Affiliation harvester;
 	private Affiliation affiliation;
-	private String label;
-	private String prettyURL;
-	private String URI;
 	private List<String> imageURLs = new ArrayList<String>(); // we allow for grabbing more than one and then test to see if any are valid when saving
-	private String thumbnailURL;
-	private String orcidId;
 	private int readErrorCount = 0;
-	private Collection<Integer> pmids= new HashSet<Integer>();
-	
-	private Resource resource;
 	
 	// display data
 	private int externalCoauthorCount;
 	private int sharedPublicationCount;	
 
-	private Researcher(String uri) {
-		this.URI = uri;
-		Model model = R2ROntology.createDefaultModel();
-		//Model model = R2ROntology.createR2ROntModel();
-		resource = model.createResource(uri);		
+	private Researcher(String uri) throws URISyntaxException {
+		super(uri, FOAF_PERSON);
 	}
 
-	public Researcher(Affiliation affiliation, String uri) {
+	public Researcher(Affiliation affiliation, String uri) throws URISyntaxException {
 		this(uri);
     	this.setAffiliation(affiliation);
 	}
 
-	public Researcher(Affiliation affiliation, String uri, String label) {
+	public Researcher(Affiliation affiliation, String uri, String label) throws URISyntaxException {
 		this(affiliation, uri);
 		this.setLabel(label);
 	}
@@ -65,26 +52,18 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 	// for loading from the DB
 	public Researcher(Affiliation affiliation,
 			String prettyURL, String uri, String label, String imageURL, String thumbnailURL, 
-			String orcidId, int externalCoauthorCount, int sharedPublicationCount) {
+			String orcidId, int externalCoauthorCount, int sharedPublicationCount) throws URISyntaxException {
 		this(affiliation, uri, label);
-		this.setPrettyURL(prettyURL);
-		this.addImageURL(imageURL);
+		this.setHomepage(prettyURL);
+		this.setConfirmedImgURLs(imageURL, thumbnailURL);
 		this.setOrcidId(orcidId);
-    	this.thumbnailURL = thumbnailURL;
     	this.externalCoauthorCount = externalCoauthorCount;
     	this.sharedPublicationCount = sharedPublicationCount;
     }
     
-    public String getLabel() {
-		return label;
-	}
-	
-    public void setLabel(String label) {
-		this.label = label;
-	}
-	
-	public String getURI() {
-		return URI;
+	public void setFOAFName(String firstName, String lastName) {
+		setLiteral(FOAF_FIRST_NAME, firstName);
+		setLiteral(FOAF_LAST_NAME, lastName);
 	}
 	
 	public Affiliation getHarvester() {
@@ -93,6 +72,7 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 	
 	public void setHarvester(Affiliation harvester) {
 		this.harvester = harvester;
+		setResource(R2R_HARVESTED_FROM, harvester);
 	}
 	
 	public Affiliation getAffiliation() {
@@ -100,15 +80,16 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 	}
 	
 	private void setAffiliation(Affiliation affiliation) {
+		setResource(R2R_HAS_AFFILIATION, harvester);
 		this.affiliation = affiliation;
 	}
 	
-	public String getPrettyURL() {
-		return prettyURL;
+	public String getHomepage() {
+		return getResourceURI(FOAF_HOMEPAGE);
 	}
 	
-	public void setPrettyURL(String prettyURL) {
-		this.prettyURL = prettyURL;
+	public void setHomepage(String prettyURL) {
+		setResource(FOAF_HOMEPAGE, prettyURL);
 	}
 	
 	// ugly but it works
@@ -117,11 +98,26 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 		if (imageURL != null) {
 			this.imageURLs.add(imageURL);
 		}
-		this.thumbnailURL = thumbnailURL;
+		Model model = getModel();
+		Property propType = model.createProperty(RDF_TYPE);
+		Resource foafImage = model.createResource(FOAF_IMAGE);
+		Resource imageResource = setResource(FOAF_HAS_IMAGE, imageURL);
+		imageResource.addProperty(propType, foafImage);
+		if (thumbnailURL != null) {
+			Resource thumbnailResource = model.createResource(thumbnailURL);
+			thumbnailResource.addProperty(propType, foafImage);
+			imageResource.addProperty(model.createProperty(FOAF_THUMBNAIL), thumbnailResource);
+		}
 	}
 	
 	public String getThumbnailURL() {
-		return thumbnailURL; 
+		Model model = getModel();
+		// should be the only one here
+		NodeIterator ni = model.listObjectsOfProperty(model.createProperty(FOAF_THUMBNAIL));
+		if (ni.hasNext()) {
+			return ni.next().asResource().getURI();
+		}
+		return null;
 	}
 	
 	public String getImageURL() {
@@ -140,19 +136,26 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 	}
 
 	public String getOrcidId() {
-		return orcidId;
+		return getStringLiteral(VIVO_ORCID_ID);
 	}
 	
 	public void setOrcidId(String orcidId) {
-		this.orcidId = StringUtils.isEmpty(orcidId) ? null : orcidId;
+		setLiteral(VIVO_ORCID_ID, orcidId);
 	}
 
-	public Collection<Integer> getPubMedPublications() {
+	public Collection<Long> getPubMedPublications() {
+		Collection<Long> pmids= new HashSet<Long>();
+		StmtIterator si = getResource().listProperties(getModel().createProperty(R2R_CONTRIBUTED_TO));
+		while (si.hasNext()) {
+			pmids.add(si.next().getLong());
+		}
 		return pmids;
 	}
 	
-	public void addPubMedPublication(int pmid) {
-		pmids.add(pmid);
+	public void addPubMedPublication(long pmid) {
+		Model model = getModel();
+		// Associate to Researcher
+		model.add(getResource(), model.createProperty(R2R_CONTRIBUTED_TO), model.createResource("http:" + AuthorParser.PUBMED_SECTION + pmid));    			
 	}
 	
 	// can handle it in URL form, or just the pmid
@@ -198,8 +201,8 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 	}
 	
 	public String toString() {
-		return URI + (label != null ? " : " + label : "") +
-					" : " + pmids.size() + " publications";
+		return getURI() + (getLabel() != null ? " : " + getLabel() : "") +
+					" : " + getPubMedPublications().size() + " publications";
 	}
 
 	public int compareTo(Researcher arg0) {
@@ -207,14 +210,10 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 			return Integer.compare(this.readErrorCount, arg0.readErrorCount);
 		}
 		else {
-			String thisStr = (label != null ? label.trim() : " ") + URI;
-			String oStr = (arg0.label != null ? arg0.label.trim() : " ") + arg0.URI;
+			String thisStr = (getLabel() != null ? getLabel().trim() : " ") + getURI();
+			String oStr = (arg0.getLabel() != null ? arg0.getLabel().trim() : " ") + arg0.getURI();
 			return thisStr.compareTo(oStr);
 		}
-	}
-	
-	public String getName() {
-		return label;
 	}
 	
 	public int getExternalCoauthorCount() {
@@ -225,79 +224,36 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 		return sharedPublicationCount;
 	}    
 	
-	public Resource getResource() throws Exception {
-		Model model = resource.getModel();
-		
-    	// person, safe to add this many times
-        model.add(resource, 
-        		model.createProperty(RDF_TYPE), 
-        		model.createLiteral(FOAF_PERSON));
-
-        setLiteral(RDFS_LABEL, getLabel());
-		setResource(R2R_HARVESTED_FROM, getHarvester().getBaseURL());
-		setResource(R2R_HAS_AFFILIATION, getAffiliation().getBaseURL());
-        setLiteral(R2R_PRETTY_URL, getPrettyURL());
-        setLiteral(PRNS_MAIN_IMAGE, getImageURL());
-        setLiteral(R2R_THUMBNAIL, getThumbnailURL());
-
-    	// publications
-    	Property pubsProperty = model.createProperty(R2R_CONTRIBUTED_TO);
-		model.removeAll(resource, pubsProperty, null);
-    	if (!getPubMedPublications().isEmpty()) {
-    		for (Integer pmid : getPubMedPublications()) {
-                Resource pmidResource = model.createResource("http:" + AuthorParser.PUBMED_SECTION + pmid);
-        		// Associate to Researcher
-        		model.add(resource, pubsProperty, pmidResource);    			
-    		}
-    	}    	
-		return resource;
+	public Calendar getWorkVerifiedDt() {
+		return getDateTimeLiteral(R2R_WORK_VERIFIED_DT);
 	}
 
-	public Date getWorkVerifiedDt() {
-		Statement stmnt = getStatement(R2R_WORK_VERIFIED_DT);
-		if (stmnt != null) {
-			new Date(stmnt.getLong());
-		}
-		return null;
+	public void setWorkVerifiedDt(Calendar workVerifiedOn) {
+		setLiteral(R2R_WORK_VERIFIED_DT, workVerifiedOn);
 	}
 
-	public void setWorkVerifiedDt(Date workVerifiedOn) {
-		setLiteral(R2R_WORK_VERIFIED_DT, workVerifiedOn != null ? String.valueOf(workVerifiedOn.getTime()) : null);
+	public Calendar getVerifiedDt() {
+		return getDateTimeLiteral(R2R_VERIFIED_DT);
 	}
 
-	public Date getVerifiedDt() {
-		Statement stmnt = getStatement(R2R_VERIFIED_DT);
-		if (stmnt != null) {
-			new Date(stmnt.getLong());
-		}
-		return null;
-	}
-
-	public void setVerifiedDt(Date verifiedOn) {
-		setLiteral(R2R_VERIFIED_DT, verifiedOn != null ? String.valueOf(verifiedOn.getTime()) : null);
+	public void setVerifiedDt(Calendar verifiedOn) {
+		setLiteral(R2R_VERIFIED_DT, verifiedOn);
 	}
 	
-	private Statement getStatement(String predicate) {
-		return resource.getProperty(resource.getModel().createProperty(predicate));
-	}
-
-	public void setLiteral(String predicate, String literal) {		
-		Model model = resource.getModel();
-		Property property = model.createProperty(predicate);
-		model.removeAll(resource, property, null);
-		if (literal != null) {
-	        model.add(resource, model.createProperty(predicate), model.createTypedLiteral(literal));
+	@Override
+	public List<Resource> getResources() {
+		List<Resource> resources = new ArrayList<Resource>();
+		resources.add(getResource());
+		Property hasImage = getModel().createProperty(FOAF_HAS_IMAGE);
+		if (getResource().hasProperty(hasImage)) {
+			Resource image = getResource().getPropertyResourceValue(hasImage);
+			resources.add(image);
+			Property hasThumbnail = getModel().createProperty(FOAF_THUMBNAIL);
+			if (image.hasProperty(hasThumbnail)) {
+				resources.add(image.getPropertyResourceValue(hasThumbnail));
+			}
 		}
-	}
-	
-	private void setResource(String predicate, String objectURI) {		
-		Model model = resource.getModel();
-		Property property = model.createProperty(predicate);
-		model.removeAll(resource, property, null);
-		Resource objectResource = model.createResource(objectURI);
-    	model.add(resource,
-    			model.createProperty(R2R_HAS_AFFILIATION), 
-    			objectResource);
+		return resources;
 	}
 
 	public static void main(String[] args) {
@@ -310,9 +266,9 @@ public class Researcher implements Comparable<Researcher>, R2RConstants {
 			foo.setLiteral(FOAF + "firstName", "Eric");
 			foo.setLiteral(FOAF + "lastName", "Meeks");
 			foo.setLiteral(FOAF + "firstName", "Joe");
-			foo.setLiteral(R2R_PRETTY_URL, "http://test.one");
-			foo.setLiteral(R2R_PRETTY_URL, "http://test.two");
-			foo.setLiteral(R2R_PRETTY_URL, "http://test.one");
+			foo.setLiteral(FOAF_HOMEPAGE, "http://test.one");
+			foo.setLiteral(FOAF_HOMEPAGE, "http://test.two");
+			foo.setLiteral(FOAF_HOMEPAGE, "http://test.one");
 			// force this, add to constructor or such
 			foo.setLabel("Eric Meeks");
 			StmtIterator si = foo.getResource().listProperties();

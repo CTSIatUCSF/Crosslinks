@@ -48,32 +48,32 @@ public class FusekiRestMethods implements R2RConstants {
 	
 	private static final String ALL_AFFILIATIONS_SPARQL = "SELECT ?l ?a ?lat ?lon (count(?r) as ?rc) WHERE { ?a <" +
 			RDF_TYPE + "> <" + R2R_AFFILIATION + "> . ?a <" + RDFS_LABEL +  "> ?l . ?a <" + 
-			PRNS_LATITUDE + "> ?lat . ?a <" + PRNS_LONGITUDE + "> ?lon. ?r <" +
+			GEO_LATITUDE + "> ?lat . ?a <" + GEO_LONGITUDE + "> ?lon. ?r <" +
 			R2R_HAS_AFFILIATION + "> ?a} GROUP BY ?l ?a ?lat ?lon";
 
 	private static final String AFFILIATION_SPARQL = "SELECT ?a ?lat ?lon (count(?r) as ?rc) WHERE { ?a <" +
 			RDF_TYPE + "> <" + R2R_AFFILIATION + "> . ?a <" + RDFS_LABEL +  "> ?l . FILTER (?l = \"%s\") . ?a <" + 
-			PRNS_LATITUDE + "> ?lat . ?a <" + PRNS_LONGITUDE + "> ?lon . ?r <" +
-			R2R_HAS_AFFILIATION + "> ?a} GROUP BY ?a ?lat ?lon";
+			GEO_LATITUDE + "> ?lat . ?a <" + GEO_LONGITUDE + "> ?lon . OPTIONAL {?r <" +
+			R2R_HAS_AFFILIATION + "> ?a}} GROUP BY ?a ?lat ?lon";
 	
 	private static final String RESEARCHERS_SPARQL = "SELECT ?hp ?r ?l ?i ?t ?o (count(distinct ?er) as ?erc) (count(distinct ?cw) as ?cwc) WHERE {?r <" + 
-			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + R2R_PRETTY_URL + "> ?hp .?r <" + RDFS_LABEL + "> ?l . OPTIONAL {?r <" +
-			PRNS_MAIN_IMAGE + "> ?i} . OPTIONAL {?r <" + R2R_THUMBNAIL + "> ?t} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?o} . OPTIONAL {?r <" + 
+			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + FOAF_HOMEPAGE + "> ?hp .?r <" + RDFS_LABEL + "> ?l . OPTIONAL {?r <" +
+			FOAF_HAS_IMAGE + "> ?i} . OPTIONAL {?i <" + FOAF_THUMBNAIL + "> ?t} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?o} . OPTIONAL {?r <" + 
 			R2R_CONTRIBUTED_TO + "> ?cw  . ?er <" + R2R_CONTRIBUTED_TO + "> ?cw  . ?er <" + R2R_HAS_AFFILIATION + 
 			"> ?ea FILTER (?ea != <%1$s>)}} GROUP BY ?hp ?r ?l ?i ?t ?o";
 	
 	private static final String COAUTHORS_WHERE = "WHERE {<%1$s> <" + R2R_HAS_AFFILIATION + "> ?a . <%1$s> <" +
 			R2R_CONTRIBUTED_TO + "> ?cw  . ?r <" + R2R_CONTRIBUTED_TO + "> ?cw  . ?r <" + RDFS_LABEL + "> ?rl . OPTIONAL {?r <" +
-			PRNS_MAIN_IMAGE + "> ?mi} . OPTIONAL {?r <" + R2R_THUMBNAIL + "> ?tn} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?oi} . ?r <" +
-			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + RDFS_LABEL + "> ?al . ?ea <" + PRNS_LATITUDE + 
-			"> ?ealat . ?ea <" + PRNS_LONGITUDE + "> ?ealon}";
+			FOAF_HAS_IMAGE + "> ?mi} . OPTIONAL {?mi <" + FOAF_THUMBNAIL + "> ?tn} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?oi} . ?r <" +
+			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + 
+			"> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
 			
 	private static final String COAUTHORS_SELECT = "SELECT (?r as ?researcherURI) (?rl as ?researcherLabel) (?cw as ?contributedWork) (?mi as ?mainImage) (?tn as ?thumbnail) (?oi as ?orchidId) (?ea as ?researchNetworkingSite) (?al as ?affiliation)" + COAUTHORS_WHERE;
 	
 	private static final String COAUTHORS_CONSTRUCT = "CONSTRUCT {?r <" + R2R_CONTRIBUTED_TO + "> ?cw . ?r <" +
-			RDFS_LABEL + "> ?rl . ?r <" + PRNS_MAIN_IMAGE + "> ?mi . ?r <" + R2R_THUMBNAIL + "> ?tn. ?r <" + VIVO_ORCID_ID + "> ?oi . ?r  <" +
-			R2R_HAS_AFFILIATION + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . ?ea <" + PRNS_LATITUDE + 
-			"> ?ealat . ?ea <" + PRNS_LONGITUDE + "> ?ealon} " + COAUTHORS_WHERE;
+			RDFS_LABEL + "> ?rl . ?r <" + FOAF_HAS_IMAGE + "> ?mi . mi <" + FOAF_THUMBNAIL + "> ?tn. ?r <" + VIVO_ORCID_ID + "> ?oi . ?r  <" +
+			R2R_HAS_AFFILIATION + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + 
+			"> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon} " + COAUTHORS_WHERE;
 
 	private CrawlerFactory factory;
 	private SparqlUpdateClient sparqlClient;
@@ -110,10 +110,15 @@ public class FusekiRestMethods implements R2RConstants {
 	@GET
 	@Path("{affiliation}/status")
 	public Viewable statusDetail(@PathParam("affiliation") String affiliation, @Context HttpServletRequest request,
-			@Context HttpServletResponse response, @QueryParam("mode") String mode) throws Exception {
+			@Context HttpServletResponse response, @QueryParam("mode") String mode, @QueryParam("status") String status) throws Exception {
 		Crawler crawler = factory.getCrawler(affiliation);
-		if (CrosslinksServletFilter.isAdministrator(request) && mode != null) {
-			crawler.setMode(mode);
+		if (CrosslinksServletFilter.isAdministrator(request)) {
+			if ("PAUSED".equalsIgnoreCase(status)) {
+				crawler.pause();
+			}
+			if (mode != null) {
+				crawler.setMode(mode);
+			}
 		}
 		request.setAttribute("crawler", crawler);
 		return new Viewable("/jsps/statusDetail.jsp", null);
@@ -239,20 +244,25 @@ public class FusekiRestMethods implements R2RConstants {
     }
     
     public List<Researcher> getResearchers(final Affiliation affiliation) {
-		String sparql = String.format(RESEARCHERS_SPARQL, affiliation.getBaseURL()); 
+		String sparql = String.format(RESEARCHERS_SPARQL, affiliation.getURI()); 
     	final List<Researcher> researchers = new ArrayList<Researcher>();
     	sparqlClient.select(sparql, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
-					researchers.add(new Researcher(affiliation, qs.getLiteral("?hp").getString(),
-												   qs.getResource("?r").getURI(), 
-												   qs.getLiteral("?l").getString(),
-												   qs.get("?i") != null ? (qs.get("?i").isLiteral() ? qs.getLiteral("?i").getString() : qs.getResource("?i").getURI()): null,
-												   qs.get("?t") != null ? qs.getLiteral("?t").getString() : null,
-												   qs.get("?o") != null ? qs.getLiteral("?o").getString() : null,
-												   qs.getLiteral("?erc").getInt(),
-												   qs.getLiteral("?cwc").getInt()));
+					try {
+						researchers.add(new Researcher(affiliation, qs.getLiteral("?hp").getString(),
+													   qs.getResource("?r").getURI(), 
+													   qs.getLiteral("?l").getString(),
+													   qs.get("?i") != null ? (qs.get("?i").isLiteral() ? qs.getLiteral("?i").getString() : qs.getResource("?i").getURI()): null,
+													   qs.get("?t") != null ? qs.getLiteral("?t").getString() : null,
+													   qs.get("?o") != null ? qs.getLiteral("?o").getString() : null,
+													   qs.getLiteral("?erc").getInt(),
+													   qs.getLiteral("?cwc").getInt()));
+					} 
+					catch (URISyntaxException e) {
+						LOG.log(Level.WARNING, e.getMessage(), e);
+					}
 				}								
 			}
 		});

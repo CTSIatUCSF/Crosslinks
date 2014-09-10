@@ -36,13 +36,9 @@ public abstract class AffiliationCrawler extends Crawler {
 
 	private static final Logger LOG = Logger.getLogger(AffiliationCrawler.class.getName());
 
-	private int savedCnt = 0;
-	private int skippedCnt = 0;
 	private List<Researcher> researchers = new ArrayList<Researcher>();
 	private List<Researcher> removeList = new ArrayList<Researcher>();	
 	private Map<String, Long> recentlyProcessedAuthors = new HashMap<String, Long>();
-	private Date started;
-	private Date ended;
 
 	private Affiliation affiliation;
 	private SiteReader reader;
@@ -57,27 +53,26 @@ public abstract class AffiliationCrawler extends Crawler {
 		System.out.println("Pass in the name of the properties file");
 	}	
 
-	public AffiliationCrawler(Affiliation affiliation, Mode crawlingMode) {
-		super(crawlingMode);
+	public AffiliationCrawler(Affiliation affiliation, Mode crawlingMode, CrosslinkPersistance store) throws Exception {
+		super(crawlingMode, affiliation, store);
 		this.affiliation = affiliation;
+		this.store = store;
 	}
 	
 	@Inject
-	public void setConfiguartion(SiteReader reader, AuthorParser parser, CrosslinkPersistance store,
+	public void setConfiguartion(SiteReader reader, AuthorParser parser,
 			@Named("errorsToAbort") Integer errorsToAbort, 
 			@Named("authorReadErrorThreshold") Integer authorReadErrorThreshold,
 			@Named("daysConsideredOld") Integer daysConsideredOld) throws Exception {
 		this.reader = reader;
 		this.parser = parser;
-		this.store = store;
 		this.errorsToAbort = errorsToAbort;
 		this.authorReadErrorThreshold = authorReadErrorThreshold;
 		this.daysConsideredOld = daysConsideredOld;
-		store.upsertAffiliation(affiliation);		
 	}
 	
     public String getSiteRoot() {
-    	return affiliation.getBaseURL();
+    	return affiliation.getURI();
     }
     
     protected Document getDocument(String url) throws IOException, InterruptedException {
@@ -87,14 +82,9 @@ public abstract class AffiliationCrawler extends Crawler {
 	public String getCounts() {
 		// found is dynamic
 		int remaining = getRemainingAuthorsSize();
-		return super.getCounts() + ", Saved : " + savedCnt + ", Skipped : " + skippedCnt + ", Remaining : " +  remaining;
+		return super.getCounts() + ", Remaining " +  remaining;
 	}
 
-	public String getDates() {
-		// found is dynamic
-		return super.getDates() + ", LastFinish : " + getDateLastCrawled();				
-	}
-	
 	public Affiliation getAffiliation() {
 		return affiliation;
 	}
@@ -103,49 +93,26 @@ public abstract class AffiliationCrawler extends Crawler {
 		return affiliation;
 	}
 
-	@Override
-	protected void clear() {
-		super.clear();
-		savedCnt = 0;
-		skippedCnt = 0;
-	}
-	
-	public void crawl() {
-		try {
-			if (Arrays.asList(Status.IDLE, Status.FINISHED, Status.ERROR).contains(getStatus())) {
-				// fresh start
-				clear();
-				started = new Date();
-				gatherURLs();
-				recentlyProcessedAuthors = store.startCrawl(getAffiliation());
-			}
-			else {
-				// we are resuming
-				purgeProcessedAuthors();
-			}
-			
-			// touch all the ones we have found.  This will make sure that we do not remove anyone that had been indexed before just due to an error in crawling their page
-			Set<String> knownReseacherURLs = touchResearchers();
-			
-			if (readResearchers(knownReseacherURLs)) {
-				store.finishCrawl(getAffiliation());
-				setStatus(Status.FINISHED);
-			}	
+	public boolean crawl() throws Exception {
+		if (Arrays.asList(Status.IDLE, Status.FINISHED, Status.ERROR).contains(getStatus())) {
+			// fresh start
+			gatherURLs();
+			recentlyProcessedAuthors = store.loadRecentlyHarvestedResearchers(getAffiliation());
 		}
-		catch (Exception e) {
-			setStatus(Status.ERROR);
-			setLatestError(e.getMessage());
-			LOG.log(Level.SEVERE, e.getMessage(), e);
+		else {
+			// we are resuming
+			purgeProcessedAuthors();
 		}
-		finally {
-			store.close();
-			ended = new Date();
-		}
+		
+		// touch all the ones we have found.  This will make sure that we do not remove anyone that had been indexed before just due to an error in crawling their page
+		Set<String> knownReseacherURLs = touchResearchers();
+		
+		return readResearchers(knownReseacherURLs);
 	}
 	
 	private void gatherURLs() throws Exception {
 		// Now index the site
-		setStatus(Status.GATHERING_URLS);
+		setActiveStatus(Status.GATHERING_URLS);
     	researchers.clear();
     	removeList.clear();
     	collectResearcherURLs();
@@ -169,7 +136,7 @@ public abstract class AffiliationCrawler extends Crawler {
     	researchers.add(researcher);
     }
     
-    public void removeResearcher(Researcher researcher) {
+    private void removeResearcher(Researcher researcher) {
     	removeList.add(researcher);
     }
     
@@ -187,7 +154,7 @@ public abstract class AffiliationCrawler extends Crawler {
     }    
     
 	private Set<String> touchResearchers() throws Exception {
-		setStatus(Status.VERIFY_PRIOR_RESEARCHERS);
+		setActiveStatus(Status.VERIFY_PRIOR_RESEARCHERS);
 		Set<String> touched = new HashSet<String>();
 		if (Mode.DEBUG.equals(getMode())) {
 			return touched;
@@ -195,8 +162,7 @@ public abstract class AffiliationCrawler extends Crawler {
 		int cnt = 0;
 		store.startTransaction();
 		for (Researcher researcher : getResearchers()) {
-			if (Mode.DISABLED.equals(getMode())) {
-				setStatus(Status.PAUSED);
+			if (isPaused()) {
 				break;
 			}
 			// sort of ugly, but this will work with the DB store and not mess things up with the CSV store
@@ -209,30 +175,28 @@ public abstract class AffiliationCrawler extends Crawler {
 		return touched;
 	}
 	
-	private boolean readResearchers(Set<String> knownReseacherURLs) {
+	private boolean readResearchers(Set<String> knownReseacherURLs) throws Exception {
 		int currentErrorCnt = 0;
-		setStatus(Status.READING_RESEARCHERS);
+		setActiveStatus(Status.READING_RESEARCHERS);
 		for (Researcher researcher : getResearchers()) {
-			if (Mode.DISABLED.equals(getMode())) {
-				setStatus(Status.PAUSED);
+			if (isPaused()) {
 				break;
 			}
-			setCurrentAuthor(researcher);
+			setLastReadAuthor(researcher);
 			
 			// do not skip any if we are in forced mode
 			Long ts = recentlyProcessedAuthors.get(researcher.getURI());
 			if (!Mode.FORCED_NO_SKIP.equals(getMode()) && 
 					((ts != null && ts > new DateTime().minusDays(daysConsideredOld).getMillis()) || store.skip(researcher))) {
-				skippedCnt++;
 				removeResearcher(researcher);
+		    	addSkip(researcher);
 				LOG.info("Skipping recently processed author :" + researcher);						
 			}
 			else {
 				try {
 					if (parser.readResearcher(researcher)) {							
 						LOG.info("Saving researcher :" + researcher);						
-						store.saveResearcher(researcher);
-						savedCnt++;
+						store.save(researcher);
 						// add to processed list
 						recentlyProcessedAuthors.put(researcher.getURI(), new Date().getTime());
 					}
@@ -265,10 +229,9 @@ public abstract class AffiliationCrawler extends Crawler {
 						}
 					}
 					// important that this next line work with author = null!
-					setLatestError("Issue with : " + researcher + " : " + e.getMessage());
+					setLatestError("Issue with : " + researcher + " : " + e.getMessage(), e);
 					if (++currentErrorCnt > errorsToAbort) {
-						setStatus(Status.PAUSED);
-						break;
+						throw new Exception("Too many errors " + currentErrorCnt);
 					}
 				}
 			}
@@ -285,21 +248,6 @@ public abstract class AffiliationCrawler extends Crawler {
 			}
 		}
 		return false;
-	}
-	
-	public Date getHowOld() {
-		if (isForced()) {
-			return null; // act like you are brand new
-		}
-		else if (ended != null) {
-			return ended;
-		}
-		else if (started != null) {
-			return started;
-		}
-		else {
-			return getDateLastCrawled();
-		}
 	}
 	
 	public String getName() {

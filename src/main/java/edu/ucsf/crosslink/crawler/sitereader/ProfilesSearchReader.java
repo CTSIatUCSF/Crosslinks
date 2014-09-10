@@ -1,7 +1,11 @@
 package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.logging.Logger;
+
+
+
 
 
 
@@ -16,6 +20,7 @@ import org.jsoup.select.Elements;
 import com.google.inject.Inject;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
+import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
@@ -24,11 +29,11 @@ public class ProfilesSearchReader extends AffiliationCrawler {
 	private static final Logger LOG = Logger.getLogger(ProfilesSearchReader.class.getName());
 
 	@Inject
-	public ProfilesSearchReader(Affiliation affiliation, Mode crawlingMode) {
-		super(affiliation, crawlingMode);
+	public ProfilesSearchReader(Affiliation affiliation, Mode crawlingMode, CrosslinkPersistance store) throws Exception {
+		super(affiliation, crawlingMode, store);
 	}
 
-	protected void collectResearcherURLs() throws IOException, InterruptedException {
+	protected void collectResearcherURLs() throws IOException, InterruptedException, URISyntaxException {
 		String suffix = "/search/default.aspx?searchtype=people&searchfor=&perpage=100&offset=0&sortby=&sortdirection=&showcolumns=1&page=";
 		int page = 1;
 		String firstUrlInPriorSet = null;

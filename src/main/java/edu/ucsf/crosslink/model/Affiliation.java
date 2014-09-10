@@ -1,28 +1,24 @@
 package edu.ucsf.crosslink.model;
 
-import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-public class Affiliation {
+public class Affiliation extends R2RResourceObject {
 	
-	private String name;
-	private URI baseURI;
 	private int researcherCount;
 	private int pmidCount;
-	private String latitude;
-	private String longitude;
 
 	@Inject
 	public Affiliation(@Named("Name") String affiliationName, @Named("BaseURL") String baseURL, @Named("Location") String location) throws URISyntaxException {
-		this.name = affiliationName;
-		this.baseURI = new URI(baseURL);
+		super(baseURL, Arrays.asList(R2R_AFFILIATION, GEO_SPATIALTHING));
+		setLabel(affiliationName);
 		if (location != null) {
 			String [] geoCodes = location.split(",");
-			this.latitude = geoCodes[0];
-			this.longitude = geoCodes[1];
+			setLiteral(GEO_LATITUDE, geoCodes[0]);
+			setLiteral(GEO_LONGITUDE, geoCodes[1]);
 		}
 	}
 	
@@ -30,23 +26,6 @@ public class Affiliation {
 		this(name, baseURL, null);
 		this.researcherCount = researcherCount;		
 		this.pmidCount = pmidCount;
-	}
-	
-	@Override
-	public String toString() {
-		return getName();
-	}
-	
-	public URI getURI() {
-		return baseURI; 
-	}
-
-	public String getBaseURL() {
-		return baseURI.toString(); 
-	}
-
-	public String getName() {
-		return name;
 	}
 	
 	public int getResearcherCount() {
@@ -58,10 +37,10 @@ public class Affiliation {
 	}
 	
 	public String getLatitude() {
-		return latitude;
+		return getStringLiteral(GEO_LATITUDE);
 	}
 	
 	public String getLongitude() {
-		return longitude;
+		return getStringLiteral(GEO_LONGITUDE);
 	}
 }

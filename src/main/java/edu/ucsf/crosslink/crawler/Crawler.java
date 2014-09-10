@@ -4,27 +4,37 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.Minutes;
+import org.joda.time.Period;
+import org.joda.time.format.PeriodFormat;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
-import edu.ucsf.crosslink.job.quartz.CrawlerJob;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
 public abstract class Crawler implements Runnable, Comparable<Crawler> {
 
+	private static final Logger LOG = Logger.getLogger(MarengoSparqlCrawler.class.getName());
+
 	private Mode mode = Mode.ENABLED;
 	private Status status = Status.IDLE;
-	private CrawlerJob job;
-	private Thread crawlingThread;
+	private Affiliation harvester = null;
 
 	private int pauseOnAbort = 60;
 	private int staleDays = 7;
@@ -33,32 +43,36 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 	private Date ended = null;
 	private CrawlerStartStatus lastStartStatus;
 
-	private Researcher currentAuthor = null;
+	private Researcher lastFoundAuthor = null;
+	private Researcher lastReadAuthor = null;
+	private Researcher lastSavedAuthor = null;
+
 	private String latestError = null;
 	private CrosslinkPersistance store;
 
 	private List<Researcher> avoided = new ArrayList<Researcher>();
 	private List<Researcher> error = new ArrayList<Researcher>();
+	private int foundCnt = 0;
+	private int readCnt = 0;
+	private int savedCnt = 0;
+	private int skipCnt = 0;
 	
-	public Crawler(Mode mode) {
+	private Thread crawlingThread = null;
+	private ExecutorService executorService = null;
+	private Future<Boolean> currentJob = null;
+	
+	public Crawler(Mode mode, Affiliation harvester, CrosslinkPersistance store) throws Exception {
 		this.mode = mode;
-	}
-
-	@Inject 
-	public void setQuartzItems(CrawlerJob job) {
-		this.job = job;
-	}		
-	
-	@Inject 
-	public void setPersistance(CrosslinkPersistance store) {
+		this.harvester = harvester;
 		this.store = store;
-	}		
+		store.save(harvester);		
+		executorService = Executors.newSingleThreadExecutor();
+	}
 
 	@Inject
 	public void setConfiguartion(CrosslinkPersistance store,
 			@Named("pauseOnAbort") Integer pauseOnAbort,
 			@Named("staleDays") Integer staleDays) {
-		this.store = store;
 		this.pauseOnAbort = pauseOnAbort;
 		this.staleDays = staleDays;
 	}
@@ -85,7 +99,7 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 		return !Arrays.asList(Status.PAUSED, Status.ERROR).contains(getStatus());
 	}
 	
-	protected boolean isForced() {
+	private boolean isForced() {
 		return Arrays.asList(Mode.FORCED_NO_SKIP, Mode.FORCED).contains(getMode());		
 	}
 	
@@ -97,11 +111,15 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 		return mode;
 	}	
 
+	// called from the UI
 	public void setMode(String mode) throws Exception {
 		setMode(Mode.valueOf(mode));
-		if (Status.GATHERING_URLS.equals(getStatus()) && Mode.DISABLED.equals(getMode()) && job != null) {
+		if (Mode.DISABLED.equals(getMode()) && currentJob != null) {
 			// try and interrupt the job
-			job.interrupt();
+			currentJob.cancel(true);
+		}
+		if (isForced() && !isOk()) {
+			// clear the bad status
 			setStatus(Status.IDLE);
 		}
 	}
@@ -114,20 +132,32 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 		return status;
 	}
 	
-	protected void setStatus(Status status) {
-		if (!isActive(this.status) && isActive(status)) {
-			started = new Date();
-		}
-		else if (isActive(this.status) && !isActive(status)) {
-			ended = new Date();
-		}
-		else if (Status.FINISHED.equals(status) && isForced()) {
-			// don't leave in forced mode
-			mode = Mode.ENABLED;
-		}
+	public Date getStartDate() {
+		return started;
+	}
+	
+	// to be called from the UI
+	public void pause() throws ExecutionException, InterruptedException {
+		setStatus(Status.PAUSED);
+	}
+	
+	public boolean isPaused() {
+		return Status.PAUSED.equals(status);
+	}
+	
+	private void setStatus(Status status) {
 		this.status = status;
 	}
-
+	
+	protected void setActiveStatus(Status status) throws Exception {
+		if (isActive(status)) {
+			setStatus(status);
+		}
+		else {
+			throw new Exception("Illegal attempt to set status to " + status);
+		}
+	}
+	
 	private void setCrawlingThread(Thread thread) {
 		crawlingThread = thread;
 	}
@@ -149,48 +179,48 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 		return sw.toString();
 	}
 
-	public String toString() {
-		return getName() + " : " + getState() + " " + getCounts() + ", " + getDates() + ", " + getDuration(); 
-	}
-		
-	public String getCounts() {
-		return "Errors : " + getErrors().size() + ", Avoids : " + getAvoided().size();		
+	protected void setLastFoundAuthor(Researcher lastFoundAuthor) {
+		this.lastFoundAuthor = lastFoundAuthor;
+		foundCnt++;
 	}
 
-	public String getDates() {
-		return "Started : " + started + ", Ended : " + ended;				
+	public Researcher getLastFoundAuthor() {
+		return lastFoundAuthor;
 	}
 
-	public String getDuration() {
-		if (started == null) {
-			return "";
-		}
-		else {
-			return "" +  Minutes.minutesBetween(new DateTime(started), ended != null ? new DateTime(ended) : new DateTime()).getMinutes() + " minutes";
-		}
-	}
-	
-	public Researcher getCurrentAuthor() {
-		return currentAuthor;
+	protected void setLastReadAuthor(Researcher lasteReadAuthor) {
+		this.lastReadAuthor = lasteReadAuthor;
+		readCnt++;
 	}
 
-	protected void setCurrentAuthor(Researcher currentAuthor) {
-		this.currentAuthor = currentAuthor;
+	public Researcher getLastReadAuthor() {
+		return lastReadAuthor;
+	}
+
+	public Researcher getLastSavedAuthor() {
+		return lastSavedAuthor;
 	}
 
 	public String getLatestError() {
 		return latestError;
 	}
 
-	protected void setLatestError(String latestError) {
+	protected void setLatestError(String latestError, Exception e) {
 		this.latestError = latestError;
+		LOG.log(Level.SEVERE, latestError, e);
 	}
 	
-	public abstract Affiliation getHarvester();
+	public Affiliation getHarvester() {
+		return harvester;
+	}
 	
-	protected void clear() {
+	private void clear() {
 		avoided.clear();
 		error.clear();		
+		foundCnt = 0;
+		readCnt = 0;
+		savedCnt = 0;
+		skipCnt = 0;
 	}
 
 	public List<Researcher> getErrors() {
@@ -209,7 +239,22 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 		avoided.add(researcher);
 	}
 	
-	public Date getDateLastCrawled() {
+	protected void addSkip(Researcher researcher) {
+		skipCnt++;
+	}
+
+	protected void save(Researcher researcher) throws Exception {
+		store.save(researcher);
+		savedCnt++;
+		lastSavedAuthor = researcher;
+		LOG.log(Level.FINE, "Saved " + researcher);
+	}
+	
+	public int getSavedCnt() {
+		return savedCnt;
+	}
+
+	public Calendar getDateLastCrawled() {
 		return store != null ? store.dateOfLastCrawl(getHarvester()) : null;
 	}
 	
@@ -231,13 +276,13 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 		}
 		else if (!isOk()) {
 			int minutesBetween = Minutes.minutesBetween(new DateTime(ended), new DateTime()).getMinutes();
-			return new CrawlerStartStatus(minutesBetween > pauseOnAbort, "paused " + minutesBetween + " of " + pauseOnAbort + " minutes");
+			return new CrawlerStartStatus(minutesBetween > pauseOnAbort, "waited " + minutesBetween + " of " + pauseOnAbort + " minutes since " + getStatus());
 		}
 		else if (isForced()) {
 			return new CrawlerStartStatus(true, "isForced");
 		}
 		else if (getDateLastCrawled() == null) {
-			return new CrawlerStartStatus(true, "never crawled before");
+			return new CrawlerStartStatus(true, "never finished crawl before");
 		}
 		else {
 			int daysBetween = Days.daysBetween(new DateTime(getDateLastCrawled()), new DateTime()).getDays();
@@ -268,22 +313,73 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
     	}
     } 	
 	
-	// trust the implementing classes to set the status
+	// require the implementing classes to set the status
 	public void run() {
 		if (!isOkToStart()) {
 			return;
 		}
-		setCrawlingThread(Thread.currentThread());		
+		setCrawlingThread(Thread.currentThread());
 		try {
-			crawl();
+			setStatus(Status.RUNNING);
+			started = store.startCrawl(getHarvester()).getTime();
+			ended = null;
+			currentJob = executorService.submit(new Callable<Boolean>() {
+		         public Boolean call() throws Exception {
+		        	 setCrawlingThread(Thread.currentThread());
+		             return crawl();
+		         }});
+			boolean removeMissing = currentJob.get();
+			setCrawlingThread(Thread.currentThread());
+			if (!isPaused()) {
+				ended = store.finishCrawl(getHarvester()).getTime();
+				if (removeMissing) {
+					store.deleteMissingResearchers(getHarvester());
+				}
+				setStatus(Status.FINISHED);
+				clear();
+			}
+			if (isForced()) {
+				// don't leave in forced mode
+				mode = Mode.ENABLED;
+			}
 		}
 		catch (Exception e) {
-			setLatestError(e.getMessage());
+			setStatus(Status.ERROR);
+			setLatestError(e.getMessage(), e);
 		}
 		finally {
-			setCrawlingThread(null);			
+			if (ended == null) {
+				ended = new Date();
+			}
+			setCrawlingThread(null);
 		}
 	}
 	
-	public abstract void crawl() throws Exception;
+	public String toString() {
+		return getName() + " : " + getState() + " " + getDates() ; 
+	}
+		
+	public String getCounts() {
+		return "Found " + foundCnt + ", Read " + readCnt + ", Saved " + savedCnt + ", Skipped " + skipCnt + ", Error " + getErrors().size() + ", Avoids " + getAvoided().size();
+	}
+
+	public String getDates() {
+		String retval = "LastFinish " + getDateLastCrawled();
+		if (started == null) {
+			return retval + ", Not started...";
+		}
+		else {
+			return retval + ", Started " + started + ", Ended " + ended + " " + Minutes.minutesBetween(new DateTime(started), ended != null ? new DateTime(ended) : new DateTime()).getMinutes() + " minutes";
+		}
+	}
+
+	public String getRates() {
+		if (started == null) {
+			return "Not started...";
+		}
+		int saved = Math.max(1, savedCnt);
+		return "Saved/person : " +  PeriodFormat.getDefault().print(new Period((new Date().getTime() - getStartDate().getTime())/saved));
+	}
+	
+	public abstract boolean crawl() throws Exception;
 }

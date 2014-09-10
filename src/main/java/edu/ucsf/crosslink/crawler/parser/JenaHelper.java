@@ -98,12 +98,12 @@ public class JenaHelper implements R2RConstants {
             // mainImage
         	if (researcher.getImageURL() != null) {
         			model.add(researcherResource, 
-        			model.createProperty(PRNS_MAIN_IMAGE), 
+        			model.createProperty(FOAF_HAS_IMAGE), 
         			model.createTypedLiteral(researcher.getImageURL()));
         	}
         }
     	// create affiliation.  Should be smart about doing this only when necessary!
-    	Resource affiliationResource = model.createResource(researcher.getAffiliation().getBaseURL());
+    	Resource affiliationResource = model.createResource(researcher.getAffiliation().getURI());
     	Resource researcherResource = model.createResource(uri);
     	
     	model.add(researcherResource,
@@ -117,20 +117,20 @@ public class JenaHelper implements R2RConstants {
 			
     	// homepage
     	model.add(researcherResource, 
-    			model.createProperty(R2R_PRETTY_URL), 
-				model.createTypedLiteral(researcher.getPrettyURL()));        	
+    			model.createProperty(FOAF_HOMEPAGE), 
+				model.createTypedLiteral(researcher.getHomepage()));        	
 
     	// thumbnail        	
     	if (researcher.getThumbnailURL() != null) {
     		model.add(researcherResource, 
-    				model.createProperty(R2R_THUMBNAIL), 
+    				model.createProperty(FOAF_THUMBNAIL), 
     				model.createTypedLiteral(researcher.getThumbnailURL()));
     		    	
     	}
     	
     	// publications
     	if (!researcher.getPubMedPublications().isEmpty()) {
-    		for (Integer pmid : researcher.getPubMedPublications()) {
+    		for (Long pmid : researcher.getPubMedPublications()) {
                 Resource pmidResource = model.createResource("http:" + AuthorParser.PUBMED_SECTION + pmid);
         		// Associate to Researcher
         		model.add(researcherResource, 

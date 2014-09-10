@@ -6,9 +6,6 @@ import com.google.inject.AbstractModule;
 import com.google.inject.name.Names;
 
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
-import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
-import edu.ucsf.crosslink.io.SparqlPersistance;
-import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.job.quartz.CrawlerJob;
 import edu.ucsf.crosslink.model.Affiliation;
 
@@ -38,6 +35,8 @@ public class CrawlerModule extends AbstractModule {
 		bind(Integer.class).annotatedWith(Names.named("errorsToAbort")).toInstance(Integer.parseInt(prop.getProperty("errorsToAbort")));
 		bind(Integer.class).annotatedWith(Names.named("pauseOnAbort")).toInstance(Integer.parseInt(prop.getProperty("pauseOnAbort")));
 		bind(Integer.class).annotatedWith(Names.named("authorReadErrorThreshold")).toInstance(Integer.parseInt(prop.getProperty("authorReadErrorThreshold")));
+		bind(Integer.class).annotatedWith(Names.named("sparqlDetailThreadCount")).toInstance(Integer.parseInt(prop.getProperty("sparqlDetailThreadCount")));
+		bind(Integer.class).annotatedWith(Names.named("pageItemThreadCount")).toInstance(Integer.parseInt(prop.getProperty("pageItemThreadCount")));
 
 		bind(Integer.class).annotatedWith(Names.named("staleDays")).toInstance(Integer.parseInt(prop.getProperty("staleDays")));
 		

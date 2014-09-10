@@ -18,6 +18,7 @@ import com.google.gson.Gson;
 import com.google.inject.Inject;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
+import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
@@ -30,8 +31,8 @@ public class VivoDataserviceReader extends AffiliationCrawler {
 	private int dataServiceSuffixNdx = 0;
 	
 	@Inject
-	public VivoDataserviceReader(Affiliation affiliation, Mode crawlingMode) {
-		super(affiliation, crawlingMode);
+	public VivoDataserviceReader(Affiliation affiliation, Mode crawlingMode, CrosslinkPersistance store) throws Exception {
+		super(affiliation, crawlingMode, store);
 	}
 
 	protected void collectResearcherURLs() throws Exception {

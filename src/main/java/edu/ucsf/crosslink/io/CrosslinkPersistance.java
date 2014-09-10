@@ -1,6 +1,6 @@
 package edu.ucsf.crosslink.io;
 
-import java.util.Date;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Map;
 
@@ -11,24 +11,25 @@ import edu.ucsf.crosslink.model.Researcher;
 
 public interface CrosslinkPersistance {
 	
-	Map<String, Long> startCrawl(Affiliation affiliation) throws Exception;
+	Calendar startCrawl(Affiliation affiliation) throws Exception;
+	Map<String, Long> loadRecentlyHarvestedResearchers(Affiliation affiliation) throws Exception;
+	
+	// only call this when things are good, not during an abort
+	Calendar finishCrawl(Affiliation affiliation) throws Exception;
+	void deleteMissingResearchers(Affiliation affiliation) throws Exception;
 	
 	Affiliation findAffiliationFor(String uri);
 	
-	// only call this when things are good, not during an abort
-	void finishCrawl(Affiliation affiliation) throws Exception;
+	void save(Researcher researcher) throws Exception;
+	void update(Researcher researcher) throws Exception;
 	
-	void saveResearcher(Researcher researcher) throws Exception;
-	
-	void upsertAffiliation(Affiliation affiliation) throws Exception;
+	void save(Affiliation affiliation) throws Exception;
 
-	Date dateOfLastCrawl(Affiliation affiliation);
+	Calendar dateOfLastCrawl(Affiliation affiliation);
 
 	boolean skip(Researcher researcher);
 	
 	int touch(Researcher researcher) throws Exception;
-	
-	void close();
 	
 	Collection<Researcher> getResearchers();
 

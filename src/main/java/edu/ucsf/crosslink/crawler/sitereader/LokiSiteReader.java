@@ -12,6 +12,7 @@ import com.google.inject.Inject;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
+import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
@@ -20,8 +21,8 @@ public class LokiSiteReader extends AffiliationCrawler implements AuthorParser {
 	private static final Logger LOG = Logger.getLogger(LokiSiteReader.class.getName());
 
 	@Inject
-	public LokiSiteReader(Affiliation affiliation, Mode crawlingMode) {
-		super(affiliation, crawlingMode);
+	public LokiSiteReader(Affiliation affiliation, Mode crawlingMode, CrosslinkPersistance store) throws Exception {
+		super(affiliation, crawlingMode, store);
 	}
 	
     protected void collectResearcherURLs() throws IOException, InterruptedException  {

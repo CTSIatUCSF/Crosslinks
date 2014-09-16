@@ -7,7 +7,6 @@ import com.google.inject.name.Names;
 
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.job.quartz.CrawlerJob;
-import edu.ucsf.crosslink.model.Affiliation;
 
 public class CrawlerModule extends AbstractModule {
 
@@ -25,24 +24,32 @@ public class CrawlerModule extends AbstractModule {
 		bind(Integer.class).annotatedWith(Names.named("getDocumentTimeout")).toInstance(Integer.parseInt(prop.getProperty("getDocumentTimeout")));
 		bind(Integer.class).annotatedWith(Names.named("getDocumentSleep")).toInstance(Integer.parseInt(prop.getProperty("getDocumentSleep")));
 
-		// AffiliationCrawler items
+		// Crawler items
 		bind(String.class).annotatedWith(Names.named("Name")).toInstance(prop.getProperty("Name"));
-		bind(String.class).annotatedWith(Names.named("BaseURL")).toInstance(prop.getProperty("BaseURL"));
-		bind(String.class).annotatedWith(Names.named("Location")).toInstance(prop.getProperty("Location"));
-		bind(Affiliation.class).asEagerSingleton();
+		if (prop.getProperty("BaseURL") != null) {
+			bind(String.class).annotatedWith(Names.named("BaseURL")).toInstance(prop.getProperty("BaseURL"));
+		}
+		if (prop.getProperty("Location") != null) {
+			bind(String.class).annotatedWith(Names.named("Location")).toInstance(prop.getProperty("Location"));
+		}
 		
 		bind(Crawler.Mode.class).toInstance(Crawler.Mode.valueOf(prop.getProperty("crawlingMode").toUpperCase()));
 		bind(Integer.class).annotatedWith(Names.named("errorsToAbort")).toInstance(Integer.parseInt(prop.getProperty("errorsToAbort")));
 		bind(Integer.class).annotatedWith(Names.named("pauseOnAbort")).toInstance(Integer.parseInt(prop.getProperty("pauseOnAbort")));
 		bind(Integer.class).annotatedWith(Names.named("authorReadErrorThreshold")).toInstance(Integer.parseInt(prop.getProperty("authorReadErrorThreshold")));
-		bind(Integer.class).annotatedWith(Names.named("sparqlDetailThreadCount")).toInstance(Integer.parseInt(prop.getProperty("sparqlDetailThreadCount")));
-		bind(Integer.class).annotatedWith(Names.named("pageItemThreadCount")).toInstance(Integer.parseInt(prop.getProperty("pageItemThreadCount")));
-
-		bind(Integer.class).annotatedWith(Names.named("staleDays")).toInstance(Integer.parseInt(prop.getProperty("staleDays")));
 		
+		bind(Integer.class).annotatedWith(Names.named("staleDays")).toInstance(Integer.parseInt(prop.getProperty("staleDays")));
+		bind(Integer.class).annotatedWith(Names.named("daysConsideredOld")).toInstance(Integer.parseInt(prop.getProperty("daysConsideredOld")));
+		
+		if (prop.getProperty("executorThreadCount") != null) {
+			bind(Integer.class).annotatedWith(Names.named("executorThreadCount")).toInstance(Integer.parseInt(prop.getProperty("executorThreadCount")));
+		}
+
 		try {
 			bind(Crawler.class).to((Class<? extends Crawler>) Class.forName(prop.getProperty("Crawler"))).asEagerSingleton();
-			bind(AuthorParser.class).to((Class<? extends AuthorParser>) Class.forName(prop.getProperty("AuthorParser"))).asEagerSingleton();
+			if (prop.getProperty("AuthorParser") != null) {
+				bind(AuthorParser.class).to((Class<? extends AuthorParser>) Class.forName(prop.getProperty("AuthorParser"))).asEagerSingleton();
+			}
 		} 
 		catch (ClassNotFoundException e) {
 			addError(e);

@@ -1,27 +1,35 @@
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <html>
 <body>
-	<a href='.'>Back</a><p>
+	<a href="../status">Status Home</a><p>	
+	<c:if test="${not empty affiliation}">
+		<a href='../<c:out value="${affiliation.name}"/>'>Researchers and information about <c:out value="${affiliation.name}"/></a><p>
+	</c:if>
     <c:out value="${crawler}"/><p>
 	<c:if test="${not empty administrator}">
-	    <a href='?mode=ENABLED'>ENABLE</a>&nbsp;<a href='?status=PAUSED'>PAUSE</a>&nbsp;<a href='?mode=DISABLED'>HALT</a>&nbsp;<a href='?mode=FORCED'>FORCE</a>&nbsp;<a href='?mode=FORCED_NO_SKIP'>FORCE AND RELOAD EVERYONE</a>
+	    <a href='?status=PAUSED'>PAUSE</a>&nbsp;<a href='?mode=DISABLED'>DISABLE</a>&nbsp;<a href='?mode=ENABLED'>ENABLE</a>&nbsp;<a href='?mode=FORCED'>FORCE</a>&nbsp;<a href='?mode=FORCED_NO_SKIP'>FORCE AND RELOAD EVERYONE</a>
 	</c:if><p>    
-    Latest Error :
-	<c:if test="${not crawler.ok}">
-	   &nbsp;<span style="color:#ff0000"><c:out value="${crawler.latestError}"/></span><p>
+	<c:if test="${not empty crawler.latestError}">
+	    Latest Error :
+		<c:if test="${not crawler.ok}">
+		   &nbsp;<span style="color:#ff0000"><c:out value="${crawler.latestError}"/></span><p>
+		</c:if>
+		<c:if test="${crawler.ok}">
+		   &nbsp;<c:out value="${crawler.latestError}"/><p>
+		</c:if>
+	</c:if>
+	<c:if test="${not empty crawler.latestErrorStackTrace}">
+		Latest Exception : <span style="color:#ff0000"><c:out value="${crawler.latestErrorStackTrace}"/></span><p>
 	</c:if>
 
 	<c:out value="${crawler.counts}"/><p>
 	<c:out value="${crawler.dates}"/><p>
 	<c:out value="${crawler.rates}"/><p>
-	<c:if test="${not empty crawler.lastFoundAuthor}">
- 	    Last Found = <c:out value="${crawler.lastFoundAuthor}"/><p>
+	<c:if test="${not empty crawler.lastFoundResearcher}">
+ 	    Last Found = <c:out value="${crawler.lastFoundResearcher}"/><p>
 	</c:if>
-	<c:if test="${not empty crawler.lastReadAuthor}">
- 	    Last Read = <c:out value="${crawler.lastReadAuthor}"/><p>
-	</c:if>
-	<c:if test="${not empty crawler.lastSavedAuthor}">
- 	    Last Saved = <c:out value="${crawler.lastSavedAuthor}"/><p>
+	<c:if test="${not empty crawler.lastSavedResearcher}">
+ 	    Last Saved = <c:out value="${crawler.lastSavedResearcher}"/><p>
 	</c:if>
     <c:out value="${crawler.lastStartStatus}"/><p>
 	
@@ -31,9 +39,6 @@
 	</c:forEach>
 
     <h2>Researcher Avoids</h2>
-	<c:forEach var="a" items="${crawler.avoided}">
-	   <c:out value="${a}"/><p>
-	</c:forEach>
 	Stack trace : <c:out value="${crawler.currentStackTrace}" escapeXml="false"/><p>
 </body>
 </html>

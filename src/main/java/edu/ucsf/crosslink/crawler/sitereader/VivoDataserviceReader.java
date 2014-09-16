@@ -16,6 +16,7 @@ import org.jsoup.select.Elements;
 
 import com.google.gson.Gson;
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
@@ -31,8 +32,9 @@ public class VivoDataserviceReader extends AffiliationCrawler {
 	private int dataServiceSuffixNdx = 0;
 	
 	@Inject
-	public VivoDataserviceReader(Affiliation affiliation, Mode crawlingMode, CrosslinkPersistance store) throws Exception {
-		super(affiliation, crawlingMode, store);
+	public VivoDataserviceReader(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location, 
+			Mode crawlingMode, CrosslinkPersistance store) throws Exception {
+		super(new Affiliation(name, baseURL, location), crawlingMode, store);
 	}
 
 	protected void collectResearcherURLs() throws Exception {
@@ -59,7 +61,7 @@ public class VivoDataserviceReader extends AffiliationCrawler {
 		
 		// now grab all the individual URI's
 		for (VIVOPerson person : people) {
-			Researcher r = new Researcher(getAffiliation(), person.URI);
+			Researcher r = new Researcher(person.URI,getAffiliation());
 			addResearcher(r);
 		}
 		LOG.info("Found " + getResearchers().size() + " unique URI's");

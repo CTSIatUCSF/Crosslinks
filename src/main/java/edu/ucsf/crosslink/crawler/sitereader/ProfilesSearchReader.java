@@ -13,11 +13,13 @@ import java.util.logging.Logger;
 
 
 
+
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
@@ -29,8 +31,9 @@ public class ProfilesSearchReader extends AffiliationCrawler {
 	private static final Logger LOG = Logger.getLogger(ProfilesSearchReader.class.getName());
 
 	@Inject
-	public ProfilesSearchReader(Affiliation affiliation, Mode crawlingMode, CrosslinkPersistance store) throws Exception {
-		super(affiliation, crawlingMode, store);
+	public ProfilesSearchReader(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location, 
+			Mode crawlingMode, CrosslinkPersistance store) throws Exception {
+		super(new Affiliation(name, baseURL, location), crawlingMode, store);
 	}
 
 	protected void collectResearcherURLs() throws IOException, InterruptedException, URISyntaxException {
@@ -61,7 +64,7 @@ public class ProfilesSearchReader extends AffiliationCrawler {
 			    				break;
 			    			}
 			    		}
-			    		addResearcher(new Researcher(getAffiliation(), url));
+			    		addResearcher(new Researcher(url, getAffiliation()));
 			    	}
 		        }
 			}

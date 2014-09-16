@@ -1,10 +1,13 @@
 package edu.ucsf.crosslink.io;
 
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -14,14 +17,15 @@ import java.util.logging.Logger;
 import org.joda.time.DateTime;
 
 import com.google.inject.Inject;
-import com.google.inject.name.Named;
 import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
 
+import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.R2RResourceObject;
 import edu.ucsf.crosslink.model.Researcher;
@@ -35,7 +39,6 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 	private static final Logger LOG = Logger.getLogger(SparqlPersistance.class.getName());
 
 	private SparqlUpdateClient sparqlClient;
-	private Integer daysConsideredOld;
 	private ThumbnailGenerator thumbnailGenerator;
 	private Set<Affiliation> knownAffiliations = new HashSet<Affiliation>();
 	
@@ -44,14 +47,15 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 	
 	private static final String LOAD_AFFILIATIONS = "SELECT ?r ?l WHERE  {?r <" + RDF_TYPE + "> <" +
 			R2R_AFFILIATION + "> . ?r <" + RDFS_LABEL + "> ?l}";
+	
+	private enum SaveType {SAVE, UPDATE, ADD}; 
 
 	@Inject
-	public SparqlPersistance(SparqlUpdateClient sparqlClient, 
-			@Named("daysConsideredOld") Integer daysConsideredOld) throws Exception {
+	public SparqlPersistance(SparqlUpdateClient sparqlClient) throws Exception {
 		this.sparqlClient = sparqlClient;
-		this.daysConsideredOld = daysConsideredOld;
 		// make sure we have the latest model
 		sparqlClient.add(R2ROntology.createR2ROntModel());
+		sparqlClient.update("CREATE GRAPH <" + R2R_DERIVED_GRAPH + ">");
 		// by loading these now, we make sure that we do not collide with calls to upsertAffiliation
 		loadAffiliations();
 	}
@@ -74,26 +78,72 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 	}
 
 	public void save(Affiliation affiliation) throws Exception {
-		saveInternal(affiliation, true);
+		saveInternal(affiliation, SaveType.SAVE, null);
+	}
+	
+	public void update(Crawler crawler) throws Exception {
+		saveInternal(crawler, SaveType.UPDATE, null);
+	}
+	
+	private boolean generateThumbnail(Researcher researcher) {
+		return thumbnailGenerator != null ? thumbnailGenerator.generateThumbnail(researcher) : false;
 	}
 	
 	public void save(Researcher researcher) throws Exception {
-		if (thumbnailGenerator != null) {
-			thumbnailGenerator.generateThumbnail(researcher);
-		}		
-		saveInternal(researcher, true);
+		saveResearcherInternal(researcher, SaveType.SAVE, null);
 	}
 
 	public void update(Researcher researcher) throws Exception {
-		saveInternal(researcher, false);
+		saveResearcherInternal(researcher, SaveType.UPDATE, null);
 	}
 
+	public void update(Researcher researcher, List<String> preStatements) throws Exception {
+		saveResearcherInternal(researcher, SaveType.UPDATE, preStatements);
+	}
+
+	public void add(Researcher researcher) throws Exception {
+		saveResearcherInternal(researcher, SaveType.ADD, null);
+	}
+
+	private void saveResearcherInternal(Researcher researcher, SaveType saveType, List<String> preStatements) throws Exception {
+		boolean newImages = generateThumbnail(researcher);
+		if (newImages) {
+			List<String> sparql = new ArrayList<String>();
+			sparql.addAll(preStatements);
+			// remove the old ones, this will only work if thumbnail and image are both present
+			// also add the thumbnail into the DISPLAY graph, as the main image
+			sparql.addAll(Arrays.asList("DELETE {?r ?p ?i . ?i ?ip ?o . ?tn ?tnp ?tno} WHERE " +
+					"{  <" + researcher.getURI() + "> <" + FOAF_HAS_IMAGE + "> " +
+					"?i . ?i ?ip ?o . ?r ?p ?i . ?i <" + FOAF_THUMBNAIL +"> ?tn . ?tn ?tnp ?tno}",
+					"INSERT DATA { GRAPH <" + R2R_DERIVED_GRAPH + "> {<" + researcher.getURI() + 
+					"> <" + FOAF_HAS_IMAGE + "> <" + researcher.getThumbnailURL() + ">}}"));
+			preStatements = sparql;
+		}
+		saveInternal(researcher, saveType, preStatements);
+	}
+	
 	// delete existing one first
-	private void saveInternal(R2RResourceObject robj, boolean deleteFirst) throws Exception {
+	private void saveInternal(R2RResourceObject robj, SaveType saveType, List<String> preStatements) throws Exception {
 		startTransaction();
+		if (preStatements != null && !preStatements.isEmpty()) {
+			sparqlClient.update(preStatements);
+		}
 		for (Resource resource : robj.getResources()) {
-			if (deleteFirst) {
+			if (SaveType.SAVE.equals(saveType)) {
 				sparqlClient.deleteSubject(resource.getURI());				
+			}
+			else if (SaveType.UPDATE.equals(saveType)) {
+				// only delete the properties that this resource has maxCardinalityRestrictions on
+				// do as set so that we do not do the same thing more than once
+				Set<String> deletes = new HashSet<String>();
+				StmtIterator si = resource.listProperties();
+				while (si.hasNext()) {
+					Property prop = si.next().getPredicate();
+					if (robj.hasMaxCardinalityRestriction(prop.getURI())) {
+						deletes.add("DELETE WHERE { <" + resource.getURI() + ">  <" + prop.getURI() + "> ?o }");
+					}
+				}
+				sparqlClient.update(new ArrayList<String>(deletes));
 			}
 			sparqlClient.add(resource);		
 		}
@@ -114,11 +164,11 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 		this.thumbnailGenerator = thumbnailGenerator;
 	}
 		
-	public Calendar startCrawl(Affiliation affiliation) throws Exception {
-		return updateTimestampFieldFor(affiliation.getURI(), R2R_CRAWL_START_DT);
+	public Calendar startCrawl(Crawler crawler) throws Exception {
+		return updateTimestampFieldFor(crawler.getURI(), R2R_CRAWL_START_DT);
 	}
 
-	public Map<String, Long> loadRecentlyHarvestedResearchers(Affiliation affiliation) throws Exception {
+	public Map<String, Long> loadRecentlyHarvestedResearchers(Affiliation affiliation, int daysConsideredOld) throws Exception {
 		final Map<String, Long> recentlyProcessedAuthors = new HashMap<String, Long>();
 		
 		String sparql = String.format(SKIP_RESEARCHERS_SPARQL, affiliation.getURI(), 
@@ -136,39 +186,37 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 		return recentlyProcessedAuthors;
 	}
 
-	public Calendar finishCrawl(Affiliation affiliation) throws Exception {
-		return updateTimestampFieldFor(affiliation.getURI(), R2R_CRAWL_END_DT);
+	public Calendar finishCrawl(Crawler crawler) throws Exception {
+		return updateTimestampFieldFor(crawler.getURI(), R2R_CRAWL_END_DT);
 	}
 
-	public void deleteMissingResearchers(Affiliation affiliation) throws Exception {
+	public void deleteMissingResearchers(Crawler crawler) throws Exception {
 		// sparql out the ones we did not find
-		String sparql = "DELETE {?s ?p ?o} WHERE { <" + affiliation.getURI() + "> <" + R2R_CRAWL_START_DT + "> ?cst . " +
-			"?s <" + R2R_HARVESTED_FROM + "> <" + affiliation.getURI() + "> . " +
+		String sparql = "DELETE {?s ?p ?o} WHERE { <" + crawler.getURI() + "> <" + R2R_CRAWL_START_DT + "> ?cst . " +
+			"?s <" + R2R_HARVESTED_FROM + "> <" + crawler.getURI() + "> . " +
 			"?s <" + R2R_VERIFIED_DT + "> ?ta FILTER(?ta < ?cst) ?s ?p ?o}";
 		sparqlClient.update(sparql);
 	}
 
-	public Calendar dateOfLastCrawl(Affiliation affiliation) {
-		String sparql = "SELECT ?dt WHERE {<" + affiliation.getURI() + "> <" + R2R_CRAWL_END_DT + "> ?dt}";
+	public Calendar dateOfLastCrawl(Crawler crawler) {
+		String sparql = "SELECT ?dt WHERE {<" + crawler.getURI() + "> <" + R2R_CRAWL_END_DT + "> ?dt}";
 		DateResultSetConsumer consumer = new DateResultSetConsumer();
 		sparqlClient.select(sparql, consumer);
 		return consumer.getCalendar();
 	}
 
-	public boolean skip(Researcher researcher) {
-//			String sparql = String.format(SKIP_RESEARCHER_SPARQL, researcher.getURI(), new DateTime().minusDays(daysConsideredOld).getMillis());
-//			LOG.info(sparql);
-//			return fusekiClient.ask(sparql);
-		final AtomicLong wvdt = new AtomicLong();
-		sparqlClient.select(String.format("SELECT ?ts WHERE {<%s> <" + R2R_WORK_VERIFIED_DT + "> ?ts}", researcher.getURI()), new ResultSetConsumer() {
+	public boolean skip(String researcherURI, String timestampField, int daysConsideredOld) {
+		final AtomicLong dt = new AtomicLong();
+		sparqlClient.select(String.format("SELECT ?ts WHERE {<%1$s> <" + timestampField + "> ?ts}", researcherURI), new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				if (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
-					wvdt.set(((XSDDateTime)qs.getLiteral("?ts").getValue()).asCalendar().getTimeInMillis());
+					dt.set(((XSDDateTime)qs.getLiteral("?ts").getValue()).asCalendar().getTimeInMillis());
 				}								
 			}
 		});
-		return wvdt.get() > new DateTime().minusDays(daysConsideredOld).getMillis();
+		long threshold = new DateTime().minusDays(daysConsideredOld).getMillis();
+		return dt.get() > threshold;
 	}
 	
 	// update the researcherVerifiedDT
@@ -221,4 +269,5 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 	public void endTransaction() throws Exception {
 		sparqlClient.endTransaction();
 	}
+
 }

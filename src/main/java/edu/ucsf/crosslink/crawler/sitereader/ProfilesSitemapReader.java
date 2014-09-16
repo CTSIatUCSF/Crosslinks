@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.logging.Logger;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
@@ -25,8 +26,9 @@ public class ProfilesSitemapReader extends AffiliationCrawler  {
 	private static final Logger LOG = Logger.getLogger(ProfilesSitemapReader.class.getName());
 	
 	@Inject
-	public ProfilesSitemapReader(Affiliation affiliation, Mode crawlingMode, CrosslinkPersistance store) throws Exception {
-		super(affiliation, crawlingMode, store);
+	public ProfilesSitemapReader(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location, 
+			Mode crawlingMode, CrosslinkPersistance store) throws Exception {
+		super(new Affiliation(name, baseURL, location), crawlingMode, store);
 	}
 
 	protected void collectResearcherURLs() throws UnknownHostException, MalformedURLException, UnknownFormatException, IOException, ProtocolException, InterruptedException, URISyntaxException {
@@ -37,7 +39,7 @@ public class ProfilesSitemapReader extends AffiliationCrawler  {
 		Collection<SitemapUrl> urls = sitemap.getUrlList();
 
 		for (SitemapUrl url : urls) {
-			addResearcher(new Researcher(getAffiliation(), url.getUrl().toString()));
+			addResearcher(new Researcher(url.getUrl().toString(), getAffiliation()));
 		}
 		LOG.info("Found " + getResearchers().size() + " profile pages");
     }

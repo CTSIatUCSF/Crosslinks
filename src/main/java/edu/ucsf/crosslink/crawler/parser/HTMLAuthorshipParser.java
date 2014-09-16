@@ -42,7 +42,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
 	    	Elements links = doc.select("a[href]");	
 		    for (Element link : links) {
 		    	if (link.attr("abs:href").contains(PUBMED_SECTION)) { // this way it works with http and https
-		    		researcher.addPubMedPublication(link.attr("abs:href"));
+		    		researcher.addPublication(link.attr("abs:href"));
 		    	}
 		    	else if (link.attr("abs:href").contains(ORCID_SECTION)) { // this way it works with http and https
 		    		String orcidId = link.attr("abs:href").split(ORCID_SECTION)[1];
@@ -70,7 +70,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
 			Injector injector = Guice.createInjector(new IOModule(prop), new CrawlerModule(prop));
 
 			HTMLAuthorshipParser parser = injector.getInstance(HTMLAuthorshipParser.class);
-			Researcher researcher = new Researcher(null, "http://profiles.ucsf.edu/eric.meeks");
+			Researcher researcher = new Researcher("http://profiles.ucsf.edu/eric.meeks");
 			parser.readResearcher(researcher);
 			injector.getInstance(ThumbnailGenerator.class).generateThumbnail(researcher);		}
 		catch (Exception e) {

@@ -129,12 +129,12 @@ public class JenaHelper implements R2RConstants {
     	}
     	
     	// publications
-    	if (!researcher.getPubMedPublications().isEmpty()) {
-    		for (Long pmid : researcher.getPubMedPublications()) {
-                Resource pmidResource = model.createResource("http:" + AuthorParser.PUBMED_SECTION + pmid);
+    	if (!researcher.getPublications().isEmpty()) {
+    		for (String pmid : researcher.getPublications()) {
+                Resource pmidResource = model.createResource(pmid);
         		// Associate to Researcher
         		model.add(researcherResource, 
-        				model.createProperty(R2R_CONTRIBUTED_TO), 
+        				model.createProperty(FOAF_PUBLICATIONS), 
         				pmidResource);    			
     		}
     	}

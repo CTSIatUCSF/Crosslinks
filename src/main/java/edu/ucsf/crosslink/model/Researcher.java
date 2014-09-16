@@ -1,6 +1,5 @@
 package edu.ucsf.crosslink.model;
 
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -11,8 +10,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URLEncodedUtils;
+import org.joda.time.DateTime;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.safety.Whitelist;
 
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.NodeIterator;
@@ -20,13 +21,15 @@ import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
+import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.ctsi.r2r.R2RConstants;
+import edu.ucsf.ctsi.r2r.R2ROntology;
 
 public class Researcher extends R2RResourceObject implements Comparable<Researcher>, R2RConstants {
 	private static final Logger LOG = Logger.getLogger(Researcher.class.getName());
 	
-	private Affiliation harvester;
+	private Crawler crawler;
 	private Affiliation affiliation;
 	private List<String> imageURLs = new ArrayList<String>(); // we allow for grabbing more than one and then test to see if any are valid when saving
 	private int readErrorCount = 0;
@@ -35,28 +38,31 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 	private int externalCoauthorCount;
 	private int sharedPublicationCount;	
 
-	private Researcher(String uri) throws URISyntaxException {
+	public Researcher(String uri) throws URISyntaxException {
 		super(uri, FOAF_PERSON);
 	}
 
-	public Researcher(Affiliation affiliation, String uri) throws URISyntaxException {
+	public Researcher(String uri, Affiliation affiliation) throws URISyntaxException {
 		this(uri);
     	this.setAffiliation(affiliation);
 	}
 
-	public Researcher(Affiliation affiliation, String uri, String label) throws URISyntaxException {
-		this(affiliation, uri);
-		this.setLabel(label);
+	public Researcher(String uri, Affiliation affiliation, String label) throws URISyntaxException {
+		this(uri, affiliation);
+		setLabel(label);
 	}
 
-	// for loading from the DB
-	public Researcher(Affiliation affiliation,
-			String prettyURL, String uri, String label, String imageURL, String thumbnailURL, 
-			String orcidId, int externalCoauthorCount, int sharedPublicationCount) throws URISyntaxException {
-		this(affiliation, uri, label);
-		this.setHomepage(prettyURL);
+	// loading for display only
+	public Researcher(String uri, Affiliation affiliation, String label,
+			String homePage, String imageURL, String thumbnailURL, 
+			int externalCoauthorCount, int sharedPublicationCount) throws URISyntaxException {
+		super(uri);
+		this.setAffiliation(affiliation);
+		this.setLabel(label);
+		if (homePage != null) {
+			this.setHomepage(homePage);
+		}
 		this.setConfirmedImgURLs(imageURL, thumbnailURL);
-		this.setOrcidId(orcidId);
     	this.externalCoauthorCount = externalCoauthorCount;
     	this.sharedPublicationCount = sharedPublicationCount;
     }
@@ -66,13 +72,13 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 		setLiteral(FOAF_LAST_NAME, lastName);
 	}
 	
-	public Affiliation getHarvester() {
-		return harvester;
+	public Crawler getHarvester() {
+		return crawler;
 	}
 	
-	public void setHarvester(Affiliation harvester) {
-		this.harvester = harvester;
-		setResource(R2R_HARVESTED_FROM, harvester);
+	public void setHarvester(Crawler crawler) {
+		this.crawler = crawler;
+		addResource(R2R_HARVESTED_FROM, crawler);
 	}
 	
 	public Affiliation getAffiliation() {
@@ -80,8 +86,8 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 	}
 	
 	private void setAffiliation(Affiliation affiliation) {
-		setResource(R2R_HAS_AFFILIATION, harvester);
 		this.affiliation = affiliation;
+		setResource(R2R_HAS_AFFILIATION, affiliation);
 	}
 	
 	public String getHomepage() {
@@ -97,16 +103,17 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 		this.imageURLs.clear();
 		if (imageURL != null) {
 			this.imageURLs.add(imageURL);
-		}
-		Model model = getModel();
-		Property propType = model.createProperty(RDF_TYPE);
-		Resource foafImage = model.createResource(FOAF_IMAGE);
-		Resource imageResource = setResource(FOAF_HAS_IMAGE, imageURL);
-		imageResource.addProperty(propType, foafImage);
-		if (thumbnailURL != null) {
-			Resource thumbnailResource = model.createResource(thumbnailURL);
-			thumbnailResource.addProperty(propType, foafImage);
-			imageResource.addProperty(model.createProperty(FOAF_THUMBNAIL), thumbnailResource);
+			Model model = getModel();
+			Property propType = model.createProperty(RDF_TYPE);
+			Resource foafImage = model.createResource(FOAF_IMAGE);
+			Resource imageResource = setResource(FOAF_HAS_IMAGE, imageURL);
+			imageResource.addProperty(propType, foafImage);
+			if (thumbnailURL != null) {
+				Resource thumbnailResource = model.createResource(thumbnailURL);
+				thumbnailResource.addProperty(propType, foafImage);
+				imageResource.addProperty(model.createProperty(FOAF_THUMBNAIL), thumbnailResource);
+				// should we also add thumbnail to the researcher?
+			}
 		}
 	}
 	
@@ -143,52 +150,23 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 		setLiteral(VIVO_ORCID_ID, orcidId);
 	}
 
-	public Collection<Long> getPubMedPublications() {
-		Collection<Long> pmids= new HashSet<Long>();
-		StmtIterator si = getResource().listProperties(getModel().createProperty(R2R_CONTRIBUTED_TO));
+	public Collection<String> getPublications() {
+		Collection<String> publications= new HashSet<String>();
+		StmtIterator si = getResource().listProperties(getModel().createProperty(FOAF_PUBLICATIONS));
 		while (si.hasNext()) {
-			pmids.add(si.next().getLong());
+			publications.add(si.next().getResource().getURI());
 		}
-		return pmids;
+		return publications;		
 	}
 	
 	public void addPubMedPublication(long pmid) {
-		Model model = getModel();
-		// Associate to Researcher
-		model.add(getResource(), model.createProperty(R2R_CONTRIBUTED_TO), model.createResource("http:" + AuthorParser.PUBMED_SECTION + pmid));    			
+		addPublication("http:" + AuthorParser.PUBMED_SECTION + pmid);
 	}
 	
 	// can handle it in URL form, or just the pmid
-	public void addPubMedPublication(String publication) {
-		Integer pmid = null;
-		if (StringUtils.isNumeric(publication)) {
-			pmid = Integer.valueOf(publication);
-		}
-		else if (publication.contains(AuthorParser.PUBMED_SECTION) && StringUtils.isNumeric(publication.split(AuthorParser.PUBMED_SECTION)[1])) {
-			pmid = Integer.valueOf(publication.split(AuthorParser.PUBMED_SECTION)[1]);
-		}
-		else {
-		    List<NameValuePair> params;
-			try {
-				params = URLEncodedUtils.parse(new URI(publication), "UTF-8");
-			    for (NameValuePair param : params) {
-			    	if ("term".equalsIgnoreCase(param.getName())) {
-						pmid = Integer.valueOf(param.getValue());		    		
-			    	}
-			    }
-			} 
-			catch (URISyntaxException e) {
-				LOG.log(Level.WARNING, e.getMessage(), e);
-				e.printStackTrace();
-			}		    
-		}
-		if (pmid != null) {
-			LOG.info("PMID = " + pmid);
-			addPubMedPublication(pmid);
-		}
-		else {
-			LOG.log(Level.WARNING, "Could not extract PMID from " + publication);			
-		}
+	public void addPublication(String publication) {
+		Model model = getModel();
+		model.add(getResource(), model.createProperty(FOAF_PUBLICATIONS), model.createResource(publication));    			
 	}
 
 	public void registerReadException(Exception e) {
@@ -202,7 +180,7 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 	
 	public String toString() {
 		return getURI() + (getLabel() != null ? " : " + getLabel() : "") +
-					" : " + getPubMedPublications().size() + " publications";
+					" : " + getPublications().size() + " publications";
 	}
 
 	public int compareTo(Researcher arg0) {
@@ -259,10 +237,22 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 	public static void main(String[] args) {
 		// simple test
 		try {
+			Calendar now = Calendar.getInstance();
+			now.setTimeInMillis(new DateTime().minusDays(4).getMillis());
+			System.out.println(R2ROntology.createDefaultModel().createTypedLiteral(now).getString());
+
+			String doiLink = "<a href=\"http://psycnet.apa.org/doi/10.1037/a0016478\">10.1037/a0016478</a>";
+			System.out.println(Jsoup.isValid(doiLink, Whitelist.basic()));
+			Document doc = Jsoup.parseBodyFragment(doiLink);
+			System.out.println(doc.text());
+			String doi = doc.select("a[href]").get(0).text();
+			System.out.println(doi);
+			System.out.println(Jsoup.isValid(doi, Whitelist.basic()));
+
 			Researcher foo = new Researcher("http://profiles.ucsf.edu/eric.meeks");
-			foo.addPubMedPublication("1234");
-			foo.addPubMedPublication("https://www.ncbi.nlm.nih.gov/pubmed/?otool=uchsclib&term=17874365");
-			foo.addPubMedPublication("http://www.ncbi.nlm.nih.gov/pubmed/24303259");
+			//foo.addPubMedPublication("1234");
+			//foo.addPubMedPublication("https://www.ncbi.nlm.nih.gov/pubmed/?otool=uchsclib&term=17874365");
+			//foo.addPubMedPublication("http://www.ncbi.nlm.nih.gov/pubmed/24303259");
 			foo.setLiteral(FOAF + "firstName", "Eric");
 			foo.setLiteral(FOAF + "lastName", "Meeks");
 			foo.setLiteral(FOAF + "firstName", "Joe");

@@ -32,7 +32,7 @@ import edu.ucsf.crosslink.io.IOModule;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 
-public abstract class AffiliationCrawler extends Crawler {
+public abstract class AffiliationCrawler extends Crawler implements Affiliated {
 
 	private static final Logger LOG = Logger.getLogger(AffiliationCrawler.class.getName());
 
@@ -54,9 +54,10 @@ public abstract class AffiliationCrawler extends Crawler {
 	}	
 
 	public AffiliationCrawler(Affiliation affiliation, Mode crawlingMode, CrosslinkPersistance store) throws Exception {
-		super(crawlingMode, affiliation, store);
+		super(affiliation.getName(), crawlingMode, store);
 		this.affiliation = affiliation;
 		this.store = store;
+		store.save(affiliation);		
 	}
 	
 	@Inject
@@ -89,15 +90,11 @@ public abstract class AffiliationCrawler extends Crawler {
 		return affiliation;
 	}
 	
-	public Affiliation getHarvester() {
-		return affiliation;
-	}
-
 	public boolean crawl() throws Exception {
 		if (Arrays.asList(Status.IDLE, Status.FINISHED, Status.ERROR).contains(getStatus())) {
 			// fresh start
 			gatherURLs();
-			recentlyProcessedAuthors = store.loadRecentlyHarvestedResearchers(getAffiliation());
+			recentlyProcessedAuthors = store.loadRecentlyHarvestedResearchers(getAffiliation(), daysConsideredOld);
 		}
 		else {
 			// we are resuming
@@ -182,14 +179,13 @@ public abstract class AffiliationCrawler extends Crawler {
 			if (isPaused()) {
 				break;
 			}
-			setLastReadAuthor(researcher);
 			
 			// do not skip any if we are in forced mode
 			Long ts = recentlyProcessedAuthors.get(researcher.getURI());
 			if (!Mode.FORCED_NO_SKIP.equals(getMode()) && 
-					((ts != null && ts > new DateTime().minusDays(daysConsideredOld).getMillis()) || store.skip(researcher))) {
+					((ts != null && ts > new DateTime().minusDays(daysConsideredOld).getMillis()) || store.skip(researcher.getURI(), R2R_WORK_VERIFIED_DT, daysConsideredOld))) {
 				removeResearcher(researcher);
-		    	addSkip(researcher);
+		    	addSkip(researcher.getURI());
 				LOG.info("Skipping recently processed author :" + researcher);						
 			}
 			else {
@@ -205,7 +201,7 @@ public abstract class AffiliationCrawler extends Crawler {
 							throw new Exception("Error reading known researcher URL: " + researcher.getURI() );
 						}
 						else {
-							addAvoided(researcher);
+							addAvoided(researcher.getURI());
 							LOG.info("Skipping " + researcher.getURI() + " because we could not read it's contents, and it is new to us");
 						}
 					}
@@ -215,13 +211,13 @@ public abstract class AffiliationCrawler extends Crawler {
 				catch (Exception e) {
 					// see if it's likely to be a bad page
 					if (isProbablyNotAProfilePage(researcher.getURI())) {
-						addAvoided(researcher);
+						addAvoided(researcher.getURI());
 						LOG.log(Level.INFO, "Skipping " + researcher.getURI() + " because it does not appear to be a profile page", e);	
 						removeResearcher(researcher);
 						continue;
 					}
 					if (researcher != null) {
-						addError(researcher);
+						addError(researcher.getURI());
 						researcher.registerReadException(e);
 						if (researcher.getErrorCount() > authorReadErrorThreshold) {
 							// assume this is a bad URL and just move on
@@ -248,10 +244,6 @@ public abstract class AffiliationCrawler extends Crawler {
 			}
 		}
 		return false;
-	}
-	
-	public String getName() {
-		return getAffiliation().getName();
 	}
 	
 	// pass in the name of a configuration file

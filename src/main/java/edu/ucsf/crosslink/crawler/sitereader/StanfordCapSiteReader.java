@@ -11,6 +11,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
@@ -23,8 +24,9 @@ public class StanfordCapSiteReader extends AffiliationCrawler implements AuthorP
 	private static final Logger LOG = Logger.getLogger(StanfordCapSiteReader.class.getName());
 
 	@Inject
-	public StanfordCapSiteReader(Affiliation affiliation, Mode crawlingMode, CrosslinkPersistance store) throws Exception {
-		super(affiliation, crawlingMode, store);
+	public StanfordCapSiteReader(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location, 
+			Mode crawlingMode, CrosslinkPersistance store) throws Exception {
+		super(new Affiliation(name, baseURL, location), crawlingMode, store);
 	}
 	
 	protected void collectResearcherURLs() throws IOException, InterruptedException, URISyntaxException {
@@ -41,7 +43,7 @@ public class StanfordCapSiteReader extends AffiliationCrawler implements AuthorP
 			    		onLastPage = false;
 			    	}
 			    	else if ( href.startsWith(getSiteRoot() + "/") && href.length() > getSiteRoot().length() + 1 && !href.contains("?")) {
-		    			addResearcher( new Researcher(getAffiliation(), href));
+		    			addResearcher( new Researcher(href, getAffiliation()));
 			    	}
 		        }
 			    LOG.info("Found " + getResearchers().size() + " profile pages so far, onto page " + page);
@@ -67,7 +69,7 @@ public class StanfordCapSiteReader extends AffiliationCrawler implements AuthorP
 			
 		    for (Element link : links) {
 		    	if (  link.attr("abs:href").contains(PUBMED_SECTION) ) {
-		    		researcher.addPubMedPublication(link.attr("abs:href"));
+		    		researcher.addPublication(link.attr("abs:href"));
 		    	}
 	        }
 
@@ -83,9 +85,8 @@ public class StanfordCapSiteReader extends AffiliationCrawler implements AuthorP
     
     public static void main(String[] args) {
     	try {
-    		Affiliation stanford = new Affiliation("Stanford", "https://med.stanford.edu/profiles", null);
-    		StanfordCapSiteReader reader = new StanfordCapSiteReader(stanford, Mode.FORCED, null);
-    		reader.readResearcher(new Researcher(stanford, "https://med.stanford.edu/profiles/michael-halaas"));
+    		StanfordCapSiteReader reader = new StanfordCapSiteReader("Stanford", "https://med.stanford.edu/profiles", null, Mode.FORCED, null);
+    		//reader.readResearcher(new Researcher(stanford, "https://med.stanford.edu/profiles/michael-halaas"));
     	}
     	catch (Exception e) {
     		e.printStackTrace();

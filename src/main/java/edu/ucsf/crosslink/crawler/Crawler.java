@@ -25,16 +25,16 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
-import edu.ucsf.crosslink.model.Affiliation;
+import edu.ucsf.crosslink.model.R2RResourceObject;
 import edu.ucsf.crosslink.model.Researcher;
+import edu.ucsf.ctsi.r2r.R2RConstants;
 
-public abstract class Crawler implements Runnable, Comparable<Crawler> {
+public abstract class Crawler extends R2RResourceObject implements Runnable, Comparable<Crawler>, R2RConstants {
 
-	private static final Logger LOG = Logger.getLogger(MarengoSparqlCrawler.class.getName());
+	private static final Logger LOG = Logger.getLogger(MarengoDetailCrawler.class.getName());
 
 	private Mode mode = Mode.ENABLED;
 	private Status status = Status.IDLE;
-	private Affiliation harvester = null;
 
 	private int pauseOnAbort = 60;
 	private int staleDays = 7;
@@ -43,17 +43,19 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 	private Date ended = null;
 	private CrawlerStartStatus lastStartStatus;
 
-	private Researcher lastFoundAuthor = null;
-	private Researcher lastReadAuthor = null;
-	private Researcher lastSavedAuthor = null;
+	// because it is expensive to create a Researcher object, just use the URI for the found one as we may end up not needing to build the object
+	private String lastFoundResearcher = null;
+	private Researcher lastSavedResearcher = null;
 
 	private String latestError = null;
+	private Exception latestErrorException = null;
 	private CrosslinkPersistance store;
 
-	private List<Researcher> avoided = new ArrayList<Researcher>();
-	private List<Researcher> error = new ArrayList<Researcher>();
+	private FixedSizeList<String> avoided = new FixedSizeList<String>(100);
+	private FixedSizeList<String> error = new FixedSizeList<String>(100);
+	private int avoidedCnt = 0;
+	private int errorCnt = 0;
 	private int foundCnt = 0;
-	private int readCnt = 0;
 	private int savedCnt = 0;
 	private int skipCnt = 0;
 	
@@ -61,11 +63,12 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 	private ExecutorService executorService = null;
 	private Future<Boolean> currentJob = null;
 	
-	public Crawler(Mode mode, Affiliation harvester, CrosslinkPersistance store) throws Exception {
+	public Crawler(String name, Mode mode, CrosslinkPersistance store) throws Exception {
+		super(R2R_CRAWLER + "/" + name.replace(' ', '_'), R2R_CRAWLER);
+		this.setLabel(name);
 		this.mode = mode;
-		this.harvester = harvester;
 		this.store = store;
-		store.save(harvester);		
+		store.update(this);
 		executorService = Executors.newSingleThreadExecutor();
 	}
 
@@ -85,7 +88,9 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 		ENABLED, DISABLED, FORCED, FORCED_NO_SKIP, DEBUG;
 	}
 	
-	public abstract String getName();
+	protected CrosslinkPersistance getStore() {
+		return store;
+	}
 	
 	public boolean isActive() {
 		return isActive(getStatus());
@@ -118,7 +123,7 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 			// try and interrupt the job
 			currentJob.cancel(true);
 		}
-		if (isForced() && !isOk()) {
+		if (isForced() && !isActive()) {
 			// clear the bad status
 			setStatus(Status.IDLE);
 		}
@@ -179,83 +184,99 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 		return sw.toString();
 	}
 
-	protected void setLastFoundAuthor(Researcher lastFoundAuthor) {
-		this.lastFoundAuthor = lastFoundAuthor;
+	protected void setLastFoundResearcher(String lastFoundResearcher) {
+		this.lastFoundResearcher = lastFoundResearcher;
 		foundCnt++;
 	}
 
-	public Researcher getLastFoundAuthor() {
-		return lastFoundAuthor;
+	public String getlastFoundResearcher() {
+		return lastFoundResearcher;
 	}
 
-	protected void setLastReadAuthor(Researcher lasteReadAuthor) {
-		this.lastReadAuthor = lasteReadAuthor;
-		readCnt++;
-	}
-
-	public Researcher getLastReadAuthor() {
-		return lastReadAuthor;
-	}
-
-	public Researcher getLastSavedAuthor() {
-		return lastSavedAuthor;
+	public Researcher getLastSavedResearcher() {
+		return lastSavedResearcher;
 	}
 
 	public String getLatestError() {
 		return latestError;
 	}
+	
+	public String getLatestErrorStackTrace() {
+		if (latestErrorException != null) {
+			StringWriter sw = new StringWriter();
+			PrintWriter writer = new PrintWriter(sw);
+			latestErrorException.printStackTrace(writer);
+			writer.flush();
+			return sw.toString();
+		}
+		return null;
+	}
 
 	protected void setLatestError(String latestError, Exception e) {
 		this.latestError = latestError;
-		LOG.log(Level.SEVERE, latestError, e);
-	}
-	
-	public Affiliation getHarvester() {
-		return harvester;
+		if (e != null) {
+			this.latestErrorException = e;
+			LOG.log(Level.SEVERE, latestError, e);
+		}
 	}
 	
 	private void clear() {
 		avoided.clear();
 		error.clear();		
+		avoidedCnt = 0;
+		errorCnt = 0;
 		foundCnt = 0;
-		readCnt = 0;
 		savedCnt = 0;
 		skipCnt = 0;
 	}
 
-	public List<Researcher> getErrors() {
+	public List<String> getErrors() {
 		return error;
 	}
 	
-	public List<Researcher> getAvoided() {
+	public List<String> getAvoided() {
 		return avoided;
 	}
 	
-	protected void addError(Researcher researcher) {
-		error.add(researcher);
+	protected void addError(String researcherURI) {
+		errorCnt++;
+		error.push(researcherURI);
 	}
 	
-	protected void addAvoided(Researcher researcher) {
-		avoided.add(researcher);
+	protected void addAvoided(String researcherURI) {
+		avoidedCnt++;
+		avoided.push(researcherURI);
 	}
 	
-	protected void addSkip(Researcher researcher) {
+	protected void addSkip(String researcherURI) {
 		skipCnt++;
 	}
 
 	protected void save(Researcher researcher) throws Exception {
 		store.save(researcher);
 		savedCnt++;
-		lastSavedAuthor = researcher;
+		lastSavedResearcher = researcher;
 		LOG.log(Level.FINE, "Saved " + researcher);
 	}
 	
+	protected void update(Researcher researcher) throws Exception {
+		update(researcher, null);
+	}
+	
+	protected void update(Researcher researcher, List<String> preStatements) throws Exception {
+		store.update(researcher, preStatements);
+		savedCnt++;
+		lastSavedResearcher = researcher;
+		LOG.log(Level.FINE, "Updated " + researcher);
+	}
+
 	public int getSavedCnt() {
 		return savedCnt;
 	}
 
+	// TODO use in memory ended if that will work
 	public Calendar getDateLastCrawled() {
-		return store != null ? store.dateOfLastCrawl(getHarvester()) : null;
+		return store != null ? store.dateOfLastCrawl(this) : null;
 	}
 	
 	public CrawlerStartStatus getLastStartStatus() {
@@ -292,16 +313,12 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 
 	public int compareTo(Crawler other) {
     	// always put active ones in the front
-		if (!(other instanceof AffiliationCrawler)) {
-			return 1;
-		}
-		AffiliationCrawler o = (AffiliationCrawler)other;
-    	if (this.isActive() != o.isActive()) {
+    	if (this.isActive() != other.isActive()) {
     		return this.isActive() ? -1 : 1;
     	}	    	
 
     	CrawlerStartStatus astatus = this.getLastStartStatus();
-    	CrawlerStartStatus bstatus = o.getLastStartStatus();	    	
+    	CrawlerStartStatus bstatus = other.getLastStartStatus();	    	
     	if (astatus != null && bstatus != null) {
     		return astatus.compareTo(bstatus);
     	}
@@ -320,8 +337,12 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 		}
 		setCrawlingThread(Thread.currentThread());
 		try {
+			if (isOk()) {
+				// do not clear stats if we are resuming from a pause or error
+				clear();				
+			}
 			setStatus(Status.RUNNING);
-			started = store.startCrawl(getHarvester()).getTime();
+			started = store.startCrawl(this).getTime();
 			ended = null;
 			currentJob = executorService.submit(new Callable<Boolean>() {
 		         public Boolean call() throws Exception {
@@ -331,12 +352,11 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 			boolean removeMissing = currentJob.get();
 			setCrawlingThread(Thread.currentThread());
 			if (!isPaused()) {
-				ended = store.finishCrawl(getHarvester()).getTime();
+				ended = store.finishCrawl(this).getTime();
 				if (removeMissing) {
-					store.deleteMissingResearchers(getHarvester());
+					store.deleteMissingResearchers(this);
 				}
 				setStatus(Status.FINISHED);
-				clear();
 			}
 			if (isForced()) {
 				// don't leave in forced mode
@@ -360,17 +380,25 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 	}
 		
 	public String getCounts() {
-		return "Found " + foundCnt + ", Read " + readCnt + ", Saved " + savedCnt + ", Skipped " + skipCnt + ", Error " + getErrors().size() + ", Avoids " + getAvoided().size();
+		return "Found " + foundCnt + ", Saved " + savedCnt + ", Skipped " + skipCnt + ", Error " + errorCnt + ", Avoids " + avoidedCnt;
 	}
 
 	public String getDates() {
-		String retval = "LastFinish " + getDateLastCrawled();
+		String retval = "";
+		if (getDateLastCrawled() != null) {
+			retval += "LastFinish " + getDateLastCrawled().getTime() + ", ";			
+		}
 		if (started == null) {
-			return retval + ", Not started...";
+			return retval + "Not started...";
 		}
 		else {
-			return retval + ", Started " + started + ", Ended " + ended + " " + Minutes.minutesBetween(new DateTime(started), ended != null ? new DateTime(ended) : new DateTime()).getMinutes() + " minutes";
+			retval += "Started " + started;
 		}
+		if (ended != null) {
+			retval += ", Ended " + ended;
+		}
+		Date endTime = ended != null ? ended : new Date();
+		return retval + ", Duration " + PeriodFormat.getDefault().print(new Period(endTime.getTime() - started.getTime())); 
 	}
 
 	public String getRates() {
@@ -382,4 +410,20 @@ public abstract class Crawler implements Runnable, Comparable<Crawler> {
 	}
 	
 	public abstract boolean crawl() throws Exception;
+	
+	@SuppressWarnings("serial")
+	private static class FixedSizeList<T> extends ArrayList<T> {
+		private int limit = 100;
+		
+		private FixedSizeList(int limit) {
+			this.limit = limit;
+		}
+		
+		public synchronized void push(T t) {
+			add(0, t);
+			if (size() > limit) {
+				remove(size() - 1);
+			}
+		}
+	}
 }

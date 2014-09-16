@@ -70,7 +70,7 @@ public class RDFAuthorshipParser implements AuthorParser {
 							LOG.info("linkedInformationResource : " + lir);
 							String pmid = jenaPersistance.find(lir, "pmid");
 							if (pmid != null) {
-								researcher.addPubMedPublication(pmid);
+								researcher.addPublication(pmid);
 							}
 							break;
 						}
@@ -146,7 +146,7 @@ public class RDFAuthorshipParser implements AuthorParser {
 
 			RDFAuthorshipParser parser = injector.getInstance(RDFAuthorshipParser.class);
 			//parser.getAuthorFromHTML("http://profiles.ucsf.edu/eric.meeks");
-			Researcher reseacher = new Researcher(null, "http://reach.suny.edu/display/Zivadinov_Robert");
+			Researcher reseacher = new Researcher("http://reach.suny.edu/display/Zivadinov_Robert");
 			parser.readResearcher(reseacher);
 			injector.getInstance(ThumbnailGenerator.class).generateThumbnail(reseacher);
     	}

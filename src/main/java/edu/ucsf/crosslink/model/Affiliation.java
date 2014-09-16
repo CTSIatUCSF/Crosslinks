@@ -3,18 +3,18 @@ package edu.ucsf.crosslink.model;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
-
 public class Affiliation extends R2RResourceObject {
 	
 	private int researcherCount;
 	private int pmidCount;
+	private RNSType rnsType;
+	
+	public enum RNSType {PROFILES, VIVO, SCIVAL, LOKI, CAP, UNKNOWN};
 
-	@Inject
-	public Affiliation(@Named("Name") String affiliationName, @Named("BaseURL") String baseURL, @Named("Location") String location) throws URISyntaxException {
+	public Affiliation(String affiliationName, String baseURL, String location) throws URISyntaxException {
 		super(baseURL, Arrays.asList(R2R_AFFILIATION, GEO_SPATIALTHING));
 		setLabel(affiliationName);
+		rnsType = getRNSType(baseURL.toLowerCase());
 		if (location != null) {
 			String [] geoCodes = location.split(",");
 			setLiteral(GEO_LATITUDE, geoCodes[0]);
@@ -26,6 +26,30 @@ public class Affiliation extends R2RResourceObject {
 		this(name, baseURL, null);
 		this.researcherCount = researcherCount;		
 		this.pmidCount = pmidCount;
+	}
+	
+	private static RNSType getRNSType(String baseURL) {
+		if (baseURL.contains("stanford.edu")) {
+			return RNSType.CAP;
+		}
+		else if (baseURL.contains("loki")) {
+			return RNSType.LOKI;
+		}
+		else if (baseURL.contains("scival.com")) {
+			return RNSType.SCIVAL;
+		}
+		else if (baseURL.contains("vivo") || baseURL.contains("duke.edu") || 
+				baseURL.contains("suny.edu") || baseURL.contains("unimelb.edu.au")) {
+			return RNSType.VIVO;
+		}
+		else if (baseURL.contains("profiles")) {
+			return RNSType.PROFILES;
+		}
+		return RNSType.UNKNOWN;
+	}
+	
+	public RNSType getRNSType() {
+		return rnsType;
 	}
 	
 	public int getResearcherCount() {

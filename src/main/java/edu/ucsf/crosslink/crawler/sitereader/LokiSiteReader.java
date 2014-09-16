@@ -9,6 +9,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
@@ -21,8 +22,9 @@ public class LokiSiteReader extends AffiliationCrawler implements AuthorParser {
 	private static final Logger LOG = Logger.getLogger(LokiSiteReader.class.getName());
 
 	@Inject
-	public LokiSiteReader(Affiliation affiliation, Mode crawlingMode, CrosslinkPersistance store) throws Exception {
-		super(affiliation, crawlingMode, store);
+	public LokiSiteReader(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location, 
+			Mode crawlingMode, CrosslinkPersistance store) throws Exception {
+		super(new Affiliation(name, baseURL, location), crawlingMode, store);
 	}
 	
     protected void collectResearcherURLs() throws IOException, InterruptedException  {
@@ -47,7 +49,7 @@ public class LokiSiteReader extends AffiliationCrawler implements AuthorParser {
 		    	if ( link.attr("abs:href").startsWith(getSiteRoot() + "/research/browseResearch.jsp?") && link.attr("abs:href").contains("id=")) {
 		    		try {
 		    			String url = getSiteRoot() + "/research/browseResearch.jsp?id=" + link.attr("abs:href").split("&id=")[1];
-		    			addResearcher(new Researcher(getAffiliation(), url, link.text()));
+		    			addResearcher(new Researcher(url, getAffiliation(), link.text()));
 		    		}
 		    		catch (Exception e) {
 						LOG.log(Level.WARNING, "Error parsing " + link.attr("abs:href"), e);		    			
@@ -64,7 +66,7 @@ public class LokiSiteReader extends AffiliationCrawler implements AuthorParser {
 			
 		    for (Element link : links) {
 		    	if ( link.attr("abs:href").contains(AuthorParser.PUBMED_SECTION)) {
-		    		researcher.addPubMedPublication(link.attr("abs:href"));
+		    		researcher.addPublication(link.attr("abs:href"));
 		    	}
 		    	else if (link.attr("abs:href").contains(AuthorParser.ORCID_SECTION)) { // this way it works with http and https
 		    		String orcidId = link.attr("abs:href").split(AuthorParser.ORCID_SECTION)[1];

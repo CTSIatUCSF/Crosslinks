@@ -23,7 +23,6 @@ public class IOModule extends AbstractModule {
 		bind(Integer.class).annotatedWith(Names.named("thumbnailHeight")).toInstance(Integer.parseInt(prop.getProperty("thumbnailHeight")));
         bind(ThumbnailGenerator.class).asEagerSingleton();
 		
-		bind(Integer.class).annotatedWith(Names.named("daysConsideredOld")).toInstance(Integer.parseInt(prop.getProperty("daysConsideredOld")));
 		try {
 			bind(CrosslinkPersistance.class).to((Class<? extends CrosslinkPersistance>) Class.forName(prop.getProperty("persistance"))).asEagerSingleton();
 		} 

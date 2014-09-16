@@ -1,12 +1,17 @@
 package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URIBuilder;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.Connection.Response;
@@ -16,6 +21,7 @@ import org.jsoup.nodes.Element;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
+import edu.ucsf.crosslink.model.Affiliation.RNSType;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 
@@ -28,7 +34,99 @@ public class SiteReader implements R2RConstants {
 	private int getDocumentRetry = 10;
 	private int getDocumentTimeout = 15000;
 	private int getDocumentSleep = 1000;
+	
+	private static Map<RNSType, ImageFinder> imageFinders = new HashMap<RNSType, ImageFinder>();
+	private static List<ImageFinder> baseImageFinders = null;
+	
+	static {
+		imageFinders.put(RNSType.PROFILES, new ImageFinder() {
+			public String getImage(Element src) {
+	    		// Profiles
+	    		if (src.attr("abs:src").contains("PhotoHandler.ashx")) {
+	    			try {
+	    				URIBuilder uri = new URIBuilder(src.attr("abs:src"));
+	    				List<NameValuePair> params = uri.getQueryParams();
+	    				uri.removeQuery();
+	        			for (NameValuePair param : params) {
+	        				if ("cachekey".equalsIgnoreCase(param.getName())) {
+	        					continue;
+	        				}
+	        				else if ("Thumbnail".equalsIgnoreCase(param.getName())) {
+	        					// this is not an image of the person!
+	        					uri = null;
+	        					break;
+	        				}        	
+	        				uri.addParameter(param.getName(), param.getValue());
+	        			}
+	        			if (uri != null) {
+	        				return uri.toString();
+	        			}
+	        		}
+	    			catch (Exception e) {
+	    				LOG.log(Level.WARNING, e.getMessage(), e);
+	    			}
+	    		}
+				return null;
+			}
+		});
+	
+		imageFinders.put(RNSType.VIVO, new ImageFinder() {
+			public String getImage(Element src) {
+	    		// from RDF author parser
+	    		//  look for a photo
+	    		if (src.attr("class").contains("photo") && !src.attr("title").equals("no image")) {
+	    			return src.attr("abs:src");
+	    		}
+	    		// from HTML author parser
+	    		//  try a few more tricks to look for a photo, this particular method works with VIVO
+	    		if (src.className().equals("individual-photo") && !src.attr("abs:src").contains("unknown") ) { 
+	    			return src.attr("abs:src");
+	    		}
+				return null;
+			}
+		});
 
+		imageFinders.put(RNSType.LOKI, new ImageFinder() {
+			public String getImage(Element src) {
+	    		// from loki
+	    		if (src.attr("abs:src").contains("displayPhoto")) {
+	    			return src.attr("abs:src");
+	    		}
+				return null;
+			}
+		});
+
+		imageFinders.put(RNSType.CAP, new ImageFinder() {
+			public String getImage(Element src) {
+	    		// from stanford
+	    		if (src.attr("abs:src").contains("viewImage")) {
+	    			return src.attr("abs:src");
+	    		}
+				return null;
+			}
+		});
+		
+		baseImageFinders = Arrays.asList(imageFinders.get(RNSType.PROFILES),
+				imageFinders.get(RNSType.VIVO),
+				imageFinders.get(RNSType.CAP),
+				imageFinders.get(RNSType.LOKI));
+
+		imageFinders.put(RNSType.SCIVAL, imageFinders.get(RNSType.VIVO));
+
+		imageFinders.put(RNSType.UNKNOWN, new ImageFinder() {
+			public String getImage(Element src) {
+				String img = null;
+				for (ImageFinder finder : baseImageFinders) {
+					img = finder.getImage(src);
+					if (img != null) {
+						return img;
+					}
+	    		}
+				return null;
+			}
+		});		
+	}	
+	
 	@Inject
 	public SiteReader(@Named("getDocumentRetry") Integer getDocumentRetry, @Named("getDocumentTimeout") Integer getDocumentTimeout, 
 			@Named("getDocumentSleep") Integer getDocumentSleep) {
@@ -77,35 +175,20 @@ public class SiteReader implements R2RConstants {
     	if (!doc.location().equalsIgnoreCase(researcher.getURI())) {
     		researcher.setHomepage(doc.location());
     	}
-		researcher.addImageURL(getImage(doc));
+		researcher.addImageURL(getImage(doc, researcher.getAffiliation().getRNSType()));
     }
-    
-    private String getImage(Document doc) {
+           
+    private String getImage(Document doc, RNSType type) {
     	for (Element src : doc.select("[src]")) {
+    		String img = null;
     		if (!src.tagName().equals("img")) {
     			continue;
     		}
-    		// from HTML author parser
-    		//  try a few more tricks to look for a photo, this particular method works with VIVO
-    		if (src.className().equals("individual-photo") && !src.attr("abs:src").contains("unknown") ) { 
-    			return src.attr("abs:src");
-    		}
-    		// from RDF author parser
-    		//  look for a photo
-    		if (src.attr("class").contains("photo") && !src.attr("title").equals("no image")) {
-    			return src.attr("abs:src");
-    		}
-    		// Profiles
-    		if (src.attr("abs:src").contains("PhotoHandler.ashx")) {
-    			return src.attr("abs:src");
-    		}
-    		// from loki
-    		if (src.attr("abs:src").contains("displayPhoto")) {
-    			return src.attr("abs:src");
-    		}
-    		// from stanford
-    		if (src.attr("abs:src").contains("viewImage")) {
-    			return src.attr("abs:src");
+    		else {
+    			img = imageFinders.get(type).getImage(src);
+    			if (img != null) {
+    				return img;
+    			}
     		}
     	}
     	return null;
@@ -116,7 +199,8 @@ public class SiteReader implements R2RConstants {
     	String url = "http://profiles.ucsf.edu/profile/368698";
     	try {
         	int attempts = 0;
-        	Document doc = null;
+        	@SuppressWarnings("unused")
+			Document doc = null;
         	while (attempts++ < 10) {
             	try {
             	    Connection connection = Jsoup.connect(url);
@@ -132,37 +216,7 @@ public class SiteReader implements R2RConstants {
             		ex.printStackTrace();
             	}
         	}
-    		
-        	String img = null;
-        	for (Element src : doc.select("[src]")) {
-        		// from HTML author parser
-        		//  try a few more tricks to look for a photo, this particular method works with VIVO
-        		if (!src.tagName().equals("img")) {
-        			continue;
-        		}
-        		if (src.tagName().equals("img") && src.className().equals("individual-photo") && !src.attr("abs:src").contains("unknown") ) { 
-        			img =  src.attr("abs:src");
-        		}
-        		// from RDF author parser
-        		//  look for a photo
-        		if (src.tagName().equals("img") && src.attr("class").contains("photo") && !src.attr("title").equals("no image")) {
-        			img =  src.attr("abs:src");
-        		}
-        		// Profiles
-        		if (src.attr("abs:src").contains("PhotoHandler.ashx")) {
-        			img =  src.attr("abs:src");
-        		}
-        		// from loki
-        		if (src.tagName().equals("img") && src.attr("abs:src").contains("displayPhoto")) {
-        			img =  src.attr("abs:src");
-        		}
-        		// from stanford
-        		if (src.tagName().equals("img") && src.attr("abs:src").contains("viewImage")) {
-        			img =  src.attr("abs:src");
-        		}
-        	}
-        	System.out.println(img);
-    		
+    		    		
     	}
     	catch (Exception e) {
     		e.printStackTrace();

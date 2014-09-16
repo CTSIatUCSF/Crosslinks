@@ -62,13 +62,10 @@
 	<ul>
 	<c:forEach var="r" items="${researchers}" begin="${start}" end="${stop}">
 		<li>
-		<c:if test="${r.thumbnailURL != null}">
-			<img src='<c:out value="${r.thumbnailURL}"/>' width='20'/>&nbsp;
+		<c:if test="${r.imageURL != null}">
+			<img src='<c:out value="${r.imageURL}"/>' width='20'/>&nbsp;
 		</c:if>
-		<a href = '<c:out value="${affiliation.baseURL}"/><c:out value="${r.homePageURL}"/>'><c:out value="${r.name}"/> at <c:out value="${affiliation.name}"/></a>&nbsp;
-		<c:if test="${r.orcidId != null}">
-			<a href = 'http://orcid.org/<c:out value="${r.orcidId}"/>'>Orcid profile for <c:out value="${r.name}"/></a>&nbsp;
-		</c:if>
+		<a href = '<c:out value="${researcher.URI}"/>'><c:out value="${r.name}"/> at <c:out value="${affiliation.name}"/></a>&nbsp;
 		<c:if test="${r.externalCoauthorCount > 0}">
 			List of <c:out value="${r.externalCoauthorCount}"/> external co-authors and <c:out value="${r.sharedPublicationCount}"/> shared publications for <c:out value="${r.name}"/>&nbsp;
 			<a href = '../coauthors?researcherURI=<c:out value="${r.URI}"/>&format=JSON-LD'> (JSON-LD)</a>

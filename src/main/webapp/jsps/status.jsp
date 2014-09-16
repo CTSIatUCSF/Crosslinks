@@ -7,7 +7,7 @@
     Administrator = <c:out value="${administrator}"/><p>
     <c:out value="${memoryStats}" escapeXml="false"/><p>
 	<c:forEach var="crawler" items="${crawlers}">
-	   <a href='./<c:out value="${crawler.name}"/>'><c:out value="${crawler.name}"/></a>&nbsp;
+	   <a href='./<c:out value="${crawler.name}"/>/status'><c:out value="${crawler.name}"/></a>&nbsp;
 		<c:if test="${not crawler.active and crawler.ok}">
 		   <c:out value="${crawler.state}"/><p>
 		</c:if>
@@ -20,8 +20,8 @@
 		</c:if>
 		<c:out value="${crawler.counts}"/>&nbsp;<c:out value="${crawler.dates}"/><p>
  	    <c:out value="${crawler.rates}"/><p>
-		<c:if test="${not empty crawler.lastSavedAuthor}">
-	 	    Last Saved = <c:out value="${crawler.lastSavedAuthor}"/><p>
+		<c:if test="${not empty crawler.lastSavedResearcher}">
+	 	    Last Saved = <c:out value="${crawler.lastSavedResearcher}"/><p>
 		</c:if>
  	    <c:out value="${crawler.lastStartStatus}"/><p>
  	    <hr>

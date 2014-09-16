@@ -27,6 +27,7 @@ import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.sun.jersey.api.view.Viewable;
 
+import edu.ucsf.crosslink.crawler.Affiliated;
 import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.crawler.CrawlerFactory;
 import edu.ucsf.crosslink.job.quartz.MetaCrawlerJob;
@@ -56,22 +57,30 @@ public class FusekiRestMethods implements R2RConstants {
 			GEO_LATITUDE + "> ?lat . ?a <" + GEO_LONGITUDE + "> ?lon . OPTIONAL {?r <" +
 			R2R_HAS_AFFILIATION + "> ?a}} GROUP BY ?a ?lat ?lon";
 	
-	private static final String RESEARCHERS_SPARQL = "SELECT ?hp ?r ?l ?i ?t ?o (count(distinct ?er) as ?erc) (count(distinct ?cw) as ?cwc) WHERE {?r <" + 
-			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + FOAF_HOMEPAGE + "> ?hp .?r <" + RDFS_LABEL + "> ?l . OPTIONAL {?r <" +
-			FOAF_HAS_IMAGE + "> ?i} . OPTIONAL {?i <" + FOAF_THUMBNAIL + "> ?t} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?o} . OPTIONAL {?r <" + 
-			R2R_CONTRIBUTED_TO + "> ?cw  . ?er <" + R2R_CONTRIBUTED_TO + "> ?cw  . ?er <" + R2R_HAS_AFFILIATION + 
-			"> ?ea FILTER (?ea != <%1$s>)}} GROUP BY ?hp ?r ?l ?i ?t ?o";
+	private static final String RESEARCHERS_SPARQL_SLOW = "SELECT ?r ?l ?hp ?i ?t (count(distinct ?er) as ?erc) (count(distinct ?cw) as ?cwc) WHERE {?r <" + 
+			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + RDFS_LABEL + "> ?l . ?r <" + R2R_WORK_VERIFIED_DT + 
+			"> ?wvdt . OPTIONAL {?r <" +  FOAF_HOMEPAGE + "> ?hp } . OPTIONAL {?r <" + FOAF_HAS_IMAGE + 
+			"> ?i} . OPTIONAL {?i <" + FOAF_THUMBNAIL + "> ?t} . OPTIONAL {?r <" + 
+			FOAF_PUBLICATIONS + "> ?cw  . ?er <" + FOAF_PUBLICATIONS + "> ?cw  . ?er <" + 
+			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != <%1$s>)}} GROUP BY ?r ?l ?hp ?i ?t";
+	
+	private static final String RESEARCHERS_SPARQL = "SELECT ?r ?l ?hp ?i ?erc ?cwc WHERE {?r <" + 
+			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + RDFS_LABEL + "> ?l . ?r <" + R2R_WORK_VERIFIED_DT + 
+			"> ?wvdt . OPTIONAL {?r <" +  FOAF_HOMEPAGE + "> ?hp } . OPTIONAL { GRAPH <" + 
+			R2R_DERIVED_GRAPH +	"> {?r <" + FOAF_HAS_IMAGE +"> ?i}} . OPTIONAL { GRAPH <" + 
+			R2R_DERIVED_GRAPH + "> {?r <" + R2R_EXTERNAL_COAUTHOR_CNT + "> ?erc}} . OPTIONAL { GRAPH <" + 
+			R2R_DERIVED_GRAPH + "> {?r <" + R2R_SHARED_PUB_CNT + "> ?cwc}}}";
 	
 	private static final String COAUTHORS_WHERE = "WHERE {<%1$s> <" + R2R_HAS_AFFILIATION + "> ?a . <%1$s> <" +
-			R2R_CONTRIBUTED_TO + "> ?cw  . ?r <" + R2R_CONTRIBUTED_TO + "> ?cw  . ?r <" + RDFS_LABEL + "> ?rl . OPTIONAL {?r <" +
-			FOAF_HAS_IMAGE + "> ?mi} . OPTIONAL {?mi <" + FOAF_THUMBNAIL + "> ?tn} . OPTIONAL {?r <" + VIVO_ORCID_ID + "> ?oi} . ?r <" +
-			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + 
-			"> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
+			FOAF_PUBLICATIONS + "> ?cw  . ?r <" + FOAF_PUBLICATIONS + "> ?cw  . ?r <" + RDFS_LABEL + 
+			"> ?rl . OPTIONAL {?r <" + FOAF_HOMEPAGE + "> ?hp } . OPTIONAL { GRAPH <" + R2R_DERIVED_GRAPH + 
+			"> { ?r <" + FOAF_THUMBNAIL + "> ?tn} } . ?r <" + R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + 
+			RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + "> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
 			
-	private static final String COAUTHORS_SELECT = "SELECT (?r as ?researcherURI) (?rl as ?researcherLabel) (?cw as ?contributedWork) (?mi as ?mainImage) (?tn as ?thumbnail) (?oi as ?orchidId) (?ea as ?researchNetworkingSite) (?al as ?affiliation)" + COAUTHORS_WHERE;
+	private static final String COAUTHORS_SELECT = "SELECT (?r as ?researcherURI) (?hp as ?researcherHomePage) (?rl as ?researcherLabel) (?cw as ?contributedWork) (?tn as ?thumbnail) (?ea as ?researchNetworkingSite) (?al as ?affiliation)" + COAUTHORS_WHERE;
 	
-	private static final String COAUTHORS_CONSTRUCT = "CONSTRUCT {?r <" + R2R_CONTRIBUTED_TO + "> ?cw . ?r <" +
-			RDFS_LABEL + "> ?rl . ?r <" + FOAF_HAS_IMAGE + "> ?mi . mi <" + FOAF_THUMBNAIL + "> ?tn. ?r <" + VIVO_ORCID_ID + "> ?oi . ?r  <" +
+	private static final String COAUTHORS_CONSTRUCT = "CONSTRUCT {?r <" + FOAF_PUBLICATIONS + "> ?cw . ?r <" +
+			RDFS_LABEL + "> ?rl . ?r <" + FOAF_HOMEPAGE + "> ?hp . ?r <" + FOAF_HAS_IMAGE + "> ?tn . ?r  <" +
 			R2R_HAS_AFFILIATION + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + 
 			"> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon} " + COAUTHORS_WHERE;
 
@@ -108,10 +117,10 @@ public class FusekiRestMethods implements R2RConstants {
 	}
 
 	@GET
-	@Path("{affiliation}/status")
-	public Viewable statusDetail(@PathParam("affiliation") String affiliation, @Context HttpServletRequest request,
+	@Path("{crawler}/status")
+	public Viewable statusDetail(@PathParam("crawler") String crawlerName, @Context HttpServletRequest request,
 			@Context HttpServletResponse response, @QueryParam("mode") String mode, @QueryParam("status") String status) throws Exception {
-		Crawler crawler = factory.getCrawler(affiliation);
+		Crawler crawler = factory.getCrawler(crawlerName);
 		if (CrosslinksServletFilter.isAdministrator(request)) {
 			if ("PAUSED".equalsIgnoreCase(status)) {
 				crawler.pause();
@@ -121,6 +130,9 @@ public class FusekiRestMethods implements R2RConstants {
 			}
 		}
 		request.setAttribute("crawler", crawler);
+		if (crawler instanceof Affiliated) {
+			request.setAttribute("affiliation", ((Affiliated)crawler).getAffiliation());			
+		}
 		return new Viewable("/jsps/statusDetail.jsp", null);
 	}
 
@@ -250,19 +262,20 @@ public class FusekiRestMethods implements R2RConstants {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
-					try {
-						researchers.add(new Researcher(affiliation, qs.getLiteral("?hp").getString(),
-													   qs.getResource("?r").getURI(), 
-													   qs.getLiteral("?l").getString(),
-													   qs.get("?i") != null ? (qs.get("?i").isLiteral() ? qs.getLiteral("?i").getString() : qs.getResource("?i").getURI()): null,
-													   qs.get("?t") != null ? qs.getLiteral("?t").getString() : null,
-													   qs.get("?o") != null ? qs.getLiteral("?o").getString() : null,
-													   qs.getLiteral("?erc").getInt(),
-													   qs.getLiteral("?cwc").getInt()));
+					if (qs.getResource("?r") != null) {
+						try {
+							researchers.add(new Researcher(qs.getResource("?r").getURI(), affiliation,
+													qs.getLiteral("?l").getString(),
+													qs.get("?hp") != null ? qs.getResource("?hp").getURI(): null,
+													qs.get("?i") != null ? qs.getResource("?i").getURI(): null,
+													qs.get("?t") != null ? qs.getResource("?t").getURI() : null,
+													qs.get("?erc") != null ? qs.getLiteral("?erc").getInt() : 0,
+													qs.get("?cwc") != null ? qs.getLiteral("?cwc").getInt() : 0));
+						}
+						catch (URISyntaxException e) {
+							LOG.log(Level.WARNING, e.getMessage(), e);
+						}
 					} 
-					catch (URISyntaxException e) {
-						LOG.log(Level.WARNING, e.getMessage(), e);
-					}
 				}								
 			}
 		});

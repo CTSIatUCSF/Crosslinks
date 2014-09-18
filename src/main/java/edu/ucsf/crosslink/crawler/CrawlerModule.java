@@ -3,10 +3,12 @@ package edu.ucsf.crosslink.crawler;
 import java.util.Properties;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
 
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.job.quartz.CrawlerJob;
+import edu.ucsf.crosslink.processor.ResearcherProcessor;
 
 public class CrawlerModule extends AbstractModule {
 
@@ -46,7 +48,8 @@ public class CrawlerModule extends AbstractModule {
 		}
 
 		try {
-			bind(Crawler.class).to((Class<? extends Crawler>) Class.forName(prop.getProperty("Crawler"))).asEagerSingleton();
+			bind(new TypeLiteral<Iterable<ResearcherProcessor>>(){}).to((Class<? extends Iterable<ResearcherProcessor>>)Class.forName(prop.getProperty("Processor"))).asEagerSingleton();
+			bind(Crawler.class).asEagerSingleton();;
 			if (prop.getProperty("AuthorParser") != null) {
 				bind(AuthorParser.class).to((Class<? extends AuthorParser>) Class.forName(prop.getProperty("AuthorParser"))).asEagerSingleton();
 			}

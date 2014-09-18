@@ -1,6 +1,7 @@
 package edu.ucsf.crosslink.crawler.parser;
 
 import java.util.logging.Level;
+
 import java.util.logging.Logger;
 
 import com.google.inject.Inject;
@@ -12,7 +13,6 @@ import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
-import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
@@ -20,6 +20,7 @@ import edu.ucsf.ctsi.r2r.jena.FusekiCache;
 import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
 import edu.ucsf.ctsi.r2r.jena.LODService;
 
+@Deprecated
 @Singleton
 public class JenaHelper implements R2RConstants {
 	private static final Logger LOG = Logger.getLogger(JenaHelper.class.getName());

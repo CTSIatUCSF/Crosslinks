@@ -65,7 +65,7 @@ public abstract class R2RResourceObject implements R2RConstants {
 	
 	@Override
 	public String toString() {
-		return getName();
+		return getURI() + (getName() != null ? ", " + getName() : "");
 	}
 	
     public void setLabel(String label) {

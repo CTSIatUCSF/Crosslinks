@@ -5,6 +5,7 @@ import java.util.Properties;
 import java.util.logging.Logger;
 
 
+
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -20,7 +21,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-
+@Deprecated
 public class HTMLAuthorshipParser implements AuthorParser {
 
 	private static final Logger LOG = Logger.getLogger(HTMLAuthorshipParser.class.getName());

@@ -9,36 +9,25 @@
 	<c:if test="${not empty administrator}">
 	    <a href='?status=PAUSED'>PAUSE</a>&nbsp;<a href='?mode=DISABLED'>DISABLE</a>&nbsp;<a href='?mode=ENABLED'>ENABLE</a>&nbsp;<a href='?mode=FORCED'>FORCE</a>&nbsp;<a href='?mode=FORCED_NO_SKIP'>FORCE AND RELOAD EVERYONE</a>
 	</c:if><p>    
-	<c:if test="${not empty crawler.latestError}">
-	    Latest Error :
-		<c:if test="${not crawler.ok}">
-		   &nbsp;<span style="color:#ff0000"><c:out value="${crawler.latestError}"/></span><p>
-		</c:if>
-		<c:if test="${crawler.ok}">
-		   &nbsp;<c:out value="${crawler.latestError}"/><p>
-		</c:if>
-	</c:if>
-	<c:if test="${not empty crawler.latestErrorStackTrace}">
-		Latest Exception : <span style="color:#ff0000"><c:out value="${crawler.latestErrorStackTrace}"/></span><p>
-	</c:if>
-
+	
 	<c:out value="${crawler.counts}"/><p>
 	<c:out value="${crawler.dates}"/><p>
 	<c:out value="${crawler.rates}"/><p>
-	<c:if test="${not empty crawler.lastFoundResearcher}">
- 	    Last Found = <c:out value="${crawler.lastFoundResearcher}"/><p>
-	</c:if>
-	<c:if test="${not empty crawler.lastSavedResearcher}">
- 	    Last Saved = <c:out value="${crawler.lastSavedResearcher}"/><p>
-	</c:if>
     <c:out value="${crawler.lastStartStatus}"/><p>
-	
-    <h2>Researcher Errors</h2>
-	<c:forEach var="e" items="${crawler.errors}">
-	   <c:out value="${e}"/><p>
-	</c:forEach>
 
-    <h2>Researcher Avoids</h2>
-	Stack trace : <c:out value="${crawler.currentStackTrace}" escapeXml="false"/><p>
+	<c:forEach var="outputStats" items="${crawler.outputStatsList}">
+	    <h2><c:out value="${outputStats.name}"/></h2>
+		<c:out value="${outputStats}"/><p>
+		<c:if test="${not empty outputStats.latest}">
+			Latest : <c:out value="${outputStats.latest}"/><p>
+		</c:if>
+	</c:forEach>
+	
+	<c:if test="${not empty crawler.latestErrorStackTrace}">
+		Latest Exception : <span style="color:#ff0000">
+		<c:out value="${crawler.latestErrorStackTrace}" escapeXml="false"/></span><p>
+	</c:if>
+
+	Running Stack trace : <c:out value="${crawler.currentStackTrace}" escapeXml="false"/><p>
 </body>
 </html>

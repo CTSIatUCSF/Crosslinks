@@ -21,6 +21,7 @@ import org.jsoup.nodes.Element;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
+import edu.ucsf.crosslink.io.ImportCert;
 import edu.ucsf.crosslink.model.Affiliation.RNSType;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
@@ -172,9 +173,7 @@ public class SiteReader implements R2RConstants {
     public void getPageItems(Researcher researcher) throws IOException, InterruptedException {    	
     	Document doc = getDocument(researcher.getURI());
 		researcher.setVerifiedDt(Calendar.getInstance());
-    	if (!doc.location().equalsIgnoreCase(researcher.getURI())) {
-    		researcher.setHomepage(doc.location());
-    	}
+		researcher.setHomepage(doc.location());
 		researcher.addImageURL(getImage(doc, researcher.getAffiliation().getRNSType()));
     }
            
@@ -195,8 +194,12 @@ public class SiteReader implements R2RConstants {
     }
     
     public static void main(String[] args) {
+    	// this only works when running from the command line.  Setting this is tomcat does not work for some reason
+		System.out.println(System.getProperty("javax.net.ssl.trustStore"));
+    	ImportCert ic = new ImportCert();
+		System.out.println(System.getProperty("javax.net.ssl.trustStore"));
     	Map<String, String> cookies = new HashMap<String, String>();
-    	String url = "http://profiles.ucsf.edu/profile/368698";
+    	String url = "http://vivo.brown.edu/individual/aacidera";
     	try {
         	int attempts = 0;
         	@SuppressWarnings("unused")

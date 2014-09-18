@@ -85,7 +85,7 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 		return affiliation;
 	}
 	
-	private void setAffiliation(Affiliation affiliation) {
+	public void setAffiliation(Affiliation affiliation) {
 		this.affiliation = affiliation;
 		setResource(R2R_HAS_AFFILIATION, affiliation);
 	}
@@ -178,11 +178,6 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 		return readErrorCount;
 	}
 	
-	public String toString() {
-		return getURI() + (getLabel() != null ? " : " + getLabel() : "") +
-					" : " + getPublications().size() + " publications";
-	}
-
 	public int compareTo(Researcher arg0) {
 		if (this.readErrorCount != arg0.readErrorCount) {
 			return Integer.compare(this.readErrorCount, arg0.readErrorCount);

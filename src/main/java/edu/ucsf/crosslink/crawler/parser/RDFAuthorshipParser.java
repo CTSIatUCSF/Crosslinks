@@ -25,6 +25,7 @@ import edu.ucsf.crosslink.model.Researcher;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
+@Deprecated
 public class RDFAuthorshipParser implements AuthorParser {
 
 	private static final Logger LOG = Logger.getLogger(RDFAuthorshipParser.class.getName());

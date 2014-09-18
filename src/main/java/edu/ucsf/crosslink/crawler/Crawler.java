@@ -2,19 +2,23 @@ package edu.ucsf.crosslink.crawler;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
-import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang3.time.StopWatch;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.Minutes;
@@ -24,72 +28,73 @@ import org.joda.time.format.PeriodFormat;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
+import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.R2RResourceObject;
-import edu.ucsf.crosslink.model.Researcher;
+import edu.ucsf.crosslink.processor.MarengoDetailProcessor;
+import edu.ucsf.crosslink.processor.ResearcherProcessor;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 
-public abstract class Crawler extends R2RResourceObject implements Runnable, Comparable<Crawler>, R2RConstants {
+public final class Crawler extends R2RResourceObject implements Runnable, Comparable<Crawler>, R2RConstants {
 
-	private static final Logger LOG = Logger.getLogger(MarengoDetailCrawler.class.getName());
+	private static final Logger LOG = Logger.getLogger(MarengoDetailProcessor.class.getName());
+	
+	private int MAX_QUEUE_SIZE = 100;
+	private long SLEEP_TIME_MILLIS = 10000;
 
 	private Mode mode = Mode.ENABLED;
 	private Status status = Status.IDLE;
 
+	private int errorsToAbort = 5;
 	private int pauseOnAbort = 60;
 	private int staleDays = 7;
+	private AtomicInteger consecutiveErrorCnt = new AtomicInteger();
 
 	private Date started = null;
 	private Date ended = null;
 	private CrawlerStartStatus lastStartStatus;
 
-	// because it is expensive to create a Researcher object, just use the URI for the found one as we may end up not needing to build the object
-	private String lastFoundResearcher = null;
-	private Researcher lastSavedResearcher = null;
-
-	private String latestError = null;
 	private Exception latestErrorException = null;
 	private CrosslinkPersistance store;
+	private Iterable<ResearcherProcessor> researcherIterable = null;	
 
-	private FixedSizeList<String> avoided = new FixedSizeList<String>(100);
-	private FixedSizeList<String> error = new FixedSizeList<String>(100);
-	private int avoidedCnt = 0;
-	private int errorCnt = 0;
-	private int foundCnt = 0;
-	private int savedCnt = 0;
-	private int skipCnt = 0;
+	private Map<OutputType, TypedOutputStats> stats = new HashMap<OutputType, TypedOutputStats>();
+	private AtomicInteger queueSize = new AtomicInteger();
 	
 	private Thread crawlingThread = null;
 	private ExecutorService executorService = null;
 	private Future<Boolean> currentJob = null;
 	
-	public Crawler(String name, Mode mode, CrosslinkPersistance store) throws Exception {
+	@Inject
+	public Crawler(@Named("Name") String name, Mode mode, CrosslinkPersistance store, 
+			Iterable<ResearcherProcessor> researcherIterable, @Named("executorThreadCount") Integer threadCount) throws Exception {
 		super(R2R_CRAWLER + "/" + name.replace(' ', '_'), R2R_CRAWLER);
 		this.setLabel(name);
-		this.mode = mode;
+		this.mode = mode;	
 		this.store = store;
+		this.researcherIterable = researcherIterable;
 		store.update(this);
-		executorService = Executors.newSingleThreadExecutor();
+		if (threadCount >= 0) {
+			executorService = threadCount > 0 ? Executors.newFixedThreadPool(threadCount) : Executors.newCachedThreadPool();
+		}
+		clear();
 	}
-
+	
 	@Inject
-	public void setConfiguartion(CrosslinkPersistance store,
+	public void setConfiguartion(@Named("errorsToAbort") Integer errorsToAbort,
 			@Named("pauseOnAbort") Integer pauseOnAbort,
 			@Named("staleDays") Integer staleDays) {
+		this.errorsToAbort = errorsToAbort;
 		this.pauseOnAbort = pauseOnAbort;
 		this.staleDays = staleDays;
 	}
 
 	public enum Status {
-		GATHERING_URLS, READING_RESEARCHERS, VERIFY_PRIOR_RESEARCHERS, ERROR, PAUSED, FINISHED, IDLE, RUNNING, SHUTTING_DOWN;
+		ERROR, PAUSED, FINISHED, IDLE, RUNNING, SHUTTING_DOWN;
 	}
 	
 	public enum Mode {
 		ENABLED, DISABLED, FORCED, FORCED_NO_SKIP, DEBUG;
-	}
-	
-	protected CrosslinkPersistance getStore() {
-		return store;
 	}
 	
 	public boolean isActive() {
@@ -97,7 +102,7 @@ public abstract class Crawler extends R2RResourceObject implements Runnable, Com
 	}
 	
 	private static boolean isActive(Status status) {
-		return Arrays.asList(Status.GATHERING_URLS, Status.VERIFY_PRIOR_RESEARCHERS, Status.READING_RESEARCHERS, Status.RUNNING).contains(status);
+		return Arrays.asList(Status.SHUTTING_DOWN, Status.RUNNING).contains(status);
 	}
 
 	public boolean isOk() {
@@ -128,7 +133,8 @@ public abstract class Crawler extends R2RResourceObject implements Runnable, Com
 			setStatus(Status.IDLE);
 		}
 	}
-		
+
+	// called from the UI
 	public void setMode(Mode mode) throws Exception {
 		this.mode = mode;
 	}
@@ -154,15 +160,6 @@ public abstract class Crawler extends R2RResourceObject implements Runnable, Com
 		this.status = status;
 	}
 	
-	protected void setActiveStatus(Status status) throws Exception {
-		if (isActive(status)) {
-			setStatus(status);
-		}
-		else {
-			throw new Exception("Illegal attempt to set status to " + status);
-		}
-	}
-	
 	private void setCrawlingThread(Thread thread) {
 		crawlingThread = thread;
 	}
@@ -180,31 +177,50 @@ public abstract class Crawler extends R2RResourceObject implements Runnable, Com
 				}
 			}
 		}
+		
 		writer.flush();
 		return sw.toString();
 	}
 
-	protected void setLastFoundResearcher(String lastFoundResearcher) {
-		this.lastFoundResearcher = lastFoundResearcher;
-		foundCnt++;
+	private void addOutput(OutputType type, Object message) {
+		addOutput(type, message.toString(), 0);
 	}
 
-	public String getlastFoundResearcher() {
-		return lastFoundResearcher;
+	private void addOutput(OutputType type, Object message, long time) {
+		stats.get(type).push(message.toString(), time);
 	}
 
-	public Researcher getLastSavedResearcher() {
-		return lastSavedResearcher;
+	private void addError(Object message, Exception e) {
+		addOutput(OutputType.ERROR, message);
+		consecutiveErrorCnt.incrementAndGet();
+		if (consecutiveErrorCnt.get() > errorsToAbort) {
+			setStatus(Status.ERROR);
+		}
+		if (e != null) {
+			this.latestErrorException = e;
+			LOG.log(Level.WARNING, message.toString(), e);
+		}
 	}
-
-	public String getLatestError() {
-		return latestError;
+	
+	public OutputType[] getOutputTypes() {
+		return OutputType.values();
+	}
+	
+	public TypedOutputStats getOutputStats(OutputType type) {
+		return stats.get(type);
+	}
+	
+	public Collection<TypedOutputStats> getOutputStatsList() {
+		return stats.values();
 	}
 	
 	public String getLatestErrorStackTrace() {
 		if (latestErrorException != null) {
 			StringWriter sw = new StringWriter();
 			PrintWriter writer = new PrintWriter(sw);
+			for(StackTraceElement ste : latestErrorException.getStackTrace()) {
+				writer.println(ste.toString() + "<br/>");
+			}
 			latestErrorException.printStackTrace(writer);
 			writer.flush();
 			return sw.toString();
@@ -212,71 +228,21 @@ public abstract class Crawler extends R2RResourceObject implements Runnable, Com
 		return null;
 	}
 
-	protected void setLatestError(String latestError, Exception e) {
-		this.latestError = latestError;
-		if (e != null) {
-			this.latestErrorException = e;
-			LOG.log(Level.SEVERE, latestError, e);
-		}
-	}
-	
 	private void clear() {
-		avoided.clear();
-		error.clear();		
-		avoidedCnt = 0;
-		errorCnt = 0;
-		foundCnt = 0;
-		savedCnt = 0;
-		skipCnt = 0;
-	}
-
-	public List<String> getErrors() {
-		return error;
-	}
-	
-	public List<String> getAvoided() {
-		return avoided;
-	}
-	
-	protected void addError(String researcherURI) {
-		errorCnt++;
-		error.push(researcherURI);
-	}
-	
-	protected void addAvoided(String researcherURI) {
-		avoidedCnt++;
-		avoided.push(researcherURI);
-	}
-	
-	protected void addSkip(String researcherURI) {
-		skipCnt++;
-	}
-
-	protected void save(Researcher researcher) throws Exception {
-		store.save(researcher);
-		savedCnt++;
-		lastSavedResearcher = researcher;
-		LOG.log(Level.FINE, "Saved " + researcher);
-	}
-	
-	protected void update(Researcher researcher) throws Exception {
-		update(researcher, null);
-	}
-	
-	protected void update(Researcher researcher, List<String> preStatements) throws Exception {
-		store.update(researcher, preStatements);
-		savedCnt++;
-		lastSavedResearcher = researcher;
-		LOG.log(Level.FINE, "Updated " + researcher);
-	}
-
-	public int getSavedCnt() {
-		return savedCnt;
+		for (OutputType type : OutputType.values()) {
+			stats.put(type, new TypedOutputStats(type, 100));
+		}
 	}
 
 	// TODO use in memory ended if that will work
 	public Calendar getDateLastCrawled() {
-		return store != null ? store.dateOfLastCrawl(this) : null;
+		try {
+			return store.dateOfLastCrawl(this);
+		} 
+		catch (Exception e) {
+			LOG.log(Level.SEVERE, e.getMessage(), e);
+		}
+		return null;
 	}
 	
 	public CrawlerStartStatus getLastStartStatus() {
@@ -336,51 +302,68 @@ public abstract class Crawler extends R2RResourceObject implements Runnable, Com
 			return;
 		}
 		setCrawlingThread(Thread.currentThread());
+		if (isOk()) {
+			// do not clear stats if we are resuming from a pause or error
+			clear();				
+		}
+		setStatus(Status.RUNNING);
 		try {
-			if (isOk()) {
-				// do not clear stats if we are resuming from a pause or error
-				clear();				
-			}
-			setStatus(Status.RUNNING);
 			started = store.startCrawl(this).getTime();
 			ended = null;
-			currentJob = executorService.submit(new Callable<Boolean>() {
-		         public Boolean call() throws Exception {
-		        	 setCrawlingThread(Thread.currentThread());
-		             return crawl();
-		         }});
-			boolean removeMissing = currentJob.get();
-			setCrawlingThread(Thread.currentThread());
-			if (!isPaused()) {
-				ended = store.finishCrawl(this).getTime();
-				if (removeMissing) {
-					store.deleteMissingResearchers(this);
+			Iterator<ResearcherProcessor> rpi = researcherIterable.iterator();
+			while (isOk() && rpi.hasNext()) {
+				// don't let the queue get too big!!!
+				if (executorService != null && queueSize.get() > MAX_QUEUE_SIZE) {
+					Thread.sleep(SLEEP_TIME_MILLIS);
+					continue;
 				}
+				ResearcherProcessor rp = rpi.next();
+				rp.setCrawler(this);
+				addOutput(OutputType.FOUND, rp);
+				QueuedRunnable qr = new QueuedRunnable(rp);
+				if (executorService != null) {
+					executorService.submit(qr);
+				}
+				else {
+					// run in line
+					qr.run();
+				}
+			}
+			if (isOk()) {
+				setStatus(Status.SHUTTING_DOWN);
+				if (executorService != null) {
+					executorService.shutdown();
+					executorService.awaitTermination(10, TimeUnit.MINUTES);
+				}
+				ended = store.finishCrawl(this).getTime();
 				setStatus(Status.FINISHED);
 			}
-			if (isForced()) {
-				// don't leave in forced mode
-				mode = Mode.ENABLED;
-			}
 		}
-		catch (Exception e) {
+		catch (Exception e) {			
+			addError("Error while iterating over researchers", e);
 			setStatus(Status.ERROR);
-			setLatestError(e.getMessage(), e);
 		}
-		finally {
-			if (ended == null) {
-				ended = new Date();
-			}
-			setCrawlingThread(null);
+		if (isForced()) {
+			// don't leave in forced mode
+			mode = Mode.ENABLED;
 		}
+		setCrawlingThread(null);
+	}
+	
+	public Iterable<ResearcherProcessor> getIterable() {
+		return researcherIterable;
 	}
 	
 	public String toString() {
-		return getName() + " : " + getState() + " " + getDates() ; 
+		return getName() + " : " + getState() + " " + getDates()  + researcherIterable.toString(); 
 	}
 		
 	public String getCounts() {
-		return "Found " + foundCnt + ", Saved " + savedCnt + ", Skipped " + skipCnt + ", Error " + errorCnt + ", Avoids " + avoidedCnt;
+		String retval = "";
+		for (TypedOutputStats output : getOutputStatsList()) {
+			retval += ", " + output.toString();
+		}
+		return retval.substring(2);
 	}
 
 	public String getDates() {
@@ -402,28 +385,47 @@ public abstract class Crawler extends R2RResourceObject implements Runnable, Com
 	}
 
 	public String getRates() {
-		if (started == null) {
-			return "Not started...";
+		if (stats.get(OutputType.PROCESSED).getCount() == 0) {
+			return "None yet...";
 		}
-		int saved = Math.max(1, savedCnt);
-		return "Saved/person : " +  PeriodFormat.getDefault().print(new Period((new Date().getTime() - getStartDate().getTime())/saved));
+		else {
+			int processed = stats.get(OutputType.PROCESSED).getCount();
+			return "Throughput processed/person : " +  PeriodFormat.getDefault().print(new Period((new Date().getTime() - getStartDate().getTime())/processed));			
+		}
 	}
-	
-	public abstract boolean crawl() throws Exception;
-	
-	@SuppressWarnings("serial")
-	private static class FixedSizeList<T> extends ArrayList<T> {
-		private int limit = 100;
 		
-		private FixedSizeList(int limit) {
-			this.limit = limit;
+	private final class QueuedRunnable implements Runnable {
+		private ResearcherProcessor researcherProcessor = null;
+		
+		private QueuedRunnable(ResearcherProcessor researcherProcessor) {
+			queueSize.incrementAndGet();
+			this.researcherProcessor = researcherProcessor;
 		}
 		
-		public synchronized void push(T t) {
-			add(0, t);
-			if (size() > limit) {
-				remove(size() - 1);
+		public void run() {
+			try {
+				StopWatch sw = new StopWatch();
+				sw.start();
+				ResearcherProcessor.Action action = researcherProcessor.processResearcher();
+				sw.stop();
+				consecutiveErrorCnt.set(0);
+				if (ResearcherProcessor.Action.AVOIDED.equals(action)) {
+					addOutput(OutputType.AVOIDED, researcherProcessor);
+				}
+				else if (ResearcherProcessor.Action.SKIPPED.equals(action)) {
+					addOutput(OutputType.SKIPPED, researcherProcessor);
+				}
+				else if (ResearcherProcessor.Action.PROCESSED.equals(action)) {
+					addOutput(OutputType.PROCESSED, researcherProcessor, sw.getTime());					
+				}
+			}
+			catch (Exception e) {
+				addError(researcherProcessor, e);
+			}
+			finally {
+				queueSize.decrementAndGet();
 			}
 		}
 	}
+	
 }

@@ -13,20 +13,21 @@ import org.jsoup.select.Elements;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
+import edu.ucsf.crosslink.processor.AffiliationCrawler;
 
+@Deprecated
 public class StanfordCapSiteReader extends AffiliationCrawler implements AuthorParser {
 
 	private static final Logger LOG = Logger.getLogger(StanfordCapSiteReader.class.getName());
 
 	@Inject
 	public StanfordCapSiteReader(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location, 
-			Mode crawlingMode, CrosslinkPersistance store) throws Exception {
-		super(new Affiliation(name, baseURL, location), crawlingMode, store);
+			CrosslinkPersistance store) throws Exception {
+		super(new Affiliation(name, baseURL, location), store);
 	}
 	
 	protected void collectResearcherURLs() throws IOException, InterruptedException, URISyntaxException {
@@ -85,7 +86,7 @@ public class StanfordCapSiteReader extends AffiliationCrawler implements AuthorP
     
     public static void main(String[] args) {
     	try {
-    		StanfordCapSiteReader reader = new StanfordCapSiteReader("Stanford", "https://med.stanford.edu/profiles", null, Mode.FORCED, null);
+    		StanfordCapSiteReader reader = new StanfordCapSiteReader("Stanford", "https://med.stanford.edu/profiles", null, null);
     		//reader.readResearcher(new Researcher(stanford, "https://med.stanford.edu/profiles/michael-halaas"));
     	}
     	catch (Exception e) {

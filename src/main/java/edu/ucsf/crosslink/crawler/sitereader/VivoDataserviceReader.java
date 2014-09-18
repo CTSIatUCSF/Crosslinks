@@ -18,11 +18,12 @@ import com.google.gson.Gson;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
+import edu.ucsf.crosslink.processor.AffiliationCrawler;
 
+@Deprecated
 public class VivoDataserviceReader extends AffiliationCrawler {
 
 	private static final Logger LOG = Logger.getLogger(VivoDataserviceReader.class.getName());
@@ -33,8 +34,8 @@ public class VivoDataserviceReader extends AffiliationCrawler {
 	
 	@Inject
 	public VivoDataserviceReader(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location, 
-			Mode crawlingMode, CrosslinkPersistance store) throws Exception {
-		super(new Affiliation(name, baseURL, location), crawlingMode, store);
+			CrosslinkPersistance store) throws Exception {
+		super(new Affiliation(name, baseURL, location), store);
 	}
 
 	protected void collectResearcherURLs() throws Exception {

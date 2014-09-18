@@ -18,11 +18,9 @@
 		   <span style="color:#ff0000"><c:out value="${crawler.state}"/></span><p>
 		   &nbsp;<span style="color:#ff0000"><c:out value="${crawler.latestError}"/></span><p>
 		</c:if>
-		<c:out value="${crawler.counts}"/>&nbsp;<c:out value="${crawler.dates}"/><p>
+		<c:out value="${crawler.counts}"/><p>
+		<c:out value="${crawler.dates}"/><p>
  	    <c:out value="${crawler.rates}"/><p>
-		<c:if test="${not empty crawler.lastSavedResearcher}">
-	 	    Last Saved = <c:out value="${crawler.lastSavedResearcher}"/><p>
-		</c:if>
  	    <c:out value="${crawler.lastStartStatus}"/><p>
  	    <hr>
 	</c:forEach>

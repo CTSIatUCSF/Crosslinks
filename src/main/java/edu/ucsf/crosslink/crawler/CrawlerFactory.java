@@ -42,10 +42,7 @@ public class CrawlerFactory {
 				Properties prop = new Properties();
 				prop.load(this.getClass().getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
 				prop.load(new FileReader(new File(fileName)));
-				// hack!
-				if (!prop.containsKey("Location")) {
-					prop.put("Location", "0,0");
-				}
+
 				Injector injector = guice.createChildInjector(new CrawlerModule(prop));
 				Crawler crawler = injector.getInstance(Crawler.class);
 				injectors.put(crawler.getName(), injector);		

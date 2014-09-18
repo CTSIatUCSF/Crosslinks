@@ -27,10 +27,10 @@ import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.sun.jersey.api.view.Viewable;
 
-import edu.ucsf.crosslink.crawler.Affiliated;
 import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.crawler.CrawlerFactory;
 import edu.ucsf.crosslink.job.quartz.MetaCrawlerJob;
+import edu.ucsf.crosslink.model.Affiliated;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
@@ -130,8 +130,8 @@ public class FusekiRestMethods implements R2RConstants {
 			}
 		}
 		request.setAttribute("crawler", crawler);
-		if (crawler instanceof Affiliated) {
-			request.setAttribute("affiliation", ((Affiliated)crawler).getAffiliation());			
+		if (crawler.getIterable() instanceof Affiliated) {
+			request.setAttribute("affiliation", ((Affiliated)crawler.getIterable()).getAffiliation());			
 		}
 		return new Viewable("/jsps/statusDetail.jsp", null);
 	}
@@ -139,7 +139,7 @@ public class FusekiRestMethods implements R2RConstants {
 	@GET
     @Path("{affiliation}")
     public Viewable getAffiliationDetail(@PathParam("affiliation") String affiliation, @Context HttpServletRequest request,
-			@Context HttpServletResponse response) {
+			@Context HttpServletResponse response) throws Exception {
 		request.setAttribute("affiliation", getAffiliation(affiliation));
 		return new Viewable("/jsps/affiliation.jsp", null);
     }
@@ -147,7 +147,7 @@ public class FusekiRestMethods implements R2RConstants {
     @GET
     @Path("{affiliation}/researchers")
     public Viewable getResearchers(@PathParam("affiliation") String affiliationStr, @Context HttpServletRequest request,
-			@Context HttpServletResponse response, @QueryParam("clearCache") String clearCache) {
+			@Context HttpServletResponse response, @QueryParam("clearCache") String clearCache) throws Exception {
     	Affiliation affiliation = getAffiliation(affiliationStr);
 		request.setAttribute("affiliation", affiliation);
 		if ("true".equalsIgnoreCase(clearCache)) {
@@ -185,14 +185,14 @@ public class FusekiRestMethods implements R2RConstants {
     @GET
     @Path("coauthors")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
-    public String getCoauthors(@QueryParam("researcherURI") String researcherURI, @QueryParam("format") String format) throws JSONException, JsonLdError {
+    public String getCoauthors(@QueryParam("researcherURI") String researcherURI, @QueryParam("format") String format) throws Exception {
 		if ("JSON-LD".equals(format)) {
 			return jsonLDService.getJSONString(sparqlClient.construct(String.format(COAUTHORS_CONSTRUCT, researcherURI)));
 		}
 		return getFormattedResults(String.format(COAUTHORS_SELECT, researcherURI), format).toString();
     }
     
-    private ByteArrayOutputStream getFormattedResults(final String sparql, final String format) {
+    private ByteArrayOutputStream getFormattedResults(final String sparql, final String format) throws Exception {
     	final ByteArrayOutputStream outStream = new ByteArrayOutputStream();
     	sparqlClient.select(sparql, new ResultSetConsumer() {
 			public void useResultSet(ResultSet resultSet) {
@@ -210,7 +210,7 @@ public class FusekiRestMethods implements R2RConstants {
     	return outStream;
     }
     
-    private List<Affiliation> getAffiliations() {
+    private List<Affiliation> getAffiliations() throws Exception {
     	final List<Affiliation> affiliations = new ArrayList<Affiliation>();
     	sparqlClient.select(ALL_AFFILIATIONS_SPARQL, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
@@ -232,7 +232,7 @@ public class FusekiRestMethods implements R2RConstants {
         return affiliations;
     }
     
-    public Affiliation getAffiliation(final String affiliation) {
+    public Affiliation getAffiliation(final String affiliation) throws Exception {
     	String sparql = String.format(AFFILIATION_SPARQL, affiliation);
     	final List<Affiliation> affiliations = new ArrayList<Affiliation>();
     	sparqlClient.select(sparql, new ResultSetConsumer() {
@@ -255,7 +255,7 @@ public class FusekiRestMethods implements R2RConstants {
     	return affiliations.size() > 0 ? affiliations.get(0) : null;
     }
     
-    public List<Researcher> getResearchers(final Affiliation affiliation) {
+    public List<Researcher> getResearchers(final Affiliation affiliation) throws Exception {
 		String sparql = String.format(RESEARCHERS_SPARQL, affiliation.getURI()); 
     	final List<Researcher> researchers = new ArrayList<Researcher>();
     	sparqlClient.select(sparql, new ResultSetConsumer() {

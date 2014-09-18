@@ -11,10 +11,10 @@ import com.google.inject.servlet.GuiceServletContextListener;
 import com.hp.cache4guice.adapters.ehcache.EhCacheModule;
 
 import edu.ucsf.crosslink.Crosslinks;
-import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.io.IOModule;
 import edu.ucsf.crosslink.job.ExecutorModule;
 import edu.ucsf.crosslink.job.quartz.QuartzModule;
+import edu.ucsf.crosslink.processor.AffiliationCrawler;
 
 public class CrosslinksServletConfig extends GuiceServletContextListener {
 

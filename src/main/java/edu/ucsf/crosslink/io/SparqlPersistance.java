@@ -2,9 +2,7 @@ package edu.ucsf.crosslink.io;
 
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -39,7 +37,6 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 	private static final Logger LOG = Logger.getLogger(SparqlPersistance.class.getName());
 
 	private SparqlUpdateClient sparqlClient;
-	private ThumbnailGenerator thumbnailGenerator;
 	private Set<Affiliation> knownAffiliations = new HashSet<Affiliation>();
 	
 	private static final String SKIP_RESEARCHERS_SPARQL = "SELECT ?r ?ts WHERE {?r <" + R2R_HARVESTED_FROM + "> <%s> . " +
@@ -60,7 +57,7 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 		loadAffiliations();
 	}
 	
-	private void loadAffiliations() {
+	private void loadAffiliations() throws Exception {
 		sparqlClient.select(LOAD_AFFILIATIONS, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
@@ -77,57 +74,26 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 		});		
 	}
 
-	public void save(Affiliation affiliation) throws Exception {
-		saveInternal(affiliation, SaveType.SAVE, null);
+	public void save(R2RResourceObject robj) throws Exception {
+		saveInternal(robj, SaveType.SAVE);
 	}
 	
-	public void update(Crawler crawler) throws Exception {
-		saveInternal(crawler, SaveType.UPDATE, null);
+	public void update(R2RResourceObject robj) throws Exception {
+		saveInternal(robj, SaveType.UPDATE);
 	}
 	
-	private boolean generateThumbnail(Researcher researcher) {
-		return thumbnailGenerator != null ? thumbnailGenerator.generateThumbnail(researcher) : false;
-	}
-	
-	public void save(Researcher researcher) throws Exception {
-		saveResearcherInternal(researcher, SaveType.SAVE, null);
+	public void add(R2RResourceObject robj) throws Exception {
+		saveInternal(robj, SaveType.ADD);
 	}
 
-	public void update(Researcher researcher) throws Exception {
-		saveResearcherInternal(researcher, SaveType.UPDATE, null);
-	}
-
-	public void update(Researcher researcher, List<String> preStatements) throws Exception {
-		saveResearcherInternal(researcher, SaveType.UPDATE, preStatements);
-	}
-
-	public void add(Researcher researcher) throws Exception {
-		saveResearcherInternal(researcher, SaveType.ADD, null);
-	}
-
-	private void saveResearcherInternal(Researcher researcher, SaveType saveType, List<String> preStatements) throws Exception {
-		boolean newImages = generateThumbnail(researcher);
-		if (newImages) {
-			List<String> sparql = new ArrayList<String>();
-			sparql.addAll(preStatements);
-			// remove the old ones, this will only work if thumbnail and image are both present
-			// also add the thumbnail into the DISPLAY graph, as the main image
-			sparql.addAll(Arrays.asList("DELETE {?r ?p ?i . ?i ?ip ?o . ?tn ?tnp ?tno} WHERE " +
-					"{  <" + researcher.getURI() + "> <" + FOAF_HAS_IMAGE + "> " +
-					"?i . ?i ?ip ?o . ?r ?p ?i . ?i <" + FOAF_THUMBNAIL +"> ?tn . ?tn ?tnp ?tno}",
-					"INSERT DATA { GRAPH <" + R2R_DERIVED_GRAPH + "> {<" + researcher.getURI() + 
-					"> <" + FOAF_HAS_IMAGE + "> <" + researcher.getThumbnailURL() + ">}}"));
-			preStatements = sparql;
-		}
-		saveInternal(researcher, saveType, preStatements);
-	}
-	
-	// delete existing one first
-	private void saveInternal(R2RResourceObject robj, SaveType saveType, List<String> preStatements) throws Exception {
+	public void execute(List<String> updates) throws Exception {
 		startTransaction();
-		if (preStatements != null && !preStatements.isEmpty()) {
-			sparqlClient.update(preStatements);
-		}
+		sparqlClient.update(updates);
+		endTransaction();
+	}
+	// delete existing one first
+	private void saveInternal(R2RResourceObject robj, SaveType saveType) throws Exception {
+		startTransaction();
 		for (Resource resource : robj.getResources()) {
 			if (SaveType.SAVE.equals(saveType)) {
 				sparqlClient.deleteSubject(resource.getURI());				
@@ -159,11 +125,6 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 		return null;
 	}
 
-	@Inject
-	public void setThumbnailGenerator(ThumbnailGenerator thumbnailGenerator) {
-		this.thumbnailGenerator = thumbnailGenerator;
-	}
-		
 	public Calendar startCrawl(Crawler crawler) throws Exception {
 		return updateTimestampFieldFor(crawler.getURI(), R2R_CRAWL_START_DT);
 	}
@@ -198,14 +159,14 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 		sparqlClient.update(sparql);
 	}
 
-	public Calendar dateOfLastCrawl(Crawler crawler) {
+	public Calendar dateOfLastCrawl(Crawler crawler) throws Exception {
 		String sparql = "SELECT ?dt WHERE {<" + crawler.getURI() + "> <" + R2R_CRAWL_END_DT + "> ?dt}";
 		DateResultSetConsumer consumer = new DateResultSetConsumer();
 		sparqlClient.select(sparql, consumer);
 		return consumer.getCalendar();
 	}
 
-	public boolean skip(String researcherURI, String timestampField, int daysConsideredOld) {
+	public boolean skip(String researcherURI, String timestampField, int daysConsideredOld) throws Exception {
 		final AtomicLong dt = new AtomicLong();
 		sparqlClient.select(String.format("SELECT ?ts WHERE {<%1$s> <" + timestampField + "> ?ts}", researcherURI), new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
@@ -243,10 +204,6 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
     	return now;
 	}
 	
-	public Collection<Researcher> getResearchers() {
-		return null;
-	}
-
 	private class DateResultSetConsumer implements ResultSetConsumer {
 		private Calendar dt = null;
 		

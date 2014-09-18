@@ -20,14 +20,16 @@ import static org.quartz.TriggerBuilder.newTrigger;
 
 
 
+
+
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.Crosslinks;
-import edu.ucsf.crosslink.crawler.AffiliationCrawler;
 import edu.ucsf.crosslink.io.IOModule;
+import edu.ucsf.crosslink.processor.AffiliationCrawler;
 import edu.ucsf.crosslink.web.Stoppable;
 import edu.ucsf.ctsi.r2r.DBUtil;
 

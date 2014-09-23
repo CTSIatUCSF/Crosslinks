@@ -16,6 +16,7 @@ import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.crosslink.processor.AffiliationCrawler;
+import edu.ucsf.crosslink.processor.ResearcherProcessor;
 
 @Deprecated
 public class LokiSiteReader extends AffiliationCrawler implements AuthorParser {
@@ -66,7 +67,7 @@ public class LokiSiteReader extends AffiliationCrawler implements AuthorParser {
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {
-		    	if ( link.attr("abs:href").contains(AuthorParser.PUBMED_SECTION)) {
+		    	if ( link.attr("abs:href").contains(ResearcherProcessor.PUBMED_SECTION)) {
 		    		researcher.addPublication(link.attr("abs:href"));
 		    	}
 		    	else if (link.attr("abs:href").contains(AuthorParser.ORCID_SECTION)) { // this way it works with http and https

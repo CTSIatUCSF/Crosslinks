@@ -3,6 +3,8 @@ package edu.ucsf.crosslink.io;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -37,7 +39,7 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 	private static final Logger LOG = Logger.getLogger(SparqlPersistance.class.getName());
 
 	private SparqlUpdateClient sparqlClient;
-	private Set<Affiliation> knownAffiliations = new HashSet<Affiliation>();
+	private List<Affiliation> knownAffiliations = new ArrayList<Affiliation>();
 	
 	private static final String SKIP_RESEARCHERS_SPARQL = "SELECT ?r ?ts WHERE {?r <" + R2R_HARVESTED_FROM + "> <%s> . " +
 			"?r <" + R2R_WORK_VERIFIED_DT + "> ?ts . FILTER (?ts > \"%s\")}";
@@ -72,6 +74,12 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 				}								
 			}
 		});		
+		// start with longer URI first so that we match http://profiles.somewhere.edu/profile before http://profiles.somewhere.edu
+		Collections.sort(knownAffiliations, new Comparator<Affiliation>() {
+			public int compare(Affiliation o1, Affiliation o2) {
+				return o2.getURI().length() - o1.getURI().length();
+			}			
+		});
 	}
 
 	public void save(R2RResourceObject robj) throws Exception {

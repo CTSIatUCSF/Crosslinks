@@ -18,6 +18,7 @@ import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.crosslink.processor.AffiliationCrawler;
+import edu.ucsf.crosslink.processor.ResearcherProcessor;
 
 @Deprecated
 public class StanfordCapSiteReader extends AffiliationCrawler implements AuthorParser {
@@ -69,7 +70,7 @@ public class StanfordCapSiteReader extends AffiliationCrawler implements AuthorP
 			Elements links = doc.select("a[href]");	
 			
 		    for (Element link : links) {
-		    	if (  link.attr("abs:href").contains(PUBMED_SECTION) ) {
+		    	if (  link.attr("abs:href").contains(ResearcherProcessor.PUBMED_SECTION) ) {
 		    		researcher.addPublication(link.attr("abs:href"));
 		    	}
 	        }

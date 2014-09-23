@@ -13,7 +13,7 @@ import com.hp.hpl.jena.query.ResultSet;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 import edu.ucsf.ctsi.r2r.jena.SparqlClient;
 
-public abstract class SparqlProcessor implements Iterable<ResearcherProcessor>, Iterator<ResearcherProcessor> {
+public abstract class SparqlProcessor implements Iterable<ResearcherProcessor> {
 
 	private static final Logger LOG = Logger.getLogger(SparqlProcessor.class.getName());
 
@@ -47,27 +47,10 @@ public abstract class SparqlProcessor implements Iterable<ResearcherProcessor>, 
 	
 	public Iterator<ResearcherProcessor> iterator() {
 		query = getSparqlQuery();
-		return this;
+		offset = 0;
+		return new SparqlProcessorIterator();
     }
 	
-	public boolean hasNext() {
-		if (currentNdx == currentResearcherProcessors.size()) {
-			try {
-				currentNdx = 0;
-				currentResearcherProcessors.clear();
-				executeQuery();
-			} 
-			catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}
-		return currentNdx < currentResearcherProcessors.size();
-	}
-
-	public ResearcherProcessor next() {
-		return currentResearcherProcessors.get(currentNdx++);
-	}
-
 	private void executeQuery() throws Exception {
 		String incrementalQuery = limit > 0 ? String.format(query + " OFFSET %d LIMIT %d", offset, limit) : query;
 
@@ -82,6 +65,28 @@ public abstract class SparqlProcessor implements Iterable<ResearcherProcessor>, 
 		});
 		
 		offset += found.get();
+	}
+	
+	private class SparqlProcessorIterator implements Iterator<ResearcherProcessor> {
+
+		public boolean hasNext() {
+			if (currentNdx == currentResearcherProcessors.size()) {
+				try {
+					currentNdx = 0;
+					currentResearcherProcessors.clear();
+					executeQuery();
+				} 
+				catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			}
+			return currentNdx < currentResearcherProcessors.size();
+		}
+
+		public ResearcherProcessor next() {
+			return currentResearcherProcessors.get(currentNdx++);
+		}
+		
 	}
 	
 }

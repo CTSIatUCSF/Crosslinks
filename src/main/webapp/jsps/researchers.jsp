@@ -65,7 +65,15 @@
 		<c:if test="${r.imageURL != null}">
 			<img src='<c:out value="${r.imageURL}"/>' width='20'/>&nbsp;
 		</c:if>
-		<a href = '<c:out value="${researcher.URI}"/>'><c:out value="${r.name}"/> at <c:out value="${affiliation.name}"/></a>&nbsp;
+        <c:choose>
+			<c:when test="${r.homepage != null}">
+				<c:set var="url" value="${r.homepage}"/>
+			</c:when>
+	        <c:otherwise>
+				<c:set var="url" value="${r.URI}"/>
+	        </c:otherwise>
+	    </c:choose>        
+		<a href = '<c:out value="${url}"/>'><c:out value="${r.name}"/> at <c:out value="${affiliation.name}"/></a>&nbsp;
 		<c:if test="${r.externalCoauthorCount > 0}">
 			List of <c:out value="${r.externalCoauthorCount}"/> external co-authors and <c:out value="${r.sharedPublicationCount}"/> shared publications for <c:out value="${r.name}"/>&nbsp;
 			<a href = '../coauthors?researcherURI=<c:out value="${r.URI}"/>&format=JSON-LD'> (JSON-LD)</a>

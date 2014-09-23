@@ -3,6 +3,7 @@
 <body>
 	<a href="../status">Status Home</a><p>	
 	<c:if test="${not empty affiliation}">
+		<a href='<c:out value="${affiliation.URI}"/>'><c:out value="${affiliation.URI}"/></a></p>
 		<a href='../<c:out value="${affiliation.name}"/>'>Researchers and information about <c:out value="${affiliation.name}"/></a><p>
 	</c:if>
     <c:out value="${crawler}"/><p>

@@ -17,7 +17,6 @@ import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 
-import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
@@ -50,6 +49,8 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	private static final String LIR_DETAIL = "SELECT ?pmid ?doi WHERE { OPTIONAL {" +
 			"<%1$s> <" + BIBO_PMID + "> ?pmid} . OPTIONAL {<%1$s> <" + BIBO_DOI + "> ?doi}}";
 	
+	private static final String DOI_TO_PMID = "SELECT ?pmid WHERE { ?pmid http://www.w3.org/2002/07/owl#sameAs> <%s> }";
+	
 	private static final int LIMIT = 50;
 
 	private static final String MARENGO_PREFIX = "http://marengo.info-science.uiowa.edu:2020/resource/";
@@ -57,6 +58,7 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	private Integer daysConsideredOld;
 
 	private SparqlClient marengoSparqlClient = null;
+	private SparqlClient doiSparqlClient = null;
 	private CrosslinkPersistance store = null;
 
 	// remove harvester as required item
@@ -65,6 +67,7 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 			@Named("daysConsideredOld") Integer daysConsideredOld) throws Exception {
 		super(sparqlClient, LIMIT);
 		this.marengoSparqlClient = new SparqlClient("http://marengo.info-science.uiowa.edu:2020/sparql");
+		this.doiSparqlClient = new SparqlClient("http://www.pmid2doi.org/sparql");
 		this.daysConsideredOld = daysConsideredOld;
 		this.store = store;
 	}
@@ -124,19 +127,22 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 		final StringBuilder publication = new StringBuilder();
 		
 		marengoSparqlClient.select(String.format(LIR_DETAIL, lir), new ResultSetConsumer() {
-			public void useResultSet(ResultSet rs) {				
+			public void useResultSet(ResultSet rs) throws Exception {				
 				if (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
 					// use pmid if they have it
 					if (qs.get("?pmid") != null) {
-						publication.append("http:" + AuthorParser.PUBMED_SECTION + qs.getLiteral("?pmid").getInt());
+						publication.append("http:" + ResearcherProcessor.PUBMED_SECTION + qs.getLiteral("?pmid").getInt());
 					}
 					else if (qs.get("?doi") != null){
 						// this handles things like <a href=\"http://psycnet.apa.org/doi/10.1037/a0016478\">10.1037/a0016478</a> 
 						// as well as a regular doi
 						String doi = qs.getLiteral("?doi").getString();
 						if (Jsoup.isValid(doi, Whitelist.basic())) {
-							publication.append(DOI_PREFIX + Jsoup.parseBodyFragment(doi).text());							
+							// see if it can be resolved to a PMID uri
+							String doiUri = DOI_PREFIX + Jsoup.parseBodyFragment(doi).text();
+							String pmidUri = getPMIDUriFromDOIUri(doiUri);
+							publication.append(pmidUri != null ? pmidUri : doiUri);							
 						}
 						else {
 							LOG.log(Level.WARNING, "Invalid DOI : " + doi);
@@ -147,6 +153,24 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 			}
 		});
 		return publication.length() > 0 ? publication.toString() : null;
+	}
+	
+	@Cached
+	public String getPMIDUriFromDOIUri(String doiUri) throws Exception {
+		final StringBuilder publication = new StringBuilder();
+		
+		doiSparqlClient.select(String.format(DOI_TO_PMID, doiUri), new ResultSetConsumer() {
+			public void useResultSet(ResultSet rs) {				
+				if (rs.hasNext()) {				
+					QuerySolution qs = rs.next();
+					if (qs.get("?pmid") != null) {
+						publication.append(qs.getResource("?pmid").getURI());
+					}
+					LOG.info("Publication " + publication);
+				}	
+			}
+		});
+		return publication.length() > 0 ? publication.toString() : null;		
 	}
 	
 
@@ -162,7 +186,7 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 		Researcher researcher = null;
 		
 		public String toString() {
-			return super.toString() + (researcher != null ? researcher.getPublications().size() + " publications" : "");
+			return super.toString() + (researcher != null ? " " + researcher.getPublications().size() + " publications" : "");
 		}
 		
 		private MarengoDetailResearcherProcessor(String researcherURI, Calendar workVerifiedDT) {
@@ -171,7 +195,7 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 		}
 
 		public Action processResearcher() throws Exception {
-			if (workVerifiedDT != null && workVerifiedDT.getTimeInMillis() > new DateTime().minusDays(daysConsideredOld).getMillis()) {
+			if (allowSkip() && workVerifiedDT != null && workVerifiedDT.getTimeInMillis() > new DateTime().minusDays(daysConsideredOld).getMillis()) {
 				return Action.SKIPPED;
 			}
 			else {

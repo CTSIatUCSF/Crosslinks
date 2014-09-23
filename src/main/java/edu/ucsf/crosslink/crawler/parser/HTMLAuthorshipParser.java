@@ -6,6 +6,7 @@ import java.util.logging.Logger;
 
 
 
+
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -16,6 +17,7 @@ import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.IOModule;
 import edu.ucsf.crosslink.io.ThumbnailGenerator;
 import edu.ucsf.crosslink.model.Researcher;
+import edu.ucsf.crosslink.processor.ResearcherProcessor;
 
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -42,7 +44,7 @@ public class HTMLAuthorshipParser implements AuthorParser {
 			foundResearcherInfo = true;
 	    	Elements links = doc.select("a[href]");	
 		    for (Element link : links) {
-		    	if (link.attr("abs:href").contains(PUBMED_SECTION)) { // this way it works with http and https
+		    	if (link.attr("abs:href").contains(ResearcherProcessor.PUBMED_SECTION)) { // this way it works with http and https
 		    		researcher.addPublication(link.attr("abs:href"));
 		    	}
 		    	else if (link.attr("abs:href").contains(ORCID_SECTION)) { // this way it works with http and https

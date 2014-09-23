@@ -13,22 +13,10 @@
 	<a href = '<c:out value="${affiliation.name}"/>/possibleSamePeople?format=CSV'> (CSV)</a>&nbsp; 
 	<a href = '<c:out value="${affiliation.name}"/>/possibleSamePeople?format=JSON'> (JSON)</a><p>
 	 
-	List of potential disambiguation conflicts for <c:out value="${affiliation.name}"/>&nbsp; 
-	<a href = '<c:out value="${affiliation.name}"/>/possibleConflicts?format=CSV''>(CSV)</a>&nbsp;
-	<a href = '<c:out value="${affiliation.name}"/>/possibleConflicts?format=JSON''>(JSON)</a><p>
-
-	<p>Note that matches for possibleSamePeople and possibleConflicts are based on name and matching publications.  If a person at one affiliation has the same
+	<p>Note that matches for possibleSamePeople are based on name and matching publications.  If a person at one affiliation has the same
 	last name and shares overlapping publications with a research at another affiliation with a 
-	'similar' first name, they are included in the possibleSamePeople list.  If the first name is  
-	'not similar', then we list them in possibleConflicts. <p>
-	By 'similar', we mean: <p>
-	<code>(len(a1.firstName)< LEN(a2.firstName) AND LEFT(a1.firstName, len(a1.firstName)) = LEFT(a2.firstName, len(a1.firstName))) OR 
-		(LEFT(a1.firstName, len(a2.firstName)) = LEFT(a2.firstName, len(a2.firstName))) </code><p>
-		By 'not similar', we mean the opposite:<p>
-	<code>(len(a1.firstName)< LEN(a2.firstName) AND LEFT(a1.firstName, len(a1.firstName)) != LEFT(a2.firstName, len(a1.firstName))) AND 								  
-		(LEFT(a1.firstName, len(a2.firstName)) != LEFT(a2.firstName, len(a2.firstName))) </code><p>
-	At some point we want to formally recognize when someone at one affiliation is the same person at another affiliation, and we will  
-	make that available when we have that data.<p>
-	Please note that the list of coauthors WILL include any possibleSamePeople and possibleConflicts.
+	'similar' first name, they are included in the possibleSamePeople list.<p>
+	By 'similar first name', we mean that they are exactly the same, or one is just an initial that is a match for the other<p>
+	Please note that the list of coauthors WILL include any possibleSamePeople.<p>
 </body>
 </html>

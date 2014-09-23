@@ -26,7 +26,7 @@ import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 
 @Deprecated
-public abstract class AffiliationCrawler implements Affiliated, Iterable<ResearcherProcessor>, Iterator<ResearcherProcessor>, R2RConstants {
+public abstract class AffiliationCrawler implements Affiliated, Iterable<ResearcherProcessor>, R2RConstants {
 
 	private static final Logger LOG = Logger.getLogger(AffiliationCrawler.class.getName());
 
@@ -103,7 +103,7 @@ public abstract class AffiliationCrawler implements Affiliated, Iterable<Researc
 		catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-		return this;
+		return new AffiliationCrawlerIterator();
 	}
 	
 	private void gatherURLs() throws Exception {
@@ -175,14 +175,6 @@ public abstract class AffiliationCrawler implements Affiliated, Iterable<Researc
 		return false;
 	}
 
-	public boolean hasNext() {
-		return getRemainingAuthorsSize() > 0;
-	}
-
-	public ResearcherProcessor next() {
-		return new AffiliationCrawlerResearcherProcessor(researchers.get(0));
-	}
-	
 	private class AffiliationCrawlerResearcherProcessor extends BasicResearcherProcessor {
 		
 		private Researcher researcher;
@@ -196,7 +188,7 @@ public abstract class AffiliationCrawler implements Affiliated, Iterable<Researc
 			if (isProbablyNotAProfilePage(researcher.getURI())) {
 				return Action.AVOIDED;
 			}
-			else if (store.skip(researcher.getURI(), R2R_WORK_VERIFIED_DT, daysConsideredOld)) {
+			else if (allowSkip() && store.skip(researcher.getURI(), R2R_WORK_VERIFIED_DT, daysConsideredOld)) {
 				// if we make it here, we've processed the author
 				removeResearcher(researcher);
 				return Action.SKIPPED;
@@ -216,6 +208,18 @@ public abstract class AffiliationCrawler implements Affiliated, Iterable<Researc
 					return Action.AVOIDED;
 				}
 			}
+		}
+		
+	}
+	
+	private class AffiliationCrawlerIterator implements Iterator<ResearcherProcessor> {
+		
+		public boolean hasNext() {
+			return getRemainingAuthorsSize() > 0;
+		}
+		
+		public ResearcherProcessor next() {
+			return new AffiliationCrawlerResearcherProcessor(researchers.get(0));
 		}
 		
 	}

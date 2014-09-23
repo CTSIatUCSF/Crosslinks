@@ -16,7 +16,6 @@
 		</c:if>
 		<c:if test="${not crawler.ok}">
 		   <span style="color:#ff0000"><c:out value="${crawler.state}"/></span><p>
-		   &nbsp;<span style="color:#ff0000"><c:out value="${crawler.latestError}"/></span><p>
 		</c:if>
 		<c:out value="${crawler.counts}"/><p>
 		<c:out value="${crawler.dates}"/><p>
@@ -27,7 +26,7 @@
 
     <h2>Scheduling history</h2>
 	<c:forEach var="i" items="${metaHistory}">
- 	    <c:out value="${crawler}"/><p>
+ 	    <c:out value="${i}"/><p>
 	</c:forEach>
 </body>
 </html>

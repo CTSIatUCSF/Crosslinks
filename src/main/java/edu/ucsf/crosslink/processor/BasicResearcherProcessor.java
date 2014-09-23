@@ -26,6 +26,10 @@ public abstract class BasicResearcherProcessor implements ResearcherProcessor {
 		return researcherURI;
 	}
 	
+	protected boolean allowSkip() {
+		return crawler != null ? crawler.allowSkip() : false;
+	}
+	
 	protected Researcher createResearcher() throws URISyntaxException {
 		Researcher researcher = new Researcher(researcherURI);
 		if (crawler != null) {

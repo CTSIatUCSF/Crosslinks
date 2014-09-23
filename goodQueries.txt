@@ -1,0 +1,26 @@
+-- see affiliations with researchers
+SELECT ?a ?l count(distinct(?s)) count(?vd) WHERE {
+?a <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ucsf.edu/ontology/r2r#Affiliation> . ?a <http://www.w3.org/2000/01/rdf-schema#label> ?l .
+?s    <http://ucsf.edu/ontology/r2r#hasAffiliation> ?a . 
+OPTIONAL 
+{?s <http://ucsf.edu/ontology/r2r#workVerifiedDT> ?vd}} GROUP BY ?a ?l
+
+
+
+-- see all affiliations
+SELECT * WHERE {
+?s <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://ucsf.edu/ontology/r2r#Affiliation>
+OPTIONAL { ?s <http://www.w3.org/2003/01/geo/wgs84_pos#lat> ?lat .
+?s <http://www.w3.org/2003/01/geo/wgs84_pos#long> ?long}
+}
+
+-- stubs
+SELECT * where {?r <http://ucsf.edu/ontology/r2r#hasAffiliation>
+<http://profiles.ucsf.edu> . 
+?r <http://xmlns.com/foaf/0.1/lastName> ?ln . 
+?r <http://xmlns.com/foaf/0.1/firstName> ?fn .
+ {GRAPH <http://ucsf.edu/ontology/r2r#DerivedData> { ?r <http://xmlns.com/foaf/0.1/knows> ?er} }. 
+?er <http://xmlns.com/foaf/0.1/lastName> ?ln .
+?er <http://xmlns.com/foaf/0.1/firstName> ?efn
+FILTER ((LCASE(?efn) = LCASE(?fn)) || (STRLEN(?efn) = 1 && 
+STRSTARTS(LCASE(?fn), LCASE(?efn))) || (STRLEN(?fn) = 1 && STRSTARTS(LCASE(?efn), LCASE(?fn)))) }

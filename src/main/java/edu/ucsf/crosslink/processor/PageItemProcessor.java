@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 import org.joda.time.DateTime;
+import org.jsoup.HttpStatusException;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
@@ -21,6 +22,7 @@ import edu.ucsf.crosslink.model.Affiliated;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
+import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
 
@@ -32,8 +34,8 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 
 	// do this only for someone with a work verfied DT
 	private static final String RESEARCHERS_SELECT = "SELECT ?r ?ts WHERE { " +
-			"?r <" + R2R_HAS_AFFILIATION + "> <%s> . ?r <" + R2R_WORK_VERIFIED_DT + "> ?wts . OPTIONAL {?r <" + 
-			R2R_VERIFIED_DT + "> ?ts} }";	
+			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_VERIFIED_DT + 
+			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)}";	
 		
 	private static final String REMOVE_DERIVED_DATA = "WITH <" + R2R_DERIVED_GRAPH + 
 			"> DELETE { <%1$s> ?p ?o } WHERE { <%1$s> ?p ?o }";	
@@ -86,7 +88,10 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 	
 	@Override
 	protected String getSparqlQuery() {
-		return String.format(RESEARCHERS_SELECT, getAffiliation().getURI());
+		Calendar threshold = Calendar.getInstance();
+		threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
+		return String.format(RESEARCHERS_SELECT, getAffiliation().getURI(), 
+				R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
 	}
 	
 	@Override
@@ -99,6 +104,7 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 		
 		private Calendar workVerifiedDT = null;
 		private Researcher researcher = null;
+		private String message = null;
 		
 		private PageItemResearcherProcessor(String researcherURI, Calendar workVerifiedDT) {
 			super(researcherURI);
@@ -109,15 +115,30 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 			return thumbnailGenerator != null ? thumbnailGenerator.generateThumbnail(researcher) : false;
 		}
 		
+		public String toString() {
+			return message != null ? message : super.toString();
+		}
+		
 		public Action processResearcher() throws Exception {
-			if (workVerifiedDT != null && workVerifiedDT.getTimeInMillis() > new DateTime().minusDays(daysConsideredOld).getMillis()) {
+			if (allowSkip() && workVerifiedDT != null && workVerifiedDT.getTimeInMillis() > new DateTime().minusDays(daysConsideredOld).getMillis()) {
 				return Action.SKIPPED;
 			}
 			else {
 				researcher = createResearcher();
 				researcher.setAffiliation(affiliation);
 
-				reader.getPageItems(researcher);
+				try {
+					reader.getPageItems(researcher);
+				}
+				catch (HttpStatusException e) {
+					if (404 == e.getStatusCode()) {
+						message = e.toString();
+						return Action.ERROR;
+					}
+					else {
+						throw e;
+					}
+				}
 
 				List<String> preStatements = new ArrayList<String>();
 				preStatements.addAll(Arrays.asList(String.format(REMOVE_DERIVED_DATA, getResearcherURI()), 

@@ -22,7 +22,6 @@ import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
 import edu.ucsf.crosslink.crawler.Crawler;
-import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 
@@ -157,10 +156,6 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 			publications.add(si.next().getResource().getURI());
 		}
 		return publications;		
-	}
-	
-	public void addPubMedPublication(long pmid) {
-		addPublication("http:" + AuthorParser.PUBMED_SECTION + pmid);
 	}
 	
 	// can handle it in URL form, or just the pmid

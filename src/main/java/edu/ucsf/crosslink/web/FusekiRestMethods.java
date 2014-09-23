@@ -18,9 +18,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 
-import org.json.JSONException;
-
-import com.github.jsonldjava.core.JsonLdError;
 import com.google.inject.Inject;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
@@ -57,13 +54,13 @@ public class FusekiRestMethods implements R2RConstants {
 			GEO_LATITUDE + "> ?lat . ?a <" + GEO_LONGITUDE + "> ?lon . OPTIONAL {?r <" +
 			R2R_HAS_AFFILIATION + "> ?a}} GROUP BY ?a ?lat ?lon";
 	
-	private static final String RESEARCHERS_SPARQL_SLOW = "SELECT ?r ?l ?hp ?i ?t (count(distinct ?er) as ?erc) (count(distinct ?cw) as ?cwc) WHERE {?r <" + 
-			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + RDFS_LABEL + "> ?l . ?r <" + R2R_WORK_VERIFIED_DT + 
-			"> ?wvdt . OPTIONAL {?r <" +  FOAF_HOMEPAGE + "> ?hp } . OPTIONAL {?r <" + FOAF_HAS_IMAGE + 
-			"> ?i} . OPTIONAL {?i <" + FOAF_THUMBNAIL + "> ?t} . OPTIONAL {?r <" + 
-			FOAF_PUBLICATIONS + "> ?cw  . ?er <" + FOAF_PUBLICATIONS + "> ?cw  . ?er <" + 
-			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != <%1$s>)}} GROUP BY ?r ?l ?hp ?i ?t";
-	
+//	private static final String RESEARCHERS_SPARQL_SLOW = "SELECT ?r ?l ?hp ?i ?t (count(distinct ?er) as ?erc) (count(distinct ?cw) as ?cwc) WHERE {?r <" + 
+//			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + RDFS_LABEL + "> ?l . ?r <" + R2R_WORK_VERIFIED_DT + 
+//			"> ?wvdt . OPTIONAL {?r <" +  FOAF_HOMEPAGE + "> ?hp } . OPTIONAL {?r <" + FOAF_HAS_IMAGE + 
+//			"> ?i} . OPTIONAL {?i <" + FOAF_THUMBNAIL + "> ?t} . OPTIONAL {?r <" + 
+//			FOAF_PUBLICATIONS + "> ?cw  . ?er <" + FOAF_PUBLICATIONS + "> ?cw  . ?er <" + 
+//			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != <%1$s>)}} GROUP BY ?r ?l ?hp ?i ?t";
+//	
 	private static final String RESEARCHERS_SPARQL = "SELECT ?r ?l ?hp ?i ?erc ?cwc WHERE {?r <" + 
 			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + RDFS_LABEL + "> ?l . ?r <" + R2R_WORK_VERIFIED_DT + 
 			"> ?wvdt . OPTIONAL {?r <" +  FOAF_HOMEPAGE + "> ?hp } . OPTIONAL { GRAPH <" + 
@@ -83,6 +80,16 @@ public class FusekiRestMethods implements R2RConstants {
 			RDFS_LABEL + "> ?rl . ?r <" + FOAF_HOMEPAGE + "> ?hp . ?r <" + FOAF_HAS_IMAGE + "> ?tn . ?r  <" +
 			R2R_HAS_AFFILIATION + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + 
 			"> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon} " + COAUTHORS_WHERE;
+
+	private static final String COAUTHORS_SAMEAS = "SELECT (?r as ?researcherURI) (?fn as ?firstName) " + 
+			"(?ln as ?lastName) (?er as ?otherResearcherURI) (?efn as ?otherReserarcherFirstName) (?ln as ?otherResearcherLasnName) " +
+			"WHERE {?r <" +
+			R2R_HAS_AFFILIATION + "> <%s> . ?r <" + FOAF_LAST_NAME + "> ?ln . ?r <" + FOAF_FIRST_NAME +
+			"> ?fn . {GRAPH <" + R2R_DERIVED_GRAPH + "> { ?r <" + FOAF_KNOWS + "> ?er} }. ?er <" + 
+			FOAF_LAST_NAME + "> ?ln . ?er <" + FOAF_FIRST_NAME + "> ?efn " +
+			"FILTER ((LCASE(?efn) = LCASE(?fn)) || " + 
+			"(STRLEN(?efn) = 1 && STRSTARTS(LCASE(?fn), LCASE(?efn))) || " + 
+			"(STRLEN(?fn) = 1 && STRSTARTS(LCASE(?efn), LCASE(?fn)))) }";
 
 	private CrawlerFactory factory;
 	private SparqlUpdateClient sparqlClient;
@@ -165,21 +172,10 @@ public class FusekiRestMethods implements R2RConstants {
     }
 
     @GET
-    @Path("{affiliation}/possibleConflicts")
-    @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
-    public String getConflicts(@PathParam("affiliation") String affiliation, @QueryParam("format") String format) {
-		String sql = "select * from vw_ConflictList where affiliationName = ? " + 
-					 "order by URL, affiliationName2, URL2";
-		return "";//getSimpleResults(sql, affiliation, format);
-    }
-
-    @GET
     @Path("{affiliation}/possibleSamePeople")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
-    public String getSamePeople(@PathParam("affiliation") String affiliation, @QueryParam("format") String format) {
-		String sql = "select * from [vw_SamePersonList] where affiliationName = ? " + 
-					 "order by URL, affiliationName2, URL2";
-		return "";//getSimpleResults(sql, affiliation, format);
+    public String getSamePeople(@PathParam("affiliation") String affiliation, @QueryParam("format") String format) throws Exception {
+		return getFormattedResults(String.format(COAUTHORS_SAMEAS, getAffiliation(affiliation).getURI()), format).toString();
     }
 
     @GET

@@ -35,7 +35,7 @@ public class Affiliation extends R2RResourceObject {
 		else if (baseURL.contains("loki")) {
 			return RNSType.LOKI;
 		}
-		else if (baseURL.contains("scival.com")) {
+		else if (baseURL.contains("scival.com") || baseURL.contains("northwestern.edu")) {
 			return RNSType.SCIVAL;
 		}
 		else if (baseURL.contains("vivo") || baseURL.contains("duke.edu") || 

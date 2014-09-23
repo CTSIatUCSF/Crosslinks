@@ -57,6 +57,7 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	private Exception latestErrorException = null;
 	private CrosslinkPersistance store;
 	private Iterable<ResearcherProcessor> researcherIterable = null;	
+	private Iterator<ResearcherProcessor> currentIterator = null;	
 
 	private Map<OutputType, TypedOutputStats> stats = new HashMap<OutputType, TypedOutputStats>();
 	private AtomicInteger queueSize = new AtomicInteger();
@@ -111,6 +112,10 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	
 	private boolean isForced() {
 		return Arrays.asList(Mode.FORCED_NO_SKIP, Mode.FORCED).contains(getMode());		
+	}
+	
+	public boolean allowSkip() {
+		return !Mode.FORCED_NO_SKIP.equals(getMode());
 	}
 	
 	public String getState() {
@@ -190,7 +195,7 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 		stats.get(type).push(message.toString(), time);
 	}
 
-	private void addError(Object message, Exception e) {
+	private void addUnhandledException(Object message, Exception e) {
 		addOutput(OutputType.ERROR, message);
 		consecutiveErrorCnt.incrementAndGet();
 		if (consecutiveErrorCnt.get() > errorsToAbort) {
@@ -218,7 +223,8 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 		if (latestErrorException != null) {
 			StringWriter sw = new StringWriter();
 			PrintWriter writer = new PrintWriter(sw);
-			for(StackTraceElement ste : latestErrorException.getStackTrace()) {
+			writer.println(latestErrorException.getMessage() + "<br/>");
+			for (StackTraceElement ste : latestErrorException.getStackTrace()) {
 				writer.println(ste.toString() + "<br/>");
 			}
 			latestErrorException.printStackTrace(writer);
@@ -229,6 +235,8 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	}
 
 	private void clear() {
+		// clear the stats and the curent iterator
+		currentIterator = null;
 		for (OutputType type : OutputType.values()) {
 			stats.put(type, new TypedOutputStats(type, 100));
 		}
@@ -278,9 +286,12 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	}
 
 	public int compareTo(Crawler other) {
-    	// always put active ones in the front
+    	// always put active ones in the front, then ones in trouble
     	if (this.isActive() != other.isActive()) {
     		return this.isActive() ? -1 : 1;
+    	}	    	
+    	else if (this.isOk() != other.isOk()) {
+    		return this.isOk() ? 1 : -1;
     	}	    	
 
     	CrawlerStartStatus astatus = this.getLastStartStatus();
@@ -310,14 +321,15 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 		try {
 			started = store.startCrawl(this).getTime();
 			ended = null;
-			Iterator<ResearcherProcessor> rpi = researcherIterable.iterator();
-			while (isOk() && rpi.hasNext()) {
+			// restart old iterator if you can, otherwise grab a fresh one
+			currentIterator = currentIterator != null ? currentIterator : researcherIterable.iterator();
+			while (isOk() && currentIterator.hasNext()) {
 				// don't let the queue get too big!!!
 				if (executorService != null && queueSize.get() > MAX_QUEUE_SIZE) {
 					Thread.sleep(SLEEP_TIME_MILLIS);
 					continue;
 				}
-				ResearcherProcessor rp = rpi.next();
+				ResearcherProcessor rp = currentIterator.next();
 				rp.setCrawler(this);
 				addOutput(OutputType.FOUND, rp);
 				QueuedRunnable qr = new QueuedRunnable(rp);
@@ -340,12 +352,15 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 			}
 		}
 		catch (Exception e) {			
-			addError("Error while iterating over researchers", e);
+			addUnhandledException("Error while iterating over researchers", e);
 			setStatus(Status.ERROR);
 		}
 		if (isForced()) {
 			// don't leave in forced mode
 			mode = Mode.ENABLED;
+		}
+		if (null == ended) {
+			ended = new Date();
 		}
 		setCrawlingThread(null);
 	}
@@ -355,15 +370,15 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	}
 	
 	public String toString() {
-		return getName() + " : " + getState() + " " + getDates()  + researcherIterable.toString(); 
+		return getName() + " : " + getState() + " " + getDates()  + " Iterable : " + researcherIterable.toString(); 
 	}
 		
 	public String getCounts() {
-		String retval = "";
+		String retval = "Queue = " + queueSize.get();
 		for (TypedOutputStats output : getOutputStatsList()) {
 			retval += ", " + output.toString();
 		}
-		return retval.substring(2);
+		return retval;
 	}
 
 	public String getDates() {
@@ -418,9 +433,12 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 				else if (ResearcherProcessor.Action.PROCESSED.equals(action)) {
 					addOutput(OutputType.PROCESSED, researcherProcessor, sw.getTime());					
 				}
+				else if (ResearcherProcessor.Action.ERROR.equals(action)) {
+					addOutput(OutputType.ERROR, researcherProcessor);					
+				}
 			}
 			catch (Exception e) {
-				addError(researcherProcessor, e);
+				addUnhandledException(researcherProcessor, e);
 			}
 			finally {
 				queueSize.decrementAndGet();

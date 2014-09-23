@@ -1,6 +1,8 @@
 package edu.ucsf.crosslink.crawler.sitereader;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -22,6 +24,7 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.io.ImportCert;
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Affiliation.RNSType;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
@@ -169,14 +172,41 @@ public class SiteReader implements R2RConstants {
             return s;
     }
     
+    public static String getScivalHTMLUrlFromUri(String uri) throws MalformedURLException {
+    	if (uri.contains("www.")) {
+    		return uri;
+    	}
+		String uid = uri.substring(uri.lastIndexOf('n')+1);
+		URL url = new URL(uri);
+		uri = url.getProtocol() + "://" + url.getHost().replace("vivo.", "www.");
+		if (!uri.contains("northwestern")) {
+			uri += url.getPath().split("/")[1];
+		}
+    	uri += "/expert.asp?u_id=" + uid;
+    	return uri;
+    }
+    
     // this should arguably be the source of the verifiedDT
     public void getPageItems(Researcher researcher) throws IOException, InterruptedException {    	
-    	Document doc = getDocument(researcher.getURI());
+    	String uri = researcher.getURI();
+    	
+    	// hacks to fix bad URI's
+    	if (Affiliation.RNSType.SCIVAL.equals(researcher.getAffiliation().getRNSType()) && !researcher.getURI().contains("www.")) {
+    		// little hack from Eichman
+    		uri = getScivalHTMLUrlFromUri(researcher.getURI());
+    	}
+    	else if (researcher.getURI().contains("upenn.edu")) {
+    		// I hope they fix this!
+    		URL url = new URL(uri);
+    		uri = url.getProtocol() + "://" + url.getHost() + "/vivo" + url.getPath();
+    	}
+    	
+    	Document doc = getDocument(uri);
 		researcher.setVerifiedDt(Calendar.getInstance());
 		researcher.setHomepage(doc.location());
 		researcher.addImageURL(getImage(doc, researcher.getAffiliation().getRNSType()));
     }
-           
+    
     private String getImage(Document doc, RNSType type) {
     	for (Element src : doc.select("[src]")) {
     		String img = null;
@@ -195,12 +225,17 @@ public class SiteReader implements R2RConstants {
     
     public static void main(String[] args) {
     	// this only works when running from the command line.  Setting this is tomcat does not work for some reason
-		System.out.println(System.getProperty("javax.net.ssl.trustStore"));
     	ImportCert ic = new ImportCert();
-		System.out.println(System.getProperty("javax.net.ssl.trustStore"));
     	Map<String, String> cookies = new HashMap<String, String>();
     	String url = "http://vivo.brown.edu/individual/aacidera";
+    	
     	try {
+        	System.out.println(getScivalHTMLUrlFromUri("http://vivo.experts.scival.com/chicagowomeninstem/individual/n110"));
+        	System.out.println(getScivalHTMLUrlFromUri("http://vivo.experts.scival.com/ucdavis/individual/n2"));
+        	System.out.println(getScivalHTMLUrlFromUri("http://www.experts.scival.com/ohsu/expert.asp?u_id=1009"));
+        	System.out.println(getScivalHTMLUrlFromUri("http://vivo.scholars.northwestern.edu/individual/n1027"));
+        	
+        	
         	int attempts = 0;
         	@SuppressWarnings("unused")
 			Document doc = null;

@@ -67,9 +67,9 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	private Future<Boolean> currentJob = null;
 	
 	@Inject
-	public Crawler(@Named("Name") String name, Mode mode, CrosslinkPersistance store, 
+	public Crawler(@Named("FileName") String name, Mode mode, CrosslinkPersistance store, 
 			Iterable<ResearcherProcessor> researcherIterable, @Named("executorThreadCount") Integer threadCount) throws Exception {
-		super(R2R_CRAWLER + "/" + name.replace(' ', '_'), R2R_CRAWLER);
+		super(R2R_CRAWLER + "/" + name, R2R_CRAWLER);
 		this.setLabel(name);
 		this.mode = mode;	
 		this.store = store;
@@ -221,17 +221,27 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	
 	public String getLatestErrorStackTrace() {
 		if (latestErrorException != null) {
-			StringWriter sw = new StringWriter();
-			PrintWriter writer = new PrintWriter(sw);
-			writer.println(latestErrorException.getMessage() + "<br/>");
-			for (StackTraceElement ste : latestErrorException.getStackTrace()) {
-				writer.println(ste.toString() + "<br/>");
+			if (latestErrorException.getCause() != null) {
+				return showThrowable(latestErrorException) + "<br/><br/>Inner Throwable<br/>" + 
+						showThrowable(latestErrorException.getCause());
 			}
-			latestErrorException.printStackTrace(writer);
-			writer.flush();
-			return sw.toString();
+			else {
+				return showThrowable(latestErrorException);
+			}
 		}
 		return null;
+	}
+
+	private static String showThrowable(Throwable t) {
+		StringWriter sw = new StringWriter();
+		PrintWriter writer = new PrintWriter(sw);
+		writer.println(t.getMessage() + "<br/>");
+		for (StackTraceElement ste : t.getStackTrace()) {
+			writer.println(ste.toString() + "<br/>");
+		}
+		t.printStackTrace(writer);
+		writer.flush();
+		return sw.toString();
 	}
 
 	private void clear() {

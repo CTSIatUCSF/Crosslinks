@@ -15,6 +15,7 @@ import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 
+import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.io.ThumbnailGenerator;
@@ -32,10 +33,12 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 
 	private static final Logger LOG = Logger.getLogger(PageItemProcessor.class.getName());
 
-	// do this only for someone with a work verfied DT
-	private static final String RESEARCHERS_SELECT = "SELECT ?r ?ts WHERE { " +
+	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
 			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_VERIFIED_DT + 
 			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)}";	
+
+	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r ?ts WHERE { " +
+			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s>}";	
 		
 	private static final String REMOVE_DERIVED_DATA = "WITH <" + R2R_DERIVED_GRAPH + 
 			"> DELETE { <%1$s> ?p ?o } WHERE { <%1$s> ?p ?o }";	
@@ -58,6 +61,10 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 	private static final String ADD_COAUTHOR_CNTS = "INSERT DATA {GRAPH <" + R2R_DERIVED_GRAPH + 
 			"> {<%1$s> <" + R2R_EXTERNAL_COAUTHOR_CNT + "> %2$d . <%1$s> <" + R2R_SHARED_PUB_CNT + "> %3$d}}";
 
+	private static final String DELETE_RESEARCHER = "DELETE WHERE {<%1$s> ?p ?o }; DELETE WHERE {?s ?p <%1$s>}";	
+	private static final String DELETE_RESEARCHER_DERIVED = "DELETE WHERE { GRAPH <" + R2R_DERIVED_GRAPH
+			+ "> {<%1$s> ?p ?o }}; DELETE WHERE { GRAPH <" + R2R_DERIVED_GRAPH + "> {?s ?p <%1$s>}}";	
+
 	private Integer daysConsideredOld;
 
 	private SiteReader reader = null;
@@ -65,6 +72,7 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 	private SparqlPostClient sparqlClient = null;
 	private CrosslinkPersistance store = null;
 	private ThumbnailGenerator thumbnailGenerator = null;
+	private Crawler crawler = null;
 	
 	// remove harvester as required item
 	@Inject
@@ -82,16 +90,26 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 		store.save(affiliation);	
 	}
 	
+	@Inject
+	public void setCrawler(Crawler crawler) {
+		this.crawler = crawler;
+	}
+	
 	public Affiliation getAffiliation() {
 		return affiliation;
 	}
 	
 	@Override
 	protected String getSparqlQuery() {
-		Calendar threshold = Calendar.getInstance();
-		threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
-		return String.format(RESEARCHERS_SELECT, getAffiliation().getURI(), 
-				R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
+		if (crawler != null && crawler.allowSkip()) {
+			Calendar threshold = Calendar.getInstance();
+			threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
+			return String.format(RESEARCHERS_SELECT_SKIP, getAffiliation().getURI(), 
+					R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
+		}
+		else {
+			return String.format(RESEARCHERS_SELECT_NO_SKIP, getAffiliation().getURI());
+		}
 	}
 	
 	@Override
@@ -133,6 +151,11 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 				catch (HttpStatusException e) {
 					if (404 == e.getStatusCode()) {
 						message = e.toString();
+						// should probably have delete me a function in store, but this is OK for now
+						store.startTransaction();
+						store.execute(Arrays.asList(String.format(DELETE_RESEARCHER, getResearcherURI())));
+						store.execute(Arrays.asList(String.format(DELETE_RESEARCHER_DERIVED, getResearcherURI())));
+						store.endTransaction();
 						return Action.ERROR;
 					}
 					else {

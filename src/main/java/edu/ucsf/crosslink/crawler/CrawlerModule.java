@@ -28,6 +28,7 @@ public class CrawlerModule extends AbstractModule {
 
 		// Crawler items
 		bind(String.class).annotatedWith(Names.named("Name")).toInstance(prop.getProperty("Name"));
+		bind(String.class).annotatedWith(Names.named("FileName")).toInstance(prop.getProperty("FileName"));
 		if (prop.getProperty("BaseURL") != null) {
 			bind(String.class).annotatedWith(Names.named("BaseURL")).toInstance(prop.getProperty("BaseURL"));
 		}

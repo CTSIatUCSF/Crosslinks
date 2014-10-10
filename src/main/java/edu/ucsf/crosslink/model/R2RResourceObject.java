@@ -10,6 +10,7 @@ import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 
 import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
+import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.ontology.OntProperty;
 import com.hp.hpl.jena.ontology.Restriction;
 import com.hp.hpl.jena.rdf.model.Model;
@@ -73,16 +74,18 @@ public abstract class R2RResourceObject implements R2RConstants {
 	}
     
     public boolean hasMaxCardinalityRestriction(String predicate) {
-		Property prop = getModel().getProperty(predicate);
-		if (prop instanceof OntProperty) {
-			OntProperty p = (OntProperty)prop;
-			Iterator<Restriction> i = p.listReferringRestrictions();
-			while (i.hasNext()) {
-			    Restriction r = i.next();
-			    if (r.isMaxCardinalityRestriction())
-			    	return true;
-			}
-		}
+    	Model model = getModel();
+    	if (model instanceof OntModel) {
+    		OntProperty prop = ((OntModel)model).getOntProperty(predicate);
+    		if (prop != null) {
+    			Iterator<Restriction> i = prop.listReferringRestrictions();
+    			while (i.hasNext()) {
+    			    Restriction r = i.next();
+    			    if (r.isMaxCardinalityRestriction())
+    			    	return true;
+    			}
+    		}    		
+    	}
     	return false;
     }
 	

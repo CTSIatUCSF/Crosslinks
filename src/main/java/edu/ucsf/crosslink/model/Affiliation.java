@@ -6,7 +6,7 @@ import java.util.Arrays;
 public class Affiliation extends R2RResourceObject {
 	
 	private int researcherCount;
-	private int pmidCount;
+	private int publicationCount;
 	private RNSType rnsType;
 	
 	public enum RNSType {PROFILES, VIVO, SCIVAL, LOKI, CAP, UNKNOWN};
@@ -22,10 +22,10 @@ public class Affiliation extends R2RResourceObject {
 		}
 	}
 	
-	public Affiliation(String name, String baseURL, String location, int researcherCount, int pmidCount) throws URISyntaxException {
+	public Affiliation(String name, String baseURL, String location, int researcherCount, int publicationCount) throws URISyntaxException {
 		this(name, baseURL, null);
 		this.researcherCount = researcherCount;		
-		this.pmidCount = pmidCount;
+		this.publicationCount = publicationCount;
 	}
 	
 	private static RNSType getRNSType(String baseURL) {
@@ -56,8 +56,8 @@ public class Affiliation extends R2RResourceObject {
 		return researcherCount;
 	}
 	
-	public int getPmidCount() {
-		return pmidCount;
+	public int getPublicationCount() {
+		return publicationCount;
 	}
 	
 	public String getLatitude() {

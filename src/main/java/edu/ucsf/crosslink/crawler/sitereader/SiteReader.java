@@ -180,7 +180,7 @@ public class SiteReader implements R2RConstants {
 		URL url = new URL(uri);
 		uri = url.getProtocol() + "://" + url.getHost().replace("vivo.", "www.");
 		if (!uri.contains("northwestern")) {
-			uri += url.getPath().split("/")[1];
+			uri += "/" + url.getPath().split("/")[1];
 		}
     	uri += "/expert.asp?u_id=" + uid;
     	return uri;

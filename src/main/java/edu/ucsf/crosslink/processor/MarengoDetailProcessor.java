@@ -1,6 +1,7 @@
 package edu.ucsf.crosslink.processor;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.logging.Level;
@@ -17,6 +18,7 @@ import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 
+import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
@@ -31,15 +33,17 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	
 	public static final String DOI_PREFIX = "http://dx.doi.org/";
 
-	// TODO add order by in this so that we get old ones first and make this less fragile with name issue!
-	private static final String RESEARCHERS_SELECT = "SELECT ?r ?ts WHERE { " +
+	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
 			"?r <" + RDF_TYPE + "> <" + FOAF_PERSON + "> . OPTIONAL {?r <" + R2R_WORK_VERIFIED_DT + 
 			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)}";	
+
+	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r ?ts WHERE { " +
+			"?r <" + RDF_TYPE + "> <" + FOAF_PERSON + ">}";	
 	
 	private static final String RESEARCHER_DETAIL = "SELECT ?l ?fn ?ln ?orcid WHERE { " +
 			"<%1$s> <" + RDFS_LABEL + "> ?l ." +
-			"OPTIONAL {<%1$s> <" + FOAF + "firstName> ?fn } . " +
-			"OPTIONAL {<%1$s> <" + FOAF + "lastName> ?ln } . " +	
+			"OPTIONAL {<%1$s> <" + FOAF_FIRST_NAME + "> ?fn } . " +
+			"OPTIONAL {<%1$s> <" + FOAF_LAST_NAME + "> ?ln } . " +	
 			"OPTIONAL {<%1$s> <" + VIVO_ORCID_ID + "> ?orcid}}";	
 
 	private static final String RESEARCHER_PUBLICATIONS = "SELECT ?lir WHERE { " +
@@ -48,8 +52,11 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 
 	private static final String LIR_DETAIL = "SELECT ?pmid ?doi WHERE { OPTIONAL {" +
 			"<%1$s> <" + BIBO_PMID + "> ?pmid} . OPTIONAL {<%1$s> <" + BIBO_DOI + "> ?doi}}";
+
+	private static final String REMOVE_EXISTING_PUBLICATIONS = "DELETE {<%1$s> <" + FOAF_PUBLICATIONS + 
+			"> ?i } WHERE " + "{  <%1$s> <" + FOAF_PUBLICATIONS + "> ?i }";	
 	
-	private static final String DOI_TO_PMID = "SELECT ?pmid WHERE { ?pmid http://www.w3.org/2002/07/owl#sameAs> <%s> }";
+	private static final String DOI_TO_PMID = "SELECT ?pmid WHERE { ?pmid <http://www.w3.org/2002/07/owl#sameAs> <%s> }";
 	
 	private static final int LIMIT = 50;
 
@@ -60,6 +67,7 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	private SparqlClient marengoSparqlClient = null;
 	private SparqlClient doiSparqlClient = null;
 	private CrosslinkPersistance store = null;
+	private Crawler crawler = null;
 
 	// remove harvester as required item
 	@Inject
@@ -72,11 +80,21 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 		this.store = store;
 	}
 	
+	@Inject
+	public void setCrawler(Crawler crawler) {
+		this.crawler = crawler;
+	}
+	
 	@Override
 	protected String getSparqlQuery() {
-		Calendar threshold = Calendar.getInstance();
-		threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
-		return String.format(RESEARCHERS_SELECT, R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
+		if (crawler != null && crawler.allowSkip()) {
+			Calendar threshold = Calendar.getInstance();
+			threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
+			return String.format(RESEARCHERS_SELECT_SKIP, R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
+		}
+		else {
+			return RESEARCHERS_SELECT_NO_SKIP;
+		}		
 	}
 	
 	private static String getOptionalLiteral(QuerySolution qs, String field) {
@@ -130,19 +148,32 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 			public void useResultSet(ResultSet rs) throws Exception {				
 				if (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
-					// use pmid if they have it
+					// use pmid if they have it AND it works
 					if (qs.get("?pmid") != null) {
-						publication.append("http:" + ResearcherProcessor.PUBMED_SECTION + qs.getLiteral("?pmid").getInt());
+						try {
+							publication.append("http:" + ResearcherProcessor.PUBMED_SECTION + qs.getLiteral("?pmid").getInt());
+							return;
+						}
+						catch (Exception e) {
+							LOG.log(Level.WARNING, "Unexepected literal for PMID : " + qs.getLiteral("?pmid").toString(), e);							
+							// don't re-throw, hope DOI works out
+						}
 					}
-					else if (qs.get("?doi") != null){
+					if (qs.get("?doi") != null){
 						// this handles things like <a href=\"http://psycnet.apa.org/doi/10.1037/a0016478\">10.1037/a0016478</a> 
 						// as well as a regular doi
 						String doi = qs.getLiteral("?doi").getString();
 						if (Jsoup.isValid(doi, Whitelist.basic())) {
 							// see if it can be resolved to a PMID uri
 							String doiUri = DOI_PREFIX + Jsoup.parseBodyFragment(doi).text();
-							String pmidUri = getPMIDUriFromDOIUri(doiUri);
-							publication.append(pmidUri != null ? pmidUri : doiUri);							
+							try {
+								String pmidUri = getPMIDUriFromDOIUri(doiUri);
+								publication.append(pmidUri != null ? pmidUri : doiUri);							
+							}
+							catch (Exception e) {
+								LOG.log(Level.WARNING, "Error converting doi : " + doi + " to PMID", e);
+								// just bail, no need to rethrow
+							}
 						}
 						else {
 							LOG.log(Level.WARNING, "Invalid DOI : " + doi);
@@ -201,7 +232,10 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 			else {
 				researcher = createResearcher();
 				readResearcherDetails(researcher);
+				store.startTransaction();
+				store.execute(Arrays.asList(String.format(REMOVE_EXISTING_PUBLICATIONS, getResearcherURI())));
 				store.update(researcher);
+				store.endTransaction();
 				return Action.PROCESSED;
 			}
 		}		

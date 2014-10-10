@@ -41,7 +41,9 @@ public class CrawlerFactory {
 	    	if (!propertyFiles.containsValue(fileName)) {
 				Properties prop = new Properties();
 				prop.load(this.getClass().getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
-				prop.load(new FileReader(new File(fileName)));
+				File propFile = new File(fileName);
+				prop.load(new FileReader(propFile));
+				prop.put("FileName", propFile.getName().split("\\.")[0]);
 
 				Injector injector = guice.createChildInjector(new CrawlerModule(prop));
 				Crawler crawler = injector.getInstance(Crawler.class);

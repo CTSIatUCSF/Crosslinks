@@ -9,9 +9,10 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,7 +41,6 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	private static final Logger LOG = Logger.getLogger(MarengoDetailProcessor.class.getName());
 	
 	private int MAX_QUEUE_SIZE = 100;
-	private long SLEEP_TIME_MILLIS = 10000;
 
 	private Mode mode = Mode.ENABLED;
 	private Status status = Status.IDLE;
@@ -52,6 +52,7 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 
 	private Date started = null;
 	private Date ended = null;
+	private Calendar dateOfLastCrawl = null;
 	private CrawlerStartStatus lastStartStatus;
 
 	private Exception latestErrorException = null;
@@ -60,7 +61,7 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	private Iterator<ResearcherProcessor> currentIterator = null;	
 
 	private Map<OutputType, TypedOutputStats> stats = new HashMap<OutputType, TypedOutputStats>();
-	private AtomicInteger queueSize = new AtomicInteger();
+	private ArrayBlockingQueue<Runnable> executorQueue = null;
 	
 	private Thread crawlingThread = null;
 	private ExecutorService executorService = null;
@@ -75,8 +76,10 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 		this.store = store;
 		this.researcherIterable = researcherIterable;
 		store.update(this);
+		executorQueue = new ArrayBlockingQueue<Runnable>(MAX_QUEUE_SIZE, true);
 		if (threadCount >= 0) {
-			executorService = threadCount > 0 ? Executors.newFixedThreadPool(threadCount) : Executors.newCachedThreadPool();
+			executorService = new ThreadPoolExecutor(threadCount, threadCount,
+                    5000L, TimeUnit.MILLISECONDS, executorQueue, new ThreadPoolExecutor.CallerRunsPolicy());
 		}
 		clear();
 	}
@@ -254,8 +257,12 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 
 	// TODO use in memory ended if that will work
 	public Calendar getDateLastCrawled() {
+		if (dateOfLastCrawl != null) {
+			return dateOfLastCrawl;
+		}
 		try {
-			return store.dateOfLastCrawl(this);
+			dateOfLastCrawl = store.dateOfLastCrawl(this);
+			return dateOfLastCrawl;
 		} 
 		catch (Exception e) {
 			LOG.log(Level.SEVERE, e.getMessage(), e);
@@ -334,11 +341,6 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 			// restart old iterator if you can, otherwise grab a fresh one
 			currentIterator = currentIterator != null ? currentIterator : researcherIterable.iterator();
 			while (isOk() && currentIterator.hasNext()) {
-				// don't let the queue get too big!!!
-				if (executorService != null && queueSize.get() > MAX_QUEUE_SIZE) {
-					Thread.sleep(SLEEP_TIME_MILLIS);
-					continue;
-				}
 				ResearcherProcessor rp = currentIterator.next();
 				rp.setCrawler(this);
 				addOutput(OutputType.FOUND, rp);
@@ -384,7 +386,7 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	}
 		
 	public String getCounts() {
-		String retval = "Queue = " + queueSize.get();
+		String retval = "Queue = " + executorQueue.size();
 		for (TypedOutputStats output : getOutputStatsList()) {
 			retval += ", " + output.toString();
 		}
@@ -423,7 +425,6 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 		private ResearcherProcessor researcherProcessor = null;
 		
 		private QueuedRunnable(ResearcherProcessor researcherProcessor) {
-			queueSize.incrementAndGet();
 			this.researcherProcessor = researcherProcessor;
 		}
 		
@@ -431,27 +432,13 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 			try {
 				StopWatch sw = new StopWatch();
 				sw.start();
-				ResearcherProcessor.Action action = researcherProcessor.processResearcher();
+				OutputType action = researcherProcessor.processResearcher();
 				sw.stop();
 				consecutiveErrorCnt.set(0);
-				if (ResearcherProcessor.Action.AVOIDED.equals(action)) {
-					addOutput(OutputType.AVOIDED, researcherProcessor);
-				}
-				else if (ResearcherProcessor.Action.SKIPPED.equals(action)) {
-					addOutput(OutputType.SKIPPED, researcherProcessor);
-				}
-				else if (ResearcherProcessor.Action.PROCESSED.equals(action)) {
-					addOutput(OutputType.PROCESSED, researcherProcessor, sw.getTime());					
-				}
-				else if (ResearcherProcessor.Action.ERROR.equals(action)) {
-					addOutput(OutputType.ERROR, researcherProcessor);					
-				}
+				addOutput(action, researcherProcessor, sw.getTime());					
 			}
 			catch (Exception e) {
 				addUnhandledException(researcherProcessor, e);
-			}
-			finally {
-				queueSize.decrementAndGet();
 			}
 		}
 	}

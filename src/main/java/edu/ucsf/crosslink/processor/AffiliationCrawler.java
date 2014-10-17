@@ -17,6 +17,7 @@ import org.jsoup.nodes.Document;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
+import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
 import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
@@ -184,28 +185,28 @@ public abstract class AffiliationCrawler implements Affiliated, Iterable<Researc
 			this.researcher = researcher;
 		}
 
-		public Action processResearcher() throws Exception {
+		public OutputType processResearcher() throws Exception {
 			if (isProbablyNotAProfilePage(researcher.getURI())) {
-				return Action.AVOIDED;
+				return OutputType.AVOIDED;
 			}
 			else if (allowSkip() && store.skip(researcher.getURI(), R2R_WORK_VERIFIED_DT, daysConsideredOld)) {
 				// if we make it here, we've processed the author
 				removeResearcher(researcher);
-				return Action.SKIPPED;
+				return OutputType.SKIPPED;
 			}
 			else if (parser.readResearcher(researcher)) {							
 				LOG.info("Saving researcher :" + researcher);						
 				store.save(researcher);
 				// add to processed list
 				recentlyProcessedAuthors.put(researcher.getURI(), new Date().getTime());
-				return Action.PROCESSED;
+				return OutputType.PROCESSED;
 			}
 			else {
 				if (knownReseacherURLs.contains(researcher.getURI())) {
 					throw new Exception("Error reading known researcher URL: " + researcher.getURI() );
 				}
 				else {
-					return Action.AVOIDED;
+					return OutputType.AVOIDED;
 				}
 			}
 		}

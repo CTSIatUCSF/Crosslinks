@@ -21,11 +21,9 @@ public abstract class SparqlProcessor implements Iterable<ResearcherProcessor> {
 	
 	private int offset = 0;
 	private int limit = 0;
+	private String query = "";
 	
-	private int currentNdx = 0;
 	private List<ResearcherProcessor> currentResearcherProcessors = new ArrayList<ResearcherProcessor>();
-	
-	private String query = null;
 	
 	// remove harvester as required item
 	protected SparqlProcessor(SparqlClient sparqlClient, int limit) {
@@ -34,28 +32,31 @@ public abstract class SparqlProcessor implements Iterable<ResearcherProcessor> {
 	}
 	
 	public String toString() {
-		return "Offset = " + offset + ", Limit = " + limit;
+		return "Size = " + currentResearcherProcessors.size() + ", Limit = " + limit + ", Query = " + query;
 	}
 	
 	protected SparqlClient getSparqlClient() {
 		return sparqlClient;
 	}
 		
-	protected abstract String getSparqlQuery();
+	protected abstract String getSparqlQuery(int offset, int limit);
 	
 	protected abstract ResearcherProcessor getResearcherProcessor(QuerySolution qs);
 	
+	protected void shuttingDown() {
+		// allow derived classes to override
+	}
+	
 	public Iterator<ResearcherProcessor> iterator() {
-		query = getSparqlQuery();
 		offset = 0;
 		return new SparqlProcessorIterator();
     }
 	
 	private void executeQuery() throws Exception {
-		String incrementalQuery = limit > 0 ? String.format(query + " OFFSET %d LIMIT %d", offset, limit) : query;
+		query = getSparqlQuery(offset, limit);
 
 		final AtomicInteger found = new AtomicInteger();
-		getSparqlClient().select(incrementalQuery, new ResultSetConsumer() {
+		getSparqlClient().select(query, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					currentResearcherProcessors.add(getResearcherProcessor(rs.next()));
@@ -70,21 +71,22 @@ public abstract class SparqlProcessor implements Iterable<ResearcherProcessor> {
 	private class SparqlProcessorIterator implements Iterator<ResearcherProcessor> {
 
 		public boolean hasNext() {
-			if (currentNdx == currentResearcherProcessors.size()) {
+			if (currentResearcherProcessors.isEmpty() && (offset == 0 || limit > 0)) {
 				try {
-					currentNdx = 0;
-					currentResearcherProcessors.clear();
 					executeQuery();
 				} 
 				catch (Exception e) {
 					throw new RuntimeException(e);
 				}
 			}
-			return currentNdx < currentResearcherProcessors.size();
+			if (currentResearcherProcessors.isEmpty()) {
+				shuttingDown();
+			}
+			return !currentResearcherProcessors.isEmpty();
 		}
 
 		public ResearcherProcessor next() {
-			return currentResearcherProcessors.get(currentNdx++);
+			return currentResearcherProcessors.remove(0);
 		}
 		
 	}

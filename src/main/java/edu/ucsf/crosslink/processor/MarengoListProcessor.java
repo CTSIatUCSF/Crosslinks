@@ -7,6 +7,7 @@ import com.google.inject.Inject;
 import com.hp.cache4guice.Cached;
 import com.hp.hpl.jena.query.QuerySolution;
 
+import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
@@ -31,8 +32,9 @@ public class MarengoListProcessor extends SparqlProcessor {
 	}
 
 	@Override
-	protected String getSparqlQuery() {
-		return RESEARCHERS_SELECT;
+	protected String getSparqlQuery(int offset, int limit) {
+		return RESEARCHERS_SELECT + 
+				(limit > 0 ? String.format(" OFFSET %d LIMIT %d", offset, limit) : "");
 	}
 
 	private Affiliation getAffiliationFor(URI uri) throws Exception {
@@ -68,16 +70,16 @@ public class MarengoListProcessor extends SparqlProcessor {
 			this.marengoURI = marengoURI;
 		}
 
-		public Action processResearcher() throws Exception {
-			if (marengoURI.endsWith("Ext") || getResearcherURI().endsWith("Ext")) {
-				return Action.AVOIDED;
+		public OutputType processResearcher() throws Exception {
+			if (marengoURI.endsWith("Ext") || getResearcherURI().endsWith("Ext") || getResearcherURI().startsWith("http://vivo.ufl.edu")) {
+				return OutputType.AVOIDED;
 			}
 			else {
 				researcher = createResearcher();
 				researcher.setAffiliation(getAffiliationFor(new URI(getResearcherURI())));
 				//researcher.setHarvester(MarengoListCrawler.this);
 				store.update(researcher);				
-				return Action.PROCESSED;
+				return OutputType.PROCESSED;
 			}
 		}		
 	}

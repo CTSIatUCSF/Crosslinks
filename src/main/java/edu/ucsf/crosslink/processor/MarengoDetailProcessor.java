@@ -19,6 +19,7 @@ import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 
 import edu.ucsf.crosslink.crawler.Crawler;
+import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
@@ -35,7 +36,7 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 
 	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
 			"?r <" + RDF_TYPE + "> <" + FOAF_PERSON + "> . OPTIONAL {?r <" + R2R_WORK_VERIFIED_DT + 
-			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)}";	
+			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
 
 	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r ?ts WHERE { " +
 			"?r <" + RDF_TYPE + "> <" + FOAF_PERSON + ">}";	
@@ -58,7 +59,7 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	
 	private static final String DOI_TO_PMID = "SELECT ?pmid WHERE { ?pmid <http://www.w3.org/2002/07/owl#sameAs> <%s> }";
 	
-	private static final int LIMIT = 50;
+	private static final int LIMIT = 0;
 
 	private static final String MARENGO_PREFIX = "http://marengo.info-science.uiowa.edu:2020/resource/";
 	
@@ -86,14 +87,15 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	}
 	
 	@Override
-	protected String getSparqlQuery() {
+	protected String getSparqlQuery(int offset, int limit) {
 		if (crawler != null && crawler.allowSkip()) {
 			Calendar threshold = Calendar.getInstance();
 			threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
 			return String.format(RESEARCHERS_SELECT_SKIP, R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
 		}
 		else {
-			return RESEARCHERS_SELECT_NO_SKIP;
+			return RESEARCHERS_SELECT_NO_SKIP + 
+					(limit > 0 ? String.format(" OFFSET %d LIMIT %d", offset, limit) : "");
 		}		
 	}
 	
@@ -225,9 +227,9 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 			this.workVerifiedDT = workVerifiedDT;
 		}
 
-		public Action processResearcher() throws Exception {
+		public OutputType processResearcher() throws Exception {
 			if (allowSkip() && workVerifiedDT != null && workVerifiedDT.getTimeInMillis() > new DateTime().minusDays(daysConsideredOld).getMillis()) {
-				return Action.SKIPPED;
+				return OutputType.SKIPPED;
 			}
 			else {
 				researcher = createResearcher();
@@ -236,7 +238,7 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 				store.execute(Arrays.asList(String.format(REMOVE_EXISTING_PUBLICATIONS, getResearcherURI())));
 				store.update(researcher);
 				store.endTransaction();
-				return Action.PROCESSED;
+				return OutputType.PROCESSED;
 			}
 		}		
 	}

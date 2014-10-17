@@ -82,7 +82,7 @@ public class FusekiRestMethods implements R2RConstants {
 			"> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon} " + COAUTHORS_WHERE;
 
 	private static final String COAUTHORS_SAMEAS = "SELECT (?r as ?researcherURI) (?fn as ?firstName) " + 
-			"(?ln as ?lastName) (?er as ?otherResearcherURI) (?efn as ?otherReserarcherFirstName) (?ln as ?otherResearcherLasnName) " +
+			"(?ln as ?lastName) (?er as ?otherResearcherURI) (?efn as ?otherReserarcherFirstName) (?ln as ?otherResearcherLastName) " +
 			"WHERE {?r <" +
 			R2R_HAS_AFFILIATION + "> <%s> . ?r <" + FOAF_LAST_NAME + "> ?ln . ?r <" + FOAF_FIRST_NAME +
 			"> ?fn . {GRAPH <" + R2R_DERIVED_GRAPH + "> { ?r <" + FOAF_KNOWS + "> ?er} }. ?er <" + 

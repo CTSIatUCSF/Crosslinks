@@ -16,6 +16,7 @@ import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 
 import edu.ucsf.crosslink.crawler.Crawler;
+import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
 import edu.ucsf.crosslink.io.CrosslinkPersistance;
 import edu.ucsf.crosslink.io.ThumbnailGenerator;
@@ -29,15 +30,15 @@ import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
 
 public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2RConstants {
 
-	private static final int LIMIT = 50;
+	private static final int LIMIT = 0;
 
 	private static final Logger LOG = Logger.getLogger(PageItemProcessor.class.getName());
 
 	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
 			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_VERIFIED_DT + 
-			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)}";	
+			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
 
-	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r ?ts WHERE { " +
+	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r WHERE { " +
 			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s>}";	
 		
 	private static final String REMOVE_DERIVED_DATA = "WITH <" + R2R_DERIVED_GRAPH + 
@@ -100,15 +101,16 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 	}
 	
 	@Override
-	protected String getSparqlQuery() {
+	protected String getSparqlQuery(int offset, int limit) {
 		if (crawler != null && crawler.allowSkip()) {
 			Calendar threshold = Calendar.getInstance();
 			threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
 			return String.format(RESEARCHERS_SELECT_SKIP, getAffiliation().getURI(), 
 					R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
 		}
-		else {
-			return String.format(RESEARCHERS_SELECT_NO_SKIP, getAffiliation().getURI());
+		else {			
+			return String.format(RESEARCHERS_SELECT_NO_SKIP, getAffiliation().getURI()) + 
+					(limit > 0 ? String.format(" OFFSET %d LIMIT %d", offset, limit) : "");
 		}
 	}
 	
@@ -137,9 +139,17 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 			return message != null ? message : super.toString();
 		}
 		
-		public Action processResearcher() throws Exception {
+		private void deleteResearcher() throws Exception {
+			// should probably have delete be a function in store, but this is OK for now
+			store.startTransaction();
+			store.execute(Arrays.asList(String.format(DELETE_RESEARCHER, getResearcherURI())));
+			store.execute(Arrays.asList(String.format(DELETE_RESEARCHER_DERIVED, getResearcherURI())));
+			store.endTransaction();
+		}
+		
+		public OutputType processResearcher() throws Exception {
 			if (allowSkip() && workVerifiedDT != null && workVerifiedDT.getTimeInMillis() > new DateTime().minusDays(daysConsideredOld).getMillis()) {
-				return Action.SKIPPED;
+				return OutputType.SKIPPED;
 			}
 			else {
 				researcher = createResearcher();
@@ -151,12 +161,8 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 				catch (HttpStatusException e) {
 					if (404 == e.getStatusCode()) {
 						message = e.toString();
-						// should probably have delete me a function in store, but this is OK for now
-						store.startTransaction();
-						store.execute(Arrays.asList(String.format(DELETE_RESEARCHER, getResearcherURI())));
-						store.execute(Arrays.asList(String.format(DELETE_RESEARCHER_DERIVED, getResearcherURI())));
-						store.endTransaction();
-						return Action.ERROR;
+						deleteResearcher();
+						return OutputType.DELETED;
 					}
 					else {
 						throw e;
@@ -192,7 +198,7 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 					}	
 				});
 
-				return Action.PROCESSED;
+				return OutputType.PROCESSED;
 			}
 		}		
 	}

@@ -10,7 +10,7 @@ import org.joda.time.format.PeriodFormat;
 
 public final class TypedOutputStats  {
 
-	public enum OutputType { FOUND, AVOIDED, SKIPPED, PROCESSED, ERROR};
+	public enum OutputType { FOUND, AVOIDED, SKIPPED, PROCESSED, ERROR, DELETED};
 
 	private OutputType type;
 	private int limit = 100;

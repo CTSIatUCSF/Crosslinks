@@ -102,6 +102,7 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 	// delete existing one first
 	private void saveInternal(R2RResourceObject robj, SaveType saveType) throws Exception {
 		startTransaction();
+		LOG.log(Level.INFO, "Saving " + robj + ", Type " + saveType);
 		for (Resource resource : robj.getResources()) {
 			if (SaveType.SAVE.equals(saveType)) {
 				sparqlClient.deleteSubject(resource.getURI());				

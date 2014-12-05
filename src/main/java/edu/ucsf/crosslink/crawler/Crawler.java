@@ -30,7 +30,7 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
 import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
-import edu.ucsf.crosslink.io.CrosslinkPersistance;
+import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.model.R2RResourceObject;
 import edu.ucsf.crosslink.processor.MarengoDetailProcessor;
 import edu.ucsf.crosslink.processor.ResearcherProcessor;
@@ -56,7 +56,7 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	private CrawlerStartStatus lastStartStatus;
 
 	private Exception latestErrorException = null;
-	private CrosslinkPersistance store;
+	private SparqlPersistance store;
 	private Iterable<ResearcherProcessor> researcherIterable = null;	
 	private Iterator<ResearcherProcessor> currentIterator = null;	
 
@@ -68,7 +68,7 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	private Future<Boolean> currentJob = null;
 	
 	@Inject
-	public Crawler(@Named("FileName") String name, Mode mode, CrosslinkPersistance store, 
+	public Crawler(@Named("FileName") String name, Mode mode, SparqlPersistance store, 
 			Iterable<ResearcherProcessor> researcherIterable, @Named("executorThreadCount") Integer threadCount) throws Exception {
 		super(R2R_CRAWLER + "/" + name, R2R_CRAWLER);
 		this.setLabel(name);

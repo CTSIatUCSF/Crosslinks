@@ -15,9 +15,11 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.safety.Whitelist;
 
+import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.NodeIterator;
 import com.hp.hpl.jena.rdf.model.Property;
+import com.hp.hpl.jena.rdf.model.ResIterator;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
@@ -28,7 +30,6 @@ import edu.ucsf.ctsi.r2r.R2ROntology;
 public class Researcher extends R2RResourceObject implements Comparable<Researcher>, R2RConstants {
 	private static final Logger LOG = Logger.getLogger(Researcher.class.getName());
 	
-	private Crawler crawler;
 	private Affiliation affiliation;
 	private List<String> imageURLs = new ArrayList<String>(); // we allow for grabbing more than one and then test to see if any are valid when saving
 	private int readErrorCount = 0;
@@ -71,13 +72,14 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 		setLiteral(FOAF_LAST_NAME, lastName);
 	}
 	
-	public Crawler getHarvester() {
-		return crawler;
-	}
-	
-	public void setHarvester(Crawler crawler) {
-		this.crawler = crawler;
-		addResource(R2R_HARVESTED_FROM, crawler);
+	public void crawledBy(Crawler crawler) {
+		// create a blank node
+		Model model = getModel();
+		Resource crawl = model.createResource();
+		crawl.addLiteral(model.createProperty(RDFS_LABEL), crawler.getName());
+		crawl.addLiteral(model.createProperty(R2R_CRAWLED_ON), model.createTypedLiteral(Calendar.getInstance()));
+		
+		model.add(getResource(), model.createProperty(R2R_CRAWLED_BY), crawl);
 	}
 	
 	public Affiliation getAffiliation() {
@@ -192,22 +194,18 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 		return sharedPublicationCount;
 	}    
 	
-	public Calendar getWorkVerifiedDt() {
-		return getDateTimeLiteral(R2R_WORK_VERIFIED_DT);
+	public Calendar getCrawlTime(Crawler crawler) {
+		Model model = getModel();
+		ResIterator ri = getModel().listResourcesWithProperty(model.createProperty(R2R_CRAWLED_BY));
+		while (ri.hasNext()) {
+			Resource crawl = ri.next();
+			if (crawler.getName().equals(crawl.getProperty(model.createProperty(RDFS_LABEL)).getString())) {
+				return ((XSDDateTime)crawl.getProperty(model.createProperty(R2R_CRAWLED_ON)).getLiteral().getValue()).asCalendar();
+			}
+		}
+		return null;
 	}
 
-	public void setWorkVerifiedDt(Calendar workVerifiedOn) {
-		setLiteral(R2R_WORK_VERIFIED_DT, workVerifiedOn);
-	}
-
-	public Calendar getVerifiedDt() {
-		return getDateTimeLiteral(R2R_VERIFIED_DT);
-	}
-
-	public void setVerifiedDt(Calendar verifiedOn) {
-		setLiteral(R2R_VERIFIED_DT, verifiedOn);
-	}
-	
 	@Override
 	public List<Resource> getResources() {
 		List<Resource> resources = new ArrayList<Resource>();

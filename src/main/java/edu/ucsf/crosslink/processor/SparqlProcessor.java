@@ -9,37 +9,44 @@ import java.util.logging.Logger;
 
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
+import com.hp.hpl.jena.sparql.engine.http.QueryExceptionHTTP;
 
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
-import edu.ucsf.ctsi.r2r.jena.SparqlClient;
+import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 
 public abstract class SparqlProcessor implements Iterable<ResearcherProcessor> {
 
 	private static final Logger LOG = Logger.getLogger(SparqlProcessor.class.getName());
 
-	private SparqlClient sparqlClient = null;
+	private SparqlQueryClient sparqlQueryClient = null;
 	
 	private int offset = 0;
 	private int limit = 0;
 	private String query = "";
+	private int retry = 0;
 	
 	private List<ResearcherProcessor> currentResearcherProcessors = new ArrayList<ResearcherProcessor>();
 	
 	// remove harvester as required item
-	protected SparqlProcessor(SparqlClient sparqlClient, int limit) {
-		this.sparqlClient = sparqlClient;
-		this.limit = limit;
+	protected SparqlProcessor(SparqlQueryClient sparqlQueryClient, int limit) {
+		this(sparqlQueryClient, limit, 0);
 	}
 	
+	protected SparqlProcessor(SparqlQueryClient sparqlQueryClient, int limit, int retry) {
+		this.sparqlQueryClient = sparqlQueryClient;
+		this.limit = limit;
+		this.retry = retry;
+	}
+
 	public String toString() {
 		return "Size = " + currentResearcherProcessors.size() + ", Limit = " + limit + ", Query = " + query;
 	}
 	
-	protected SparqlClient getSparqlClient() {
-		return sparqlClient;
+	protected SparqlQueryClient getSparqlClient() {
+		return sparqlQueryClient;
 	}
 		
-	protected abstract String getSparqlQuery(int offset, int limit);
+	protected abstract String getSparqlQuery(int offset, int limit) throws Exception;
 	
 	protected abstract ResearcherProcessor getResearcherProcessor(QuerySolution qs);
 	
@@ -54,18 +61,29 @@ public abstract class SparqlProcessor implements Iterable<ResearcherProcessor> {
 	
 	private void executeQuery() throws Exception {
 		query = getSparqlQuery(offset, limit);
-
 		final AtomicInteger found = new AtomicInteger();
-		getSparqlClient().select(query, new ResultSetConsumer() {
-			public void useResultSet(ResultSet rs) {
-				while (rs.hasNext()) {				
-					currentResearcherProcessors.add(getResearcherProcessor(rs.next()));
-					found.incrementAndGet();
-				}	
+		Exception currentException = null;
+		for (int i = 0; i <= retry; i++) {
+			try {
+				getSparqlClient().select(query, new ResultSetConsumer() {
+					public void useResultSet(ResultSet rs) {
+						while (rs.hasNext()) {				
+							currentResearcherProcessors.add(getResearcherProcessor(rs.next()));
+							found.incrementAndGet();
+						}	
+					}
+				});				
+				offset += found.get();
+				return;
 			}
-		});
-		
-		offset += found.get();
+			catch (QueryExceptionHTTP e) {
+				currentException = e;
+				LOG.log(Level.WARNING, "Try #" + i, e);			
+			}			
+		}
+		if (currentException != null) {
+			throw currentException;
+		}
 	}
 	
 	private class SparqlProcessorIterator implements Iterator<ResearcherProcessor> {

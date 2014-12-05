@@ -6,7 +6,6 @@ import com.google.inject.AbstractModule;
 import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
 
-import edu.ucsf.crosslink.crawler.parser.AuthorParser;
 import edu.ucsf.crosslink.job.quartz.CrawlerJob;
 import edu.ucsf.crosslink.processor.ResearcherProcessor;
 
@@ -47,13 +46,10 @@ public class CrawlerModule extends AbstractModule {
 		if (prop.getProperty("executorThreadCount") != null) {
 			bind(Integer.class).annotatedWith(Names.named("executorThreadCount")).toInstance(Integer.parseInt(prop.getProperty("executorThreadCount")));
 		}
-
+		
 		try {
 			bind(new TypeLiteral<Iterable<ResearcherProcessor>>(){}).to((Class<? extends Iterable<ResearcherProcessor>>)Class.forName(prop.getProperty("Processor"))).asEagerSingleton();
 			bind(Crawler.class).asEagerSingleton();;
-			if (prop.getProperty("AuthorParser") != null) {
-				bind(AuthorParser.class).to((Class<? extends AuthorParser>) Class.forName(prop.getProperty("AuthorParser"))).asEagerSingleton();
-			}
 		} 
 		catch (ClassNotFoundException e) {
 			addError(e);

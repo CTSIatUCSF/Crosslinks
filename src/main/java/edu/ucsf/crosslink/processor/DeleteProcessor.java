@@ -14,22 +14,23 @@ import com.hp.hpl.jena.query.QuerySolution;
 
 import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
-import edu.ucsf.crosslink.io.CrosslinkPersistance;
+import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.model.Affiliated;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
-import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
+import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 
 public class DeleteProcessor extends SparqlProcessor implements Affiliated, R2RConstants {
 
 	private static final Logger LOG = Logger.getLogger(DeleteProcessor.class.getName());
 
 	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
-			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_VERIFIED_DT + 
-			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
+			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_CRAWLED_BY + "> ?c . ?c <" + RDFS_LABEL + 
+			"\"%2$s\" . ?c <" + R2R_CRAWLED_ON + 
+			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%3$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
 
-	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r ?ts WHERE { " +
+	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r WHERE { " +
 			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s>}";	
 		
 	private static final String DELETE_RESEARCHER = "DELETE WHERE {<%1$s> ?p ?o }; DELETE WHERE {?s ?p <%1$s>}";	
@@ -39,16 +40,16 @@ public class DeleteProcessor extends SparqlProcessor implements Affiliated, R2RC
 	private Integer daysConsideredOld;
 
 	private Affiliation affiliation = null;
-	private CrosslinkPersistance store = null;
+	private SparqlPersistance store = null;
 	private Crawler crawler = null;
 	private AtomicInteger count = new AtomicInteger();
 	
 	// remove harvester as required item
 	@Inject
 	public DeleteProcessor(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location,
-			CrosslinkPersistance store,	SparqlPostClient sparqlClient,
+			SparqlPersistance store, @Named("r2r.fusekiUrl") String sparqlQuery,
 			@Named("daysConsideredOld") Integer daysConsideredOld) throws Exception {
-		super(sparqlClient, 0);
+		super(new SparqlQueryClient(sparqlQuery + "/query"), 0);
 		this.affiliation = new Affiliation(name, baseURL, location);
 		this.store = store;
 		this.daysConsideredOld = daysConsideredOld;
@@ -69,7 +70,7 @@ public class DeleteProcessor extends SparqlProcessor implements Affiliated, R2RC
 		if (crawler != null && crawler.allowSkip()) {
 			Calendar threshold = Calendar.getInstance();
 			threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
-			return String.format(RESEARCHERS_SELECT_SKIP, getAffiliation().getURI(), 
+			return String.format(RESEARCHERS_SELECT_SKIP, getAffiliation().getURI(), crawler.getName(),
 					R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
 		}
 		else {

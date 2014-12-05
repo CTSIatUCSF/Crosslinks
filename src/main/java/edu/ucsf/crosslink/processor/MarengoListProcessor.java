@@ -8,26 +8,27 @@ import com.hp.cache4guice.Cached;
 import com.hp.hpl.jena.query.QuerySolution;
 
 import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
-import edu.ucsf.crosslink.io.CrosslinkPersistance;
+import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
-import edu.ucsf.ctsi.r2r.jena.SparqlClient;
+import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 
 public class MarengoListProcessor extends SparqlProcessor {
 
 	private static final Logger LOG = Logger.getLogger(MarengoListProcessor.class.getName());
 
 	private static final String RESEARCHERS_SELECT = "SELECT ?s ?r WHERE { " +
-			"?s <http://marengo.info-science.uiowa.edu:2020/resource/vocab/Person_URI> ?r . FILTER (!STRENDS(?r, \"Ext\")) }";	
+			"?s <http://marengo.info-science.uiowa.edu:2020/resource/vocab/Person_URI> ?r . FILTER (!STRENDS(?r, \"Ext\") && !STRSTARTS(?r, \"http://vivo.ufl.edu\")) }";	
 	
 	private static final int LIMIT = 1000;
+	private static final int RETRY = 5;
 	
-	private CrosslinkPersistance store = null;
+	private SparqlPersistance store = null;
 
 	// remove harvester as required item
 	@Inject
-	public MarengoListProcessor(CrosslinkPersistance store) throws Exception {
-		super(new SparqlClient("http://marengo.info-science.uiowa.edu:2020/sparql"), LIMIT);
+	public MarengoListProcessor(SparqlPersistance store) throws Exception {
+		super(new SparqlQueryClient("http://marengo.info-science.uiowa.edu:2020/sparql", 60000, 60000), LIMIT, RETRY);
 		this.store = store;
 	}
 
@@ -71,8 +72,9 @@ public class MarengoListProcessor extends SparqlProcessor {
 		}
 
 		public OutputType processResearcher() throws Exception {
+			// this should not be necessary
 			if (marengoURI.endsWith("Ext") || getResearcherURI().endsWith("Ext") || getResearcherURI().startsWith("http://vivo.ufl.edu")) {
-				return OutputType.AVOIDED;
+				return OutputType.SKIPPED;
 			}
 			else {
 				researcher = createResearcher();

@@ -1,6 +1,5 @@
 package edu.ucsf.crosslink.job.quartz;
 
-import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,22 +15,11 @@ import static org.quartz.JobBuilder.newJob;
 import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
-
-
-
-
-
-
-import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.Crosslinks;
-import edu.ucsf.crosslink.io.IOModule;
-import edu.ucsf.crosslink.processor.AffiliationCrawler;
 import edu.ucsf.crosslink.web.Stoppable;
-import edu.ucsf.ctsi.r2r.DBUtil;
 
 @Singleton
 public class Quartz implements Stoppable {
@@ -43,18 +31,6 @@ public class Quartz implements Stoppable {
 
 	private final Scheduler scheduler;
 
-	public static void main(String[] args) {
-		try {
-			Properties prop = new Properties();
-			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));			
-			Quartz quartz = Guice.createInjector(new IOModule(prop), new QuartzModule(prop)).getInstance(Quartz.class);
-			quartz.shutdown();
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	
 	@Inject
 	public Quartz(final SchedulerFactory factory,
 			final GuiceJobFactory jobFactory,

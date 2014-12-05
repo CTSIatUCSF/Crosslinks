@@ -3,7 +3,8 @@ package edu.ucsf.crosslink.io;
 import java.util.Properties;
 
 import com.google.inject.AbstractModule;
-import com.google.inject.name.Names;
+
+import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
 
 public class IOModule extends AbstractModule {
 
@@ -14,20 +15,11 @@ public class IOModule extends AbstractModule {
 		this.prop = prop;
 	}
 	
-	@SuppressWarnings("unchecked")
 	@Override
 	protected void configure() {	
-		bind(String.class).annotatedWith(Names.named("thumbnailDir")).toInstance(prop.getProperty("thumbnailDir"));
-		bind(String.class).annotatedWith(Names.named("thumbnailRootURL")).toInstance(prop.getProperty("thumbnailRootURL"));
-		bind(Integer.class).annotatedWith(Names.named("thumbnailWidth")).toInstance(Integer.parseInt(prop.getProperty("thumbnailWidth")));
-		bind(Integer.class).annotatedWith(Names.named("thumbnailHeight")).toInstance(Integer.parseInt(prop.getProperty("thumbnailHeight")));
         bind(ThumbnailGenerator.class).asEagerSingleton();
-		try {
-			bind(CrosslinkPersistance.class).to((Class<? extends CrosslinkPersistance>) Class.forName(prop.getProperty("persistance"))).asEagerSingleton();
-		} 
-		catch (ClassNotFoundException e) {
-			addError(e);
-		}
+        bind(SparqlPostClient.class).toInstance(new SparqlPostClient(prop.getProperty("r2r.fusekiUrl") + "/update", prop.getProperty("r2r.fusekiUrl") + "/data?default"));
+		bind(SparqlPersistance.class).asEagerSingleton();
 	}
 
 }

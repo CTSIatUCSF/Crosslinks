@@ -11,10 +11,10 @@ import com.google.inject.servlet.GuiceServletContextListener;
 import com.hp.cache4guice.adapters.ehcache.EhCacheModule;
 
 import edu.ucsf.crosslink.Crosslinks;
+import edu.ucsf.crosslink.PropertiesModule;
 import edu.ucsf.crosslink.io.IOModule;
 import edu.ucsf.crosslink.job.ExecutorModule;
 import edu.ucsf.crosslink.job.quartz.QuartzModule;
-import edu.ucsf.crosslink.processor.AffiliationCrawler;
 
 public class CrosslinksServletConfig extends GuiceServletContextListener {
 
@@ -25,13 +25,13 @@ public class CrosslinksServletConfig extends GuiceServletContextListener {
 	protected Injector getInjector() {
 		try {
 			Properties prop = new Properties();
-			prop.load(AffiliationCrawler.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));
+			prop.load(CrosslinksServletConfig.class.getResourceAsStream(Crosslinks.PROPERTIES_FILE));
 			String execution = prop.getProperty("execution");
 			if ("quartz".equalsIgnoreCase(execution)) {
-				injector = Guice.createInjector(new EhCacheModule(), new IOModule(prop), new QuartzModule(prop), new CrosslinksServletModule(prop));
+				injector = Guice.createInjector(new PropertiesModule(prop), new EhCacheModule(), new IOModule(prop), new QuartzModule(prop), new CrosslinksServletModule(prop));
 			}
 			else {
-				injector = Guice.createInjector(new EhCacheModule(), new IOModule(prop), new ExecutorModule(prop), new CrosslinksServletModule(prop));
+				injector = Guice.createInjector(new PropertiesModule(prop), new EhCacheModule(), new IOModule(prop), new ExecutorModule(prop), new CrosslinksServletModule(prop));
 			}
 			if (execution != null) {
 				schedulingService = injector.getInstance(Stoppable.class);

@@ -18,7 +18,7 @@ import com.hp.hpl.jena.query.ResultSet;
 import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
 import edu.ucsf.crosslink.crawler.sitereader.SiteReader;
-import edu.ucsf.crosslink.io.CrosslinkPersistance;
+import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.io.ThumbnailGenerator;
 import edu.ucsf.crosslink.model.Affiliated;
 import edu.ucsf.crosslink.model.Affiliation;
@@ -27,6 +27,7 @@ import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
+import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 
 public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2RConstants {
 
@@ -35,8 +36,9 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 	private static final Logger LOG = Logger.getLogger(PageItemProcessor.class.getName());
 
 	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
-			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_VERIFIED_DT + 
-			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
+			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_CRAWLED_BY + "> ?c . ?c <" + 
+			RDFS_LABEL + "> \"%2$s\" . ?c <" + R2R_CRAWLED_ON +  
+			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%3$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
 
 	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r WHERE { " +
 			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s>}";	
@@ -71,17 +73,17 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 	private SiteReader reader = null;
 	private Affiliation affiliation = null;
 	private SparqlPostClient sparqlClient = null;
-	private CrosslinkPersistance store = null;
+	private SparqlPersistance store = null;
 	private ThumbnailGenerator thumbnailGenerator = null;
 	private Crawler crawler = null;
 	
 	// remove harvester as required item
 	@Inject
 	public PageItemProcessor(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location,
-			CrosslinkPersistance store, SiteReader reader,			
+			SparqlPersistance store, SiteReader reader,	@Named("r2r.fusekiUrl") String sparqlQuery,		
 			SparqlPostClient sparqlClient, ThumbnailGenerator thumbnailGenerator,
 			@Named("daysConsideredOld") Integer daysConsideredOld) throws Exception {
-		super(sparqlClient, LIMIT);
+		super(new SparqlQueryClient(sparqlQuery + "/query"), LIMIT);
 		this.affiliation = new Affiliation(name, baseURL, location);
 		this.reader = reader;
 		this.sparqlClient = sparqlClient;
@@ -105,7 +107,7 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 		if (crawler != null && crawler.allowSkip()) {
 			Calendar threshold = Calendar.getInstance();
 			threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
-			return String.format(RESEARCHERS_SELECT_SKIP, getAffiliation().getURI(), 
+			return String.format(RESEARCHERS_SELECT_SKIP, getAffiliation().getURI(), crawler.getName(),
 					R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
 		}
 		else {			
@@ -185,7 +187,7 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 				
 				// we intentionally add this later in a different transaction
 				String getCnts = String.format(GET_COAUTHOR_CNTS, getResearcherURI(), researcher.getAffiliation().getURI());								
-				sparqlClient.select(getCnts, new ResultSetConsumer() {
+				getSparqlClient().select(getCnts, new ResultSetConsumer() {
 					public void useResultSet(ResultSet rs) throws Exception {
 						if (rs.hasNext() ) {				
 							QuerySolution qs = rs.next();

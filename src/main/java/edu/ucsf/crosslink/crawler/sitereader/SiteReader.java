@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -202,7 +201,6 @@ public class SiteReader implements R2RConstants {
     	}
     	
     	Document doc = getDocument(uri);
-		researcher.setVerifiedDt(Calendar.getInstance());
 		researcher.setHomepage(doc.location());
 		researcher.addImageURL(getImage(doc, researcher.getAffiliation().getRNSType()));
     }

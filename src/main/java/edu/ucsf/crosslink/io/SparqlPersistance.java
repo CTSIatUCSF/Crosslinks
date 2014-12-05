@@ -5,10 +5,8 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -17,6 +15,7 @@ import java.util.logging.Logger;
 import org.joda.time.DateTime;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
@@ -28,21 +27,31 @@ import com.hp.hpl.jena.rdf.model.StmtIterator;
 import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.R2RResourceObject;
-import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
+import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
+import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 import edu.ucsf.ctsi.r2r.jena.SparqlUpdateClient;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 
-public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.PoolingClientConnectionManager;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
+import org.apache.jena.riot.web.HttpOp;
+
+
+public class SparqlPersistance implements R2RConstants {
 
 	private static final Logger LOG = Logger.getLogger(SparqlPersistance.class.getName());
 
-	private SparqlUpdateClient sparqlClient;
+	private SparqlQueryClient sparqlQuery;
+	private SparqlPostClient sparqlClient;
 	private List<Affiliation> knownAffiliations = new ArrayList<Affiliation>();
 	
-	private static final String SKIP_RESEARCHERS_SPARQL = "SELECT ?r ?ts WHERE {?r <" + R2R_HARVESTED_FROM + "> <%s> . " +
-			"?r <" + R2R_WORK_VERIFIED_DT + "> ?ts . FILTER (?ts > \"%s\")}";
+	private static final String SKIP_RESEARCHERS_SPARQL = "SELECT ?r ?ts WHERE {?r <" + R2R_CRAWLED_BY + "> ?c . ?c <" + 
+			RDFS_LABEL + "> \"%s\" . ?c <" + R2R_CRAWLED_ON + "> ?ts . FILTER (?ts > \"%s\")}";
 	
 	private static final String LOAD_AFFILIATIONS = "SELECT ?r ?l WHERE  {?r <" + RDF_TYPE + "> <" +
 			R2R_AFFILIATION + "> . ?r <" + RDFS_LABEL + "> ?l}";
@@ -50,8 +59,19 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 	private enum SaveType {SAVE, UPDATE, ADD}; 
 
 	@Inject
-	public SparqlPersistance(SparqlUpdateClient sparqlClient) throws Exception {
+	public SparqlPersistance(@Named("r2r.fusekiUrl") String sparqlQuery, SparqlPostClient sparqlClient) throws Exception {
+		this.sparqlQuery = new SparqlQueryClient(sparqlQuery + "/query");
 		this.sparqlClient = sparqlClient;
+		
+		// putting this here for now 
+		HttpParams params = new BasicHttpParams();		
+		HttpConnectionParams.setConnectionTimeout(params, 10000);
+		HttpConnectionParams.setSoTimeout(params, 40000);
+		PoolingClientConnectionManager cm = new PoolingClientConnectionManager();
+		cm.setDefaultMaxPerRoute(20);
+		cm.setMaxTotal(200);
+		HttpOp.setDefaultHttpClient(new DefaultHttpClient(cm, params));
+
 		// make sure we have the latest model
 		sparqlClient.add(R2ROntology.createR2ROntModel());
 		sparqlClient.update("CREATE GRAPH <" + R2R_DERIVED_GRAPH + ">");
@@ -60,7 +80,7 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 	}
 	
 	private void loadAffiliations() throws Exception {
-		sparqlClient.select(LOAD_AFFILIATIONS, new ResultSetConsumer() {
+		sparqlQuery.select(LOAD_AFFILIATIONS, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
@@ -138,46 +158,20 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 		return updateTimestampFieldFor(crawler.getURI(), R2R_CRAWL_START_DT);
 	}
 
-	public Map<String, Long> loadRecentlyHarvestedResearchers(Affiliation affiliation, int daysConsideredOld) throws Exception {
-		final Map<String, Long> recentlyProcessedAuthors = new HashMap<String, Long>();
-		
-		String sparql = String.format(SKIP_RESEARCHERS_SPARQL, affiliation.getURI(), 
-				R2ROntology.createDefaultModel().createTypedLiteral(new DateTime().minusDays(daysConsideredOld).toGregorianCalendar()));
-		LOG.info(sparql);
-		sparqlClient.select(sparql, new ResultSetConsumer() {
-			public void useResultSet(ResultSet rs) {
-				while (rs.hasNext()) {				
-					QuerySolution qs = rs.next();
-					recentlyProcessedAuthors.put(qs.getResource("?r").getURI(), ((XSDDateTime)qs.getLiteral("?ts").getValue()).asCalendar().getTimeInMillis());
-				}								
-			}
-		});
-		LOG.info("Found " + recentlyProcessedAuthors.size() + " recently processed authors");
-		return recentlyProcessedAuthors;
-	}
-
 	public Calendar finishCrawl(Crawler crawler) throws Exception {
 		return updateTimestampFieldFor(crawler.getURI(), R2R_CRAWL_END_DT);
-	}
-
-	public void deleteMissingResearchers(Crawler crawler) throws Exception {
-		// sparql out the ones we did not find
-		String sparql = "DELETE {?s ?p ?o} WHERE { <" + crawler.getURI() + "> <" + R2R_CRAWL_START_DT + "> ?cst . " +
-			"?s <" + R2R_HARVESTED_FROM + "> <" + crawler.getURI() + "> . " +
-			"?s <" + R2R_VERIFIED_DT + "> ?ta FILTER(?ta < ?cst) ?s ?p ?o}";
-		sparqlClient.update(sparql);
 	}
 
 	public Calendar dateOfLastCrawl(Crawler crawler) throws Exception {
 		String sparql = "SELECT ?dt WHERE {<" + crawler.getURI() + "> <" + R2R_CRAWL_END_DT + "> ?dt}";
 		DateResultSetConsumer consumer = new DateResultSetConsumer();
-		sparqlClient.select(sparql, consumer);
+		sparqlQuery.select(sparql, consumer);
 		return consumer.getCalendar();
 	}
 
 	public boolean skip(String researcherURI, String timestampField, int daysConsideredOld) throws Exception {
 		final AtomicLong dt = new AtomicLong();
-		sparqlClient.select(String.format("SELECT ?ts WHERE {<%1$s> <" + timestampField + "> ?ts}", researcherURI), new ResultSetConsumer() {
+		sparqlQuery.select(String.format("SELECT ?ts WHERE {<%1$s> <" + timestampField + "> ?ts}", researcherURI), new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				if (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
@@ -187,15 +181,6 @@ public class SparqlPersistance implements CrosslinkPersistance, R2RConstants {
 		});
 		long threshold = new DateTime().minusDays(daysConsideredOld).getMillis();
 		return dt.get() > threshold;
-	}
-	
-	// update the researcherVerifiedDT
-	public int touch(Researcher researcher) throws Exception {
-		String uri = researcher.getURI();
-		if (uri != null) {
-			updateTimestampFieldFor(researcher.getURI(), R2R_WORK_VERIFIED_DT);
-		}
-    	return 0;
 	}
 	
 	// TODO clean this up!

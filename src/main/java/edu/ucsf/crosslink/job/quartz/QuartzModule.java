@@ -2,6 +2,7 @@ package edu.ucsf.crosslink.job.quartz;
 
 import java.util.Properties;
 
+import org.quartz.SchedulerException;
 import org.quartz.SchedulerFactory;
 import org.quartz.impl.StdSchedulerFactory;
 
@@ -21,7 +22,6 @@ public class QuartzModule extends AbstractModule {
 
 	@Override
 	protected void configure() {
-		bind(String.class).annotatedWith(Names.named("configurationDirectory")).toInstance(prop.getProperty("configurationDirectory"));
 		bind(CrawlerFactory.class).asEagerSingleton();
 		
 		bind(Integer.class).annotatedWith(Names.named("scanInterval")).toInstance(Integer.parseInt(prop.getProperty("scanInterval")));
@@ -29,7 +29,12 @@ public class QuartzModule extends AbstractModule {
 		// used by Marengo to set executorService thread size
 		bind(Integer.class).annotatedWith(Names.named("threadCount")).toInstance(Integer.parseInt(prop.getProperty("threadCount")));
 
-		bind(SchedulerFactory.class).to(StdSchedulerFactory.class).asEagerSingleton();
+		try {
+			bind(SchedulerFactory.class).toInstance(new StdSchedulerFactory(prop));
+		} 
+		catch (SchedulerException e) {
+			addError(e);
+		}
         bind(GuiceJobFactory.class).asEagerSingleton();
         bind(Stoppable.class).to(Quartz.class).asEagerSingleton();
 	}

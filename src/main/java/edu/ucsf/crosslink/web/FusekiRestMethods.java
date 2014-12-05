@@ -19,6 +19,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
@@ -33,8 +34,8 @@ import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.jena.JsonLDService;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
+import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 import edu.ucsf.ctsi.r2r.jena.SparqlUpdateClient;
-
 
 /**
  * Root resource (exposed at "list" path)
@@ -62,20 +63,32 @@ public class FusekiRestMethods implements R2RConstants {
 //			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != <%1$s>)}} GROUP BY ?r ?l ?hp ?i ?t";
 //	
 	private static final String RESEARCHERS_SPARQL = "SELECT DISTINCT ?r ?l ?hp ?i ?erc ?cwc WHERE {?r <" + 
-			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + RDFS_LABEL + "> ?l . ?r <" + R2R_WORK_VERIFIED_DT + 
-			"> ?wvdt . OPTIONAL {?r <" +  FOAF_HOMEPAGE + "> ?hp } . OPTIONAL { GRAPH <" + 
+			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + RDFS_LABEL + "> ?l . OPTIONAL {?r <" + 
+			FOAF_HOMEPAGE +	"> ?hp } . OPTIONAL { GRAPH <" + 
 			R2R_DERIVED_GRAPH +	"> {?r <" + FOAF_HAS_IMAGE +"> ?i}} . OPTIONAL { GRAPH <" + 
 			R2R_DERIVED_GRAPH + "> {?r <" + R2R_EXTERNAL_COAUTHOR_CNT + "> ?erc}} . OPTIONAL { GRAPH <" + 
 			R2R_DERIVED_GRAPH + "> {?r <" + R2R_SHARED_PUB_CNT + "> ?cwc}}}";
 	
 	private static final String COAUTHORS_WHERE = "WHERE {<%1$s> <" + R2R_HAS_AFFILIATION + "> ?a . <%1$s> <" +
 			FOAF_PUBLICATIONS + "> ?cw  . ?r <" + FOAF_PUBLICATIONS + "> ?cw  . ?r <" + RDFS_LABEL + 
+			"> ?rl . OPTIONAL {?r <" + FOAF_HOMEPAGE + "> ?hp } . OPTIONAL {?r <" + FOAF_HAS_IMAGE + "> ?tn} . ?r <" + 
+			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + 
+			RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + "> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
+			
+	private static final String COAUTHORS_SELECT = "SELECT (?r as ?researcherURI) (?hp as ?researcherHomePage) (?rl as ?researcherLabel) (?cw as ?contributedWork) (?tn as ?thumbnail) " +
+			"(?ea as ?researchNetworkingSite) (?al as ?affiliation) (?ealat as ?lat) (?ealon as ?lon) " + COAUTHORS_WHERE;
+	
+	private static final String COAUTHORS_EXTRACT_WHERE = "WHERE {<%1$s> <" + R2R_HAS_AFFILIATION + "> ?a . <%1$s> <" +
+			FOAF_PUBLICATIONS + "> ?cw  . ?r <" + FOAF_PUBLICATIONS + "> ?cw  . ?r <" + RDFS_LABEL + 
 			"> ?rl . OPTIONAL {?r <" + FOAF_HOMEPAGE + "> ?hp } . OPTIONAL { GRAPH <" + R2R_DERIVED_GRAPH + 
 			"> { ?r <" + FOAF_HAS_IMAGE + "> ?tn} } . ?r <" + R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + 
 			RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + "> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
-			
-	private static final String COAUTHORS_SELECT = "SELECT (?r as ?researcherURI) (?hp as ?researcherHomePage) (?rl as ?researcherLabel) (?cw as ?contributedWork) (?tn as ?thumbnail) (?ea as ?researchNetworkingSite) (?al as ?affiliation)" + COAUTHORS_WHERE;
-	
+
+	public static final String COAUTHORS_EXTRACT_CONSTRUCT = "CONSTRUCT {?r <" + RDF_TYPE + "> <" + FOAF_PERSON + 
+			"> . ?r <" + FOAF_PUBLICATIONS + "> ?cw . ?r <" +
+			RDFS_LABEL + "> ?rl . ?r <" + FOAF_HOMEPAGE + "> ?hp . ?r <" + FOAF_HAS_IMAGE + "> ?tn . ?r  <" +
+			R2R_HAS_AFFILIATION + "> ?ea} " + COAUTHORS_EXTRACT_WHERE;
+
 	private static final String COAUTHORS_CONSTRUCT = "CONSTRUCT {?r <" + FOAF_PUBLICATIONS + "> ?cw . ?r <" +
 			RDFS_LABEL + "> ?rl . ?r <" + FOAF_HOMEPAGE + "> ?hp . ?r <" + FOAF_HAS_IMAGE + "> ?tn . ?r  <" +
 			R2R_HAS_AFFILIATION + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + 
@@ -85,20 +98,23 @@ public class FusekiRestMethods implements R2RConstants {
 			"(?ln as ?lastName) (?er as ?otherResearcherURI) (?efn as ?otherReserarcherFirstName) (?ln as ?otherResearcherLastName) " +
 			"WHERE {?r <" +
 			R2R_HAS_AFFILIATION + "> <%s> . ?r <" + FOAF_LAST_NAME + "> ?ln . ?r <" + FOAF_FIRST_NAME +
-			"> ?fn . {GRAPH <" + R2R_DERIVED_GRAPH + "> { ?r <" + FOAF_KNOWS + "> ?er} }. ?er <" + 
+			"> ?fn . { ?r <" + FOAF_KNOWS + "> ?er}. ?er <" + 
 			FOAF_LAST_NAME + "> ?ln . ?er <" + FOAF_FIRST_NAME + "> ?efn " +
 			"FILTER ((LCASE(?efn) = LCASE(?fn)) || " + 
 			"(STRLEN(?efn) = 1 && STRSTARTS(LCASE(?fn), LCASE(?efn))) || " + 
 			"(STRLEN(?fn) = 1 && STRSTARTS(LCASE(?efn), LCASE(?fn)))) }";
 
 	private CrawlerFactory factory;
-	private SparqlUpdateClient sparqlClient;
+	private SparqlQueryClient sparqlQueryClient;
 	private JsonLDService jsonLDService;
+	private SparqlQueryClient uiSparqlClient;
 	
 	@Inject
-	public FusekiRestMethods(CrawlerFactory factory, SparqlUpdateClient fusekiClient, JsonLDService jsonLDService) {
+	public FusekiRestMethods(@Named("r2r.fusekiUrl") String sparqlQuery, JsonLDService jsonLDService,
+			CrawlerFactory factory, @Named("uiFusekiUrl") String uiFusekiUrl) {
+		this.sparqlQueryClient = new SparqlQueryClient(sparqlQuery);
+		this.uiSparqlClient = new SparqlQueryClient(uiFusekiUrl + "/sparql", 10000, 20000);
 		this.factory = factory;
-		this.sparqlClient = fusekiClient;
 		this.jsonLDService = jsonLDService;
 	}
 
@@ -175,7 +191,7 @@ public class FusekiRestMethods implements R2RConstants {
     @Path("{affiliation}/possibleSamePeople")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
     public String getSamePeople(@PathParam("affiliation") String affiliation, @QueryParam("format") String format) throws Exception {
-		return getFormattedResults(String.format(COAUTHORS_SAMEAS, getAffiliation(affiliation).getURI()), format).toString();
+		return getFormattedResults(sparqlQueryClient, String.format(COAUTHORS_SAMEAS, getAffiliation(affiliation).getURI()), format).toString();
     }
 
     @GET
@@ -183,14 +199,14 @@ public class FusekiRestMethods implements R2RConstants {
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
     public String getCoauthors(@QueryParam("researcherURI") String researcherURI, @QueryParam("format") String format) throws Exception {
 		if ("JSON-LD".equals(format)) {
-			return jsonLDService.getJSONString(sparqlClient.construct(String.format(COAUTHORS_CONSTRUCT, researcherURI)));
+			return jsonLDService.getJSONString(uiSparqlClient.construct(String.format(COAUTHORS_CONSTRUCT, researcherURI)));
 		}
-		return getFormattedResults(String.format(COAUTHORS_SELECT, researcherURI), format).toString();
+		return getFormattedResults(uiSparqlClient, String.format(COAUTHORS_SELECT, researcherURI), format).toString();
     }
     
-    private ByteArrayOutputStream getFormattedResults(final String sparql, final String format) throws Exception {
+    private static ByteArrayOutputStream getFormattedResults(final SparqlQueryClient client, final String sparql, final String format) throws Exception {
     	final ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-    	sparqlClient.select(sparql, new ResultSetConsumer() {
+    	client.select(sparql, new ResultSetConsumer() {
 			public void useResultSet(ResultSet resultSet) {
 				if ("CSV".equals(format)) {
 					ResultSetFormatter.outputAsCSV(outStream, resultSet);
@@ -208,7 +224,7 @@ public class FusekiRestMethods implements R2RConstants {
     
     private List<Affiliation> getAffiliations() throws Exception {
     	final List<Affiliation> affiliations = new ArrayList<Affiliation>();
-    	sparqlClient.select(ALL_AFFILIATIONS_SPARQL, new ResultSetConsumer() {
+    	sparqlQueryClient.select(ALL_AFFILIATIONS_SPARQL, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
@@ -231,7 +247,7 @@ public class FusekiRestMethods implements R2RConstants {
     public Affiliation getAffiliation(final String affiliation) throws Exception {
     	String sparql = String.format(AFFILIATION_SPARQL, affiliation);
     	final List<Affiliation> affiliations = new ArrayList<Affiliation>();
-    	sparqlClient.select(sparql, new ResultSetConsumer() {
+    	sparqlQueryClient.select(sparql, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				if (rs.hasNext()) {		
 					QuerySolution qs = rs.next();
@@ -254,7 +270,7 @@ public class FusekiRestMethods implements R2RConstants {
     public List<Researcher> getResearchers(final Affiliation affiliation) throws Exception {
 		String sparql = String.format(RESEARCHERS_SPARQL, affiliation.getURI()); 
     	final List<Researcher> researchers = new ArrayList<Researcher>();
-    	sparqlClient.select(sparql, new ResultSetConsumer() {
+    	sparqlQueryClient.select(sparql, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();

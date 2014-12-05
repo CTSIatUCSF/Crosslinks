@@ -15,6 +15,7 @@ import com.hp.hpl.jena.ontology.OntProperty;
 import com.hp.hpl.jena.ontology.Restriction;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.Property;
+import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.Statement;
 
@@ -46,6 +47,10 @@ public abstract class R2RResourceObject implements R2RConstants {
 		for (String type : types) {
 			model.add(resource, model.createProperty(RDF_TYPE), model.createResource(type));
 		}
+	}
+	
+	public void addFrom(Model model) {
+		getModel().add(model.listStatements(model.getResource(getURI()), (Property)null, (RDFNode)null));
 	}
 
 	public URI getURIObject() {

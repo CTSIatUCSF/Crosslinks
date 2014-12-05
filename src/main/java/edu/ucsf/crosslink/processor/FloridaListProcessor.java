@@ -6,10 +6,10 @@ import com.google.inject.Inject;
 import com.hp.hpl.jena.query.QuerySolution;
 
 import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
-import edu.ucsf.crosslink.io.CrosslinkPersistance;
+import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
-import edu.ucsf.ctsi.r2r.jena.SparqlClient;
+import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 
 public class FloridaListProcessor extends SparqlProcessor implements R2RConstants {
 
@@ -21,12 +21,12 @@ public class FloridaListProcessor extends SparqlProcessor implements R2RConstant
 	
 	private static final int LIMIT = 1000;
 	
-	private CrosslinkPersistance store = null;
+	private SparqlPersistance store = null;
 
 	// remove harvester as required item
 	@Inject
-	public FloridaListProcessor(CrosslinkPersistance store) throws Exception {
-		super(new SparqlClient("http://sparql.vivo.ufl.edu/VIVO/query"), LIMIT);
+	public FloridaListProcessor(SparqlPersistance store) throws Exception {
+		super(new SparqlQueryClient("http://sparql.vivo.ufl.edu/VIVO/query"), LIMIT);
 		this.store = store;
 	}
 

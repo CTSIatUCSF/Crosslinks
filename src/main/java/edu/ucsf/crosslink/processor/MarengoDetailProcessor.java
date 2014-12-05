@@ -20,12 +20,12 @@ import com.hp.hpl.jena.query.ResultSet;
 
 import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
-import edu.ucsf.crosslink.io.CrosslinkPersistance;
+import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
-import edu.ucsf.ctsi.r2r.jena.SparqlClient;
+import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
 
 public class MarengoDetailProcessor extends SparqlProcessor implements R2RConstants {
@@ -35,8 +35,9 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	public static final String DOI_PREFIX = "http://dx.doi.org/";
 
 	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
-			"?r <" + RDF_TYPE + "> <" + FOAF_PERSON + "> . OPTIONAL {?r <" + R2R_WORK_VERIFIED_DT + 
-			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
+			"?r <" + RDF_TYPE + "> <" + FOAF_PERSON + "> . OPTIONAL {?r <" + R2R_CRAWLED_BY + "> ?c . ?c <" + RDFS_LABEL + 
+			"> \"%1$s\"^^<http://www.w3.org/2001/XMLSchema#string> . ?c <" + R2R_CRAWLED_ON + 
+			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
 
 	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r ?ts WHERE { " +
 			"?r <" + RDF_TYPE + "> <" + FOAF_PERSON + ">}";	
@@ -65,18 +66,18 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	
 	private Integer daysConsideredOld;
 
-	private SparqlClient marengoSparqlClient = null;
-	private SparqlClient doiSparqlClient = null;
-	private CrosslinkPersistance store = null;
+	private SparqlQueryClient marengoSparqlClient = null;
+	private SparqlQueryClient doiSparqlClient = null;
+	private SparqlPersistance store = null;
 	private Crawler crawler = null;
 
 	// remove harvester as required item
 	@Inject
-	public MarengoDetailProcessor(SparqlPostClient sparqlClient, CrosslinkPersistance store,
+	public MarengoDetailProcessor(@Named("r2r.fusekiUrl") String sparqlQuery, SparqlPersistance store,
 			@Named("daysConsideredOld") Integer daysConsideredOld) throws Exception {
-		super(sparqlClient, LIMIT);
-		this.marengoSparqlClient = new SparqlClient("http://marengo.info-science.uiowa.edu:2020/sparql");
-		this.doiSparqlClient = new SparqlClient("http://www.pmid2doi.org/sparql");
+		super(new SparqlQueryClient(sparqlQuery + "/query"), LIMIT);
+		this.marengoSparqlClient = new SparqlQueryClient("http://marengo.info-science.uiowa.edu:2020/sparql", 600000, 600000);
+		this.doiSparqlClient = new SparqlQueryClient("http://www.pmid2doi.org/sparql", 60000, 60000);
 		this.daysConsideredOld = daysConsideredOld;
 		this.store = store;
 	}
@@ -91,7 +92,8 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 		if (crawler != null && crawler.allowSkip()) {
 			Calendar threshold = Calendar.getInstance();
 			threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
-			return String.format(RESEARCHERS_SELECT_SKIP, R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
+			return String.format(RESEARCHERS_SELECT_SKIP, crawler.getName(), 
+					R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
 		}
 		else {
 			return RESEARCHERS_SELECT_NO_SKIP + 
@@ -139,7 +141,6 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 				researcher.addPublication(publication);
 			}
 		}		
-		researcher.setWorkVerifiedDt(Calendar.getInstance());
 	}
 	
 	@Cached

@@ -33,7 +33,7 @@ public abstract class BasicResearcherProcessor implements ResearcherProcessor {
 	protected Researcher createResearcher() throws URISyntaxException {
 		Researcher researcher = new Researcher(researcherURI);
 		if (crawler != null) {
-			researcher.setHarvester(crawler);
+			researcher.crawledBy(crawler);
 		}
 		return researcher;
 	}

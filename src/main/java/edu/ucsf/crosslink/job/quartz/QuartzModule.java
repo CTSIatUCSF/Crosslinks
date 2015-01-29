@@ -9,7 +9,7 @@ import org.quartz.impl.StdSchedulerFactory;
 import com.google.inject.AbstractModule;
 import com.google.inject.name.Names;
 
-import edu.ucsf.crosslink.crawler.CrawlerFactory;
+import edu.ucsf.crosslink.processor.controller.ProcessorControllerFactory;
 import edu.ucsf.crosslink.web.Stoppable;
 
 public class QuartzModule extends AbstractModule {
@@ -22,10 +22,10 @@ public class QuartzModule extends AbstractModule {
 
 	@Override
 	protected void configure() {
-		bind(CrawlerFactory.class).asEagerSingleton();
+		bind(ProcessorControllerFactory.class).asEagerSingleton();
 		
 		bind(Integer.class).annotatedWith(Names.named("scanInterval")).toInstance(Integer.parseInt(prop.getProperty("scanInterval")));
-		bind(Integer.class).annotatedWith(Names.named("crawlerThreads")).toInstance(Integer.parseInt(prop.getProperty("crawlerThreads")));
+		bind(Integer.class).annotatedWith(Names.named("controllerThreads")).toInstance(Integer.parseInt(prop.getProperty("controllerThreads")));
 
 		try {
 			bind(SchedulerFactory.class).toInstance(new StdSchedulerFactory(prop));

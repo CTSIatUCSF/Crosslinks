@@ -24,7 +24,7 @@ import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
-import edu.ucsf.crosslink.crawler.Crawler;
+import edu.ucsf.crosslink.processor.controller.ProcessorController;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 
@@ -73,13 +73,13 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 		setLiteral(FOAF_LAST_NAME, lastName);
 	}
 	
-	public void crawledBy(Crawler crawler) {
+	public void crawledBy(ProcessorController processorController) {
 		Model model = getModel();
 		// see if we have already been crawled by this crawler
 		StmtIterator si = getStatements(R2R_PROCESSED_BY);
 		while (si.hasNext()) {
 			Resource crawl = si.next().getResource();
-			if (crawler.getName().equals(crawl.getProperty(model.createProperty(RDFS_LABEL)).getString())) {
+			if (processorController.getName().equals(crawl.getProperty(model.createProperty(RDFS_LABEL)).getString())) {
 				// update the time stamp
 				model.removeAll(getResource(), model.createProperty(R2R_PROCESSED_ON), null);
 				crawl.addLiteral(model.createProperty(R2R_PROCESSED_ON), model.createTypedLiteral(Calendar.getInstance()));
@@ -90,7 +90,7 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 		si.close();
 		// create a blank node
 		Resource crawl = model.createResource();
-		crawl.addLiteral(model.createProperty(RDFS_LABEL), crawler.getName());
+		crawl.addLiteral(model.createProperty(RDFS_LABEL), processorController.getName());
 		crawl.addLiteral(model.createProperty(R2R_PROCESSED_ON), model.createTypedLiteral(Calendar.getInstance()));
 		
 		model.add(getResource(), model.createProperty(R2R_PROCESSED_BY), crawl);
@@ -208,12 +208,12 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 		return sharedPublicationCount;
 	}    
 	
-	public Calendar getCrawlTime(Crawler crawler) {
+	public Calendar getCrawlTime(ProcessorController processorController) {
 		Model model = getModel();
 		ResIterator ri = getModel().listResourcesWithProperty(model.createProperty(R2R_PROCESSED_BY));
 		while (ri.hasNext()) {
 			Resource crawl = ri.next();
-			if (crawler.getName().equals(crawl.getProperty(model.createProperty(RDFS_LABEL)).getString())) {
+			if (processorController.getName().equals(crawl.getProperty(model.createProperty(RDFS_LABEL)).getString())) {
 				return ((XSDDateTime)crawl.getProperty(model.createProperty(R2R_PROCESSED_ON)).getLiteral().getValue()).asCalendar();
 			}
 		}

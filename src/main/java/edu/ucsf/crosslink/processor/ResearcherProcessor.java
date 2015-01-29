@@ -1,13 +1,13 @@
 package edu.ucsf.crosslink.processor;
 
-import edu.ucsf.crosslink.crawler.Crawler;
-import edu.ucsf.crosslink.crawler.TypedOutputStats.OutputType;
+import edu.ucsf.crosslink.processor.controller.ProcessorController;
+import edu.ucsf.crosslink.processor.controller.TypedOutputStats.OutputType;
 
 public interface ResearcherProcessor {
 	
 	public static final String PUBMED_SECTION = "//www.ncbi.nlm.nih.gov/pubmed/";
 	
-	void setCrawler(Crawler crawler);
+	void setCrawler(ProcessorController processorController);
 	
 	OutputType processResearcher() throws Exception;
 

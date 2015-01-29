@@ -25,12 +25,12 @@ import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.sun.jersey.api.view.Viewable;
 
-import edu.ucsf.crosslink.crawler.Crawler;
-import edu.ucsf.crosslink.crawler.CrawlerFactory;
-import edu.ucsf.crosslink.job.quartz.MetaCrawlerJob;
+import edu.ucsf.crosslink.job.quartz.MetaProcessorControllerJob;
 import edu.ucsf.crosslink.model.Affiliated;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
+import edu.ucsf.crosslink.processor.controller.ProcessorController;
+import edu.ucsf.crosslink.processor.controller.ProcessorControllerFactory;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.jena.JsonLDService;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
@@ -104,14 +104,14 @@ public class FusekiRestMethods implements R2RConstants {
 			"(STRLEN(?efn) = 1 && STRSTARTS(LCASE(?fn), LCASE(?efn))) || " + 
 			"(STRLEN(?fn) = 1 && STRSTARTS(LCASE(?efn), LCASE(?fn)))) }";
 
-	private CrawlerFactory factory;
+	private ProcessorControllerFactory factory;
 	private SparqlQueryClient sparqlQueryClient;
 	private JsonLDService jsonLDService;
 	private SparqlQueryClient uiSparqlClient;
 	
 	@Inject
 	public FusekiRestMethods(@Named("r2r.fusekiUrl") String sparqlQuery, JsonLDService jsonLDService,
-			CrawlerFactory factory, @Named("uiFusekiUrl") String uiFusekiUrl) {
+			ProcessorControllerFactory factory, @Named("uiFusekiUrl") String uiFusekiUrl) {
 		this.sparqlQueryClient = new SparqlQueryClient(sparqlQuery + "/sparql");
 		this.uiSparqlClient = new SparqlQueryClient(uiFusekiUrl + "/sparql", 10000, 20000);
 		this.factory = factory;
@@ -130,12 +130,12 @@ public class FusekiRestMethods implements R2RConstants {
 	@Path("/status")
 	public Viewable status(@Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws Exception {
-		List<Crawler> crawlers = new ArrayList<Crawler>();
-		crawlers.addAll(factory.getCrawlers());
+		List<ProcessorController> processorControllers = new ArrayList<ProcessorController>();
+		processorControllers.addAll(factory.getCrawlers());
 		// sort them so that the active ones show up at the top
-		Collections.sort(crawlers);
-		request.setAttribute("crawlers", crawlers);
-		request.setAttribute("metaHistory", MetaCrawlerJob.getMetaCrawlerHistory());
+		Collections.sort(processorControllers);
+		request.setAttribute("crawlers", processorControllers);
+		request.setAttribute("metaHistory", MetaProcessorControllerJob.getMetaControllerHistory());
 		return new Viewable("/jsps/status.jsp", null);
 	}
 
@@ -143,18 +143,18 @@ public class FusekiRestMethods implements R2RConstants {
 	@Path("{crawler}/status")
 	public Viewable statusDetail(@PathParam("crawler") String crawlerName, @Context HttpServletRequest request,
 			@Context HttpServletResponse response, @QueryParam("mode") String mode, @QueryParam("status") String status) throws Exception {
-		Crawler crawler = factory.getCrawler(crawlerName);
+		ProcessorController processorController = factory.getCrawler(crawlerName);
 		if (CrosslinksServletFilter.isAdministrator(request)) {
 			if ("PAUSED".equalsIgnoreCase(status)) {
-				crawler.pause();
+				processorController.pause();
 			}
 			if (mode != null) {
-				crawler.setMode(mode);
+				processorController.setMode(mode);
 			}
 		}
-		request.setAttribute("crawler", crawler);
-		if (crawler.getIterable() instanceof Affiliated) {
-			request.setAttribute("affiliation", ((Affiliated)crawler.getIterable()).getAffiliation());			
+		request.setAttribute("crawler", processorController);
+		if (processorController.getIterable() instanceof Affiliated) {
+			request.setAttribute("affiliation", ((Affiliated)processorController.getIterable()).getAffiliation());			
 		}
 		return new Viewable("/jsps/statusDetail.jsp", null);
 	}

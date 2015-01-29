@@ -24,9 +24,9 @@ import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
-import edu.ucsf.crosslink.crawler.Crawler;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.R2RResourceObject;
+import edu.ucsf.crosslink.processor.controller.ProcessorController;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
@@ -114,11 +114,18 @@ public class SparqlPersistance implements R2RConstants {
 		saveInternal(robj, SaveType.ADD);
 	}
 
+	public void execute(String updates) throws Exception {
+		startTransaction();
+		sparqlClient.update(updates);
+		endTransaction();
+	}
+
 	public void execute(List<String> updates) throws Exception {
 		startTransaction();
 		sparqlClient.update(updates);
 		endTransaction();
 	}
+
 	// delete existing one first
 	private void saveInternal(R2RResourceObject robj, SaveType saveType) throws Exception {
 		startTransaction();
@@ -154,16 +161,16 @@ public class SparqlPersistance implements R2RConstants {
 		return null;
 	}
 
-	public Calendar startCrawl(Crawler crawler) throws Exception {
-		return updateTimestampFieldFor(crawler.getURI(), R2R_PROCESSOR_START_DT);
+	public Calendar startCrawl(ProcessorController processorController) throws Exception {
+		return updateTimestampFieldFor(processorController.getURI(), R2R_PROCESSOR_START_DT);
 	}
 
-	public Calendar finishCrawl(Crawler crawler) throws Exception {
-		return updateTimestampFieldFor(crawler.getURI(), R2R_PROCESSOR_END_DT);
+	public Calendar finishCrawl(ProcessorController processorController) throws Exception {
+		return updateTimestampFieldFor(processorController.getURI(), R2R_PROCESSOR_END_DT);
 	}
 
-	public Calendar dateOfLastCrawl(Crawler crawler) throws Exception {
-		String sparql = "SELECT ?dt WHERE {<" + crawler.getURI() + "> <" + R2R_PROCESSOR_END_DT + "> ?dt}";
+	public Calendar dateOfLastCrawl(ProcessorController processorController) throws Exception {
+		String sparql = "SELECT ?dt WHERE {<" + processorController.getURI() + "> <" + R2R_PROCESSOR_END_DT + "> ?dt}";
 		DateResultSetConsumer consumer = new DateResultSetConsumer();
 		sparqlQuery.select(sparql, consumer);
 		return consumer.getCalendar();

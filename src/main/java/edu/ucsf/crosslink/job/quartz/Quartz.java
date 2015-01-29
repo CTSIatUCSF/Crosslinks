@@ -38,7 +38,7 @@ public class Quartz implements Stoppable {
 		scheduler = factory.getScheduler();
 		scheduler.setJobFactory(jobFactory);
 		
-	    JobDetail job = newJob(MetaCrawlerJob.class)
+	    JobDetail job = newJob(MetaProcessorControllerJob.class)
 		        .withIdentity(META_JOB, GROUP)
 		        .build();
 

@@ -112,7 +112,7 @@ public class FusekiRestMethods implements R2RConstants {
 	@Inject
 	public FusekiRestMethods(@Named("r2r.fusekiUrl") String sparqlQuery, JsonLDService jsonLDService,
 			CrawlerFactory factory, @Named("uiFusekiUrl") String uiFusekiUrl) {
-		this.sparqlQueryClient = new SparqlQueryClient(sparqlQuery);
+		this.sparqlQueryClient = new SparqlQueryClient(sparqlQuery + "/sparql");
 		this.uiSparqlClient = new SparqlQueryClient(uiFusekiUrl + "/sparql", 10000, 20000);
 		this.factory = factory;
 		this.jsonLDService = jsonLDService;
@@ -131,7 +131,7 @@ public class FusekiRestMethods implements R2RConstants {
 	public Viewable status(@Context HttpServletRequest request,
 			@Context HttpServletResponse response) throws Exception {
 		List<Crawler> crawlers = new ArrayList<Crawler>();
-		crawlers.addAll(factory.getCurrentCrawlers());
+		crawlers.addAll(factory.getCrawlers());
 		// sort them so that the active ones show up at the top
 		Collections.sort(crawlers);
 		request.setAttribute("crawlers", crawlers);

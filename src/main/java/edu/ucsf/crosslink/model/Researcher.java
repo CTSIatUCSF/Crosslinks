@@ -21,6 +21,7 @@ import com.hp.hpl.jena.rdf.model.NodeIterator;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.ResIterator;
 import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
 import edu.ucsf.crosslink.crawler.Crawler;
@@ -73,13 +74,26 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 	}
 	
 	public void crawledBy(Crawler crawler) {
-		// create a blank node
 		Model model = getModel();
+		// see if we have already been crawled by this crawler
+		StmtIterator si = getStatements(R2R_PROCESSED_BY);
+		while (si.hasNext()) {
+			Resource crawl = si.next().getResource();
+			if (crawler.getName().equals(crawl.getProperty(model.createProperty(RDFS_LABEL)).getString())) {
+				// update the time stamp
+				model.removeAll(getResource(), model.createProperty(R2R_PROCESSED_ON), null);
+				crawl.addLiteral(model.createProperty(R2R_PROCESSED_ON), model.createTypedLiteral(Calendar.getInstance()));
+				si.close();
+				return;
+			}
+		}
+		si.close();
+		// create a blank node
 		Resource crawl = model.createResource();
 		crawl.addLiteral(model.createProperty(RDFS_LABEL), crawler.getName());
-		crawl.addLiteral(model.createProperty(R2R_CRAWLED_ON), model.createTypedLiteral(Calendar.getInstance()));
+		crawl.addLiteral(model.createProperty(R2R_PROCESSED_ON), model.createTypedLiteral(Calendar.getInstance()));
 		
-		model.add(getResource(), model.createProperty(R2R_CRAWLED_BY), crawl);
+		model.add(getResource(), model.createProperty(R2R_PROCESSED_BY), crawl);
 	}
 	
 	public Affiliation getAffiliation() {
@@ -196,11 +210,11 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 	
 	public Calendar getCrawlTime(Crawler crawler) {
 		Model model = getModel();
-		ResIterator ri = getModel().listResourcesWithProperty(model.createProperty(R2R_CRAWLED_BY));
+		ResIterator ri = getModel().listResourcesWithProperty(model.createProperty(R2R_PROCESSED_BY));
 		while (ri.hasNext()) {
 			Resource crawl = ri.next();
 			if (crawler.getName().equals(crawl.getProperty(model.createProperty(RDFS_LABEL)).getString())) {
-				return ((XSDDateTime)crawl.getProperty(model.createProperty(R2R_CRAWLED_ON)).getLiteral().getValue()).asCalendar();
+				return ((XSDDateTime)crawl.getProperty(model.createProperty(R2R_PROCESSED_ON)).getLiteral().getValue()).asCalendar();
 			}
 		}
 		return null;

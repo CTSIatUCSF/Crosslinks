@@ -20,35 +20,22 @@ public class CrawlerModule extends AbstractModule {
 	@SuppressWarnings("unchecked")
 	@Override
 	protected void configure() {		
-		// SiteReader items
-		bind(Integer.class).annotatedWith(Names.named("getDocumentRetry")).toInstance(Integer.parseInt(prop.getProperty("getDocumentRetry")));
-		bind(Integer.class).annotatedWith(Names.named("getDocumentTimeout")).toInstance(Integer.parseInt(prop.getProperty("getDocumentTimeout")));
-		bind(Integer.class).annotatedWith(Names.named("getDocumentSleep")).toInstance(Integer.parseInt(prop.getProperty("getDocumentSleep")));
-
 		// Crawler items
-		bind(String.class).annotatedWith(Names.named("Name")).toInstance(prop.getProperty("Name"));
-		bind(String.class).annotatedWith(Names.named("FileName")).toInstance(prop.getProperty("FileName"));
-		if (prop.getProperty("BaseURL") != null) {
-			bind(String.class).annotatedWith(Names.named("BaseURL")).toInstance(prop.getProperty("BaseURL"));
+		// set the name to be based on the researcher processor class name and affiliation name when present
+		String processorClassName = prop.getProperty("class").substring(prop.getProperty("class").lastIndexOf('.') + 1);
+		if (prop.containsKey("Name")) {
+			bind(String.class).annotatedWith(Names.named("crawlerName")).toInstance(prop.getProperty("Name").replaceAll("[^A-Za-z0-9]", "") + "." + processorClassName);
 		}
-		if (prop.getProperty("Location") != null) {
-			bind(String.class).annotatedWith(Names.named("Location")).toInstance(prop.getProperty("Location"));
+		else {
+			bind(String.class).annotatedWith(Names.named("crawlerName")).toInstance(processorClassName);
 		}
-		
 		bind(Crawler.Mode.class).toInstance(Crawler.Mode.valueOf(prop.getProperty("crawlingMode").toUpperCase()));
 		bind(Integer.class).annotatedWith(Names.named("errorsToAbort")).toInstance(Integer.parseInt(prop.getProperty("errorsToAbort")));
 		bind(Integer.class).annotatedWith(Names.named("pauseOnAbort")).toInstance(Integer.parseInt(prop.getProperty("pauseOnAbort")));
-		bind(Integer.class).annotatedWith(Names.named("authorReadErrorThreshold")).toInstance(Integer.parseInt(prop.getProperty("authorReadErrorThreshold")));
-		
-		bind(Integer.class).annotatedWith(Names.named("staleDays")).toInstance(Integer.parseInt(prop.getProperty("staleDays")));
-		bind(Integer.class).annotatedWith(Names.named("daysConsideredOld")).toInstance(Integer.parseInt(prop.getProperty("daysConsideredOld")));
-		
-		if (prop.getProperty("executorThreadCount") != null) {
-			bind(Integer.class).annotatedWith(Names.named("executorThreadCount")).toInstance(Integer.parseInt(prop.getProperty("executorThreadCount")));
-		}
+		bind(Integer.class).annotatedWith(Names.named("threadCount")).toInstance(Integer.parseInt(prop.getProperty("threadCount")));
 		
 		try {
-			bind(new TypeLiteral<Iterable<ResearcherProcessor>>(){}).to((Class<? extends Iterable<ResearcherProcessor>>)Class.forName(prop.getProperty("Processor"))).asEagerSingleton();
+			bind(new TypeLiteral<Iterable<ResearcherProcessor>>(){}).to((Class<? extends Iterable<ResearcherProcessor>>)Class.forName(prop.getProperty("class"))).asEagerSingleton();
 			bind(Crawler.class).asEagerSingleton();;
 		} 
 		catch (ClassNotFoundException e) {

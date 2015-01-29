@@ -35,8 +35,8 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	public static final String DOI_PREFIX = "http://dx.doi.org/";
 
 	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
-			"?r <" + RDF_TYPE + "> <" + FOAF_PERSON + "> . OPTIONAL {?r <" + R2R_CRAWLED_BY + "> ?c . ?c <" + RDFS_LABEL + 
-			"> \"%1$s\"^^<http://www.w3.org/2001/XMLSchema#string> . ?c <" + R2R_CRAWLED_ON + 
+			"?r <" + RDF_TYPE + "> <" + FOAF_PERSON + "> . OPTIONAL {?r <" + R2R_PROCESSED_BY + "> ?c . ?c <" + RDFS_LABEL + 
+			"> \"%1$s\"^^<http://www.w3.org/2001/XMLSchema#string> . ?c <" + R2R_PROCESSED_ON + 
 			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
 
 	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r ?ts WHERE { " +

@@ -18,6 +18,7 @@ import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.RDFNode;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
 
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
@@ -109,6 +110,10 @@ public abstract class R2RResourceObject implements R2RConstants {
 
 	protected Statement getStatement(String predicate) {
 		return getResource().getProperty(getModel().createProperty(predicate));
+	}
+	
+	protected StmtIterator getStatements(String predicate) {
+		return getResource().listProperties(getModel().createProperty(predicate));
 	}
 	
 	protected String getStringLiteral(String predicate) {

@@ -40,7 +40,7 @@ public class GuiceJobFactory implements JobFactory {
 			try {
 				return crawlerFactory.getInjector(jobName).getInstance(CrawlerJob.class);
 			} 
-			catch (IOException e) {
+			catch (Exception e) {
 				LOG.log(Level.SEVERE, e.getMessage(), e);
 				throw new SchedulerException(e);
 			}

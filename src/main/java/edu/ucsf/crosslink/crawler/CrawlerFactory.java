@@ -1,22 +1,25 @@
 package edu.ucsf.crosslink.crawler;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.xpath.XPathExpressionException;
+
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Singleton;
-import com.google.inject.name.Named;
 
-import edu.ucsf.crosslink.Crosslinks;
+import edu.ucsf.crosslink.CrosslinksXMLConfiguration;
+import edu.ucsf.crosslink.PropertiesModule;
 
 @Singleton
 public class CrawlerFactory {
@@ -24,60 +27,55 @@ public class CrawlerFactory {
 	public static final String AFFILIATION = "AFFILIATION";
 	
 	private Injector guice;
-	private String configurationDirectory;
-	private Map<String, Crawler> liveCrawlers = new HashMap<String, Crawler>();
-	private Map<String, String> propertyFiles = new HashMap<String, String>(); 
+	private Map<String, Crawler> crawlers = new HashMap<String, Crawler>();
 	private Map<String, Injector> injectors = new HashMap<String, Injector>(); 
 	
 	@Inject
-	public CrawlerFactory(final Injector guice, @Named("configurationDirectory") String configurationDirectory) {
-		this.guice = guice;
-		this.configurationDirectory = configurationDirectory;
+	public CrawlerFactory(final Injector guice) throws XPathExpressionException, TransformerConfigurationException, SAXException, IOException, ParserConfigurationException {
+		this.guice = guice;		
+		loadCrawlers();
 	}
 
-	private synchronized void loadNewCrawlers() throws FileNotFoundException, IOException {
-	    for (String fileName : getConfigurationFiles()) {
-	    	// need some way to refresh old ones
-	    	if (!propertyFiles.containsValue(fileName)) {
-				Properties prop = new Properties();
-				prop.load(this.getClass().getResourceAsStream(Crosslinks.PROPERTIES_FILE));	
-				File propFile = new File(fileName);
-				prop.load(new FileReader(propFile));
-				prop.put("FileName", propFile.getName().split("\\.")[0]);
+	private void loadCrawlers() throws XPathExpressionException, TransformerConfigurationException, SAXException, IOException, ParserConfigurationException {
+		// first load the ones that do not need an affiliation
+		CrosslinksXMLConfiguration config = new CrosslinksXMLConfiguration();
+		for (Node n : config.getDefaultedNodes("//Crosslinks/Processors")) {
+			Properties prop = config.getChildrenAsProperties(n);
+			
+			Injector injector = guice.createChildInjector(new CrawlerModule(prop));
+			Crawler crawler = injector.getInstance(Crawler.class);
+			injectors.put(crawler.getName(), injector);		
+			crawlers.put(crawler.getName(), crawler);							
+		}
 
-				Injector injector = guice.createChildInjector(new CrawlerModule(prop));
+		// now load the ones that do need an affiliation
+		for (Node n : config.getDefaultedNodes("//Crosslinks/Affiliations")) {
+			Properties affiliationProps = config.getChildrenAsProperties(n);
+			NodeList processors = config.evaluate(n, "*/Processor");
+			for (int i = 0; i < processors.getLength(); i++) {		
+				Node processor = processors.item(i);
+				Properties processorProps = config.getChildrenAsProperties(processor);
+				// sort of ugly
+				processorProps.putAll(affiliationProps);
+				Injector injector = guice.createChildInjector(new PropertiesModule(affiliationProps), 
+						new CrawlerModule(processorProps));
 				Crawler crawler = injector.getInstance(Crawler.class);
 				injectors.put(crawler.getName(), injector);		
-				propertyFiles.put(crawler.getName(), fileName);
-				liveCrawlers.put(crawler.getName(), crawler);				
-	    	}
-	    }		
-	}
-	
-	public Collection<Crawler> getCurrentCrawlers() {
-		return liveCrawlers.values();
-	}
-
-	public Collection<Crawler> getCrawlers() throws FileNotFoundException, IOException {
-		loadNewCrawlers();
-		return getCurrentCrawlers();
-	}
-
-	public Crawler getCrawler(String affiliation) {
-		return liveCrawlers.get(affiliation);
-	}
-
-	public Injector getInjector(String affiliation) throws FileNotFoundException, IOException {
-		loadNewCrawlers();
-		return injectors.get(affiliation);
-	}
-
-	private List<String> getConfigurationFiles() throws IOException  {
-		List<String> fileNames = new ArrayList<String>();
-		for (File file : new File(configurationDirectory).listFiles()) {
-			fileNames.add(file.getAbsolutePath());
+				crawlers.put(crawler.getName(), crawler);							
+			}			
 		}
-		return fileNames;
 	}
 	
+	public Collection<Crawler> getCrawlers() {
+		return crawlers.values();
+	}
+
+	public Crawler getCrawler(String name) {
+		return crawlers.get(name);
+	}
+
+	public Injector getInjector(String name) {
+		return injectors.get(name);
+	}
+
 }

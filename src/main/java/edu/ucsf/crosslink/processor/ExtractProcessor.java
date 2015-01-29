@@ -49,12 +49,12 @@ public class ExtractProcessor extends SparqlProcessor implements Affiliated, R2R
 	private AtomicInteger storeBufferCount = new AtomicInteger();
 	private int bufferSize = 25;
 	
-	// remove harvester as required item
+	// Will copy researchers from a given affiliation into the UI fuseki instance.  
 	@Inject
-	public ExtractProcessor(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location,
+	public ExtractProcessor(Affiliation affiliation,
 			@Named("r2r.fusekiUrl") String sparqlQuery, @Named("uiFusekiUrl") String uiFusekiUrl) throws Exception {
 		super(new SparqlQueryClient(sparqlQuery + "/query"), 0);
-		this.affiliation = new Affiliation(name, baseURL, location);
+		this.affiliation = affiliation;
 		uiSparqlClient = new SparqlPostClient(uiFusekiUrl + "/update", uiFusekiUrl +  "/data?default");
 		addToStore(R2ROntology.createR2ROntModel());
 		addToStore(getSparqlClient().construct(AFFILIATIONS));

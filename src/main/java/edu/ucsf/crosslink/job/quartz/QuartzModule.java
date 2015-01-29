@@ -25,9 +25,7 @@ public class QuartzModule extends AbstractModule {
 		bind(CrawlerFactory.class).asEagerSingleton();
 		
 		bind(Integer.class).annotatedWith(Names.named("scanInterval")).toInstance(Integer.parseInt(prop.getProperty("scanInterval")));
-				
-		// used by Marengo to set executorService thread size
-		bind(Integer.class).annotatedWith(Names.named("threadCount")).toInstance(Integer.parseInt(prop.getProperty("threadCount")));
+		bind(Integer.class).annotatedWith(Names.named("crawlerThreads")).toInstance(Integer.parseInt(prop.getProperty("crawlerThreads")));
 
 		try {
 			bind(SchedulerFactory.class).toInstance(new StdSchedulerFactory(prop));

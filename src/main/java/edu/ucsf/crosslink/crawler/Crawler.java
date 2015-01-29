@@ -68,9 +68,9 @@ public final class Crawler extends R2RResourceObject implements Runnable, Compar
 	private Future<Boolean> currentJob = null;
 	
 	@Inject
-	public Crawler(@Named("FileName") String name, Mode mode, SparqlPersistance store, 
-			Iterable<ResearcherProcessor> researcherIterable, @Named("executorThreadCount") Integer threadCount) throws Exception {
-		super(R2R_CRAWLER + "/" + name, R2R_CRAWLER);
+	public Crawler(@Named("crawlerName") String name, Mode mode, SparqlPersistance store, 
+			Iterable<ResearcherProcessor> researcherIterable, @Named("threadCount") Integer threadCount) throws Exception {
+		super(R2R_PROCESSOR + "/" + name, R2R_PROCESSOR);
 		this.setLabel(name);
 		this.mode = mode;	
 		this.store = store;

@@ -36,8 +36,8 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 	private static final Logger LOG = Logger.getLogger(PageItemProcessor.class.getName());
 
 	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
-			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_CRAWLED_BY + "> ?c . ?c <" + 
-			RDFS_LABEL + "> \"%2$s\" . ?c <" + R2R_CRAWLED_ON +  
+			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_PROCESSED_BY + "> ?c . ?c <" + 
+			RDFS_LABEL + "> \"%2$s\" . ?c <" + R2R_PROCESSED_ON +  
 			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%3$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
 
 	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r WHERE { " +
@@ -79,12 +79,12 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 	
 	// remove harvester as required item
 	@Inject
-	public PageItemProcessor(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location,
+	public PageItemProcessor(Affiliation affiliation,
 			SparqlPersistance store, SiteReader reader,	@Named("r2r.fusekiUrl") String sparqlQuery,		
 			SparqlPostClient sparqlClient, ThumbnailGenerator thumbnailGenerator,
 			@Named("daysConsideredOld") Integer daysConsideredOld) throws Exception {
 		super(new SparqlQueryClient(sparqlQuery + "/query"), LIMIT);
-		this.affiliation = new Affiliation(name, baseURL, location);
+		this.affiliation = affiliation;
 		this.reader = reader;
 		this.sparqlClient = sparqlClient;
 		this.store = store;

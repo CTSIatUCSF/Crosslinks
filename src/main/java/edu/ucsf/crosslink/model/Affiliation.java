@@ -1,7 +1,24 @@
 package edu.ucsf.crosslink.model;
 
+import java.io.File;
+import java.io.FileReader;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.Properties;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 
 public class Affiliation extends R2RResourceObject {
 	
@@ -11,9 +28,10 @@ public class Affiliation extends R2RResourceObject {
 	
 	public enum RNSType {PROFILES, VIVO, SCIVAL, LOKI, CAP, UNKNOWN};
 
-	public Affiliation(String affiliationName, String baseURL, String location) throws URISyntaxException {
+	@Inject
+	public Affiliation(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location) throws URISyntaxException {
 		super(baseURL, Arrays.asList(R2R_AFFILIATION, GEO_SPATIALTHING));
-		setLabel(affiliationName);
+		setLabel(name);
 		rnsType = getRNSType(baseURL.toLowerCase());
 		if (location != null) {
 			String [] geoCodes = location.split(",");
@@ -66,5 +84,47 @@ public class Affiliation extends R2RResourceObject {
 	
 	public String getLongitude() {
 		return getStringLiteral(GEO_LONGITUDE);
+	}
+
+	// convert property files to XML
+	// cut and paste output to http://www.freeformatter.com/xml-formatter.html for a nice document
+	public static void main(String[] args) {
+		try {
+			DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+			DocumentBuilder db = dbf.newDocumentBuilder();
+			Document doc = db.newDocument();
+			Element root = doc.createElement("Affiliations");
+			doc.appendChild(root);
+			for (File file : new File(args[0]).listFiles()) {				
+				Properties prop = new Properties();
+				prop.load(new FileReader(file));
+				System.out.println(file.getAbsolutePath());
+				Element affiliation = doc.createElement("Affiliation");
+				root.appendChild(affiliation);
+				for (String name : new String[]{"BaseURL", "Name", "Location"} ) {
+					if (!prop.containsKey(name)) {
+						root.removeChild(affiliation);
+						break;
+					}
+					Element n = doc.createElement(name);
+					n.appendChild(doc.createTextNode(prop.getProperty(name)));
+					System.out.println(n.toString());
+					System.out.println(n.getNodeValue());
+					affiliation.appendChild(n);
+				}
+			}
+			TransformerFactory transformerFactory = TransformerFactory.newInstance();
+			Transformer transformer = transformerFactory.newTransformer();
+			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+			DOMSource source = new DOMSource(doc);
+	 
+			// Output to console for testing
+			StreamResult result = new StreamResult(System.out);
+			//StreamResult result = new StreamResult(new File(args[0] + "\\affiliations.xml"));
+			transformer.transform(source, result);
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }

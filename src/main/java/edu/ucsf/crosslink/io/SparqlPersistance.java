@@ -50,8 +50,8 @@ public class SparqlPersistance implements R2RConstants {
 	private SparqlPostClient sparqlClient;
 	private List<Affiliation> knownAffiliations = new ArrayList<Affiliation>();
 	
-	private static final String SKIP_RESEARCHERS_SPARQL = "SELECT ?r ?ts WHERE {?r <" + R2R_CRAWLED_BY + "> ?c . ?c <" + 
-			RDFS_LABEL + "> \"%s\" . ?c <" + R2R_CRAWLED_ON + "> ?ts . FILTER (?ts > \"%s\")}";
+	private static final String SKIP_RESEARCHERS_SPARQL = "SELECT ?r ?ts WHERE {?r <" + R2R_PROCESSED_BY + "> ?c . ?c <" + 
+			RDFS_LABEL + "> \"%s\" . ?c <" + R2R_PROCESSED_ON + "> ?ts . FILTER (?ts > \"%s\")}";
 	
 	private static final String LOAD_AFFILIATIONS = "SELECT ?r ?l WHERE  {?r <" + RDF_TYPE + "> <" +
 			R2R_AFFILIATION + "> . ?r <" + RDFS_LABEL + "> ?l}";
@@ -155,15 +155,15 @@ public class SparqlPersistance implements R2RConstants {
 	}
 
 	public Calendar startCrawl(Crawler crawler) throws Exception {
-		return updateTimestampFieldFor(crawler.getURI(), R2R_CRAWL_START_DT);
+		return updateTimestampFieldFor(crawler.getURI(), R2R_PROCESSOR_START_DT);
 	}
 
 	public Calendar finishCrawl(Crawler crawler) throws Exception {
-		return updateTimestampFieldFor(crawler.getURI(), R2R_CRAWL_END_DT);
+		return updateTimestampFieldFor(crawler.getURI(), R2R_PROCESSOR_END_DT);
 	}
 
 	public Calendar dateOfLastCrawl(Crawler crawler) throws Exception {
-		String sparql = "SELECT ?dt WHERE {<" + crawler.getURI() + "> <" + R2R_CRAWL_END_DT + "> ?dt}";
+		String sparql = "SELECT ?dt WHERE {<" + crawler.getURI() + "> <" + R2R_PROCESSOR_END_DT + "> ?dt}";
 		DateResultSetConsumer consumer = new DateResultSetConsumer();
 		sparqlQuery.select(sparql, consumer);
 		return consumer.getCalendar();

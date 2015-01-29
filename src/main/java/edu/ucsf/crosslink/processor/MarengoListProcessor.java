@@ -80,6 +80,15 @@ public class MarengoListProcessor extends SparqlProcessor {
 				researcher = createResearcher();
 				researcher.setAffiliation(getAffiliationFor(new URI(getResearcherURI())));
 				//researcher.setHarvester(MarengoListCrawler.this);
+				
+				// TODO lame!
+//				if (getCrawler() != null) {
+//					DELETE {<http://msu.vivo.ctr-in.org/individual/n1793366517> <http://ucsf.edu/ontology/r2r#crawledBy> ?c .
+//						?c ?p ?o}
+//						WHERE {
+//						<http://msu.vivo.ctr-in.org/individual/n1793366517> <http://ucsf.edu/ontology/r2r#crawledBy> ?c .
+//						?c <http://www.w3.org/2000/01/rdf-schema#label> "MarengoList"^^<http://www.w3.org/2001/XMLSchema#string>}				}
+//				}
 				store.update(researcher);				
 				return OutputType.PROCESSED;
 			}

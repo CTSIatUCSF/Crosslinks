@@ -26,8 +26,8 @@ public class DeleteProcessor extends SparqlProcessor implements Affiliated, R2RC
 	private static final Logger LOG = Logger.getLogger(DeleteProcessor.class.getName());
 
 	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
-			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_CRAWLED_BY + "> ?c . ?c <" + RDFS_LABEL + 
-			"\"%2$s\" . ?c <" + R2R_CRAWLED_ON + 
+			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_PROCESSED_BY + "> ?c . ?c <" + RDFS_LABEL + 
+			"\"%2$s\" . ?c <" + R2R_PROCESSED_ON + 
 			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%3$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
 
 	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r WHERE { " +
@@ -46,11 +46,11 @@ public class DeleteProcessor extends SparqlProcessor implements Affiliated, R2RC
 	
 	// remove harvester as required item
 	@Inject
-	public DeleteProcessor(@Named("Name") String name, @Named("BaseURL") String baseURL, @Named("Location") String location,
+	public DeleteProcessor(Affiliation affiliation,
 			SparqlPersistance store, @Named("r2r.fusekiUrl") String sparqlQuery,
 			@Named("daysConsideredOld") Integer daysConsideredOld) throws Exception {
 		super(new SparqlQueryClient(sparqlQuery + "/query"), 0);
-		this.affiliation = new Affiliation(name, baseURL, location);
+		this.affiliation = affiliation;
 		this.store = store;
 		this.daysConsideredOld = daysConsideredOld;
 		store.save(affiliation);	

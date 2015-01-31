@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink.model;
+package edu.ucsf.crosslink.processor;
 
 import java.util.Properties;
 
@@ -7,7 +7,6 @@ import com.google.inject.TypeLiteral;
 import com.google.inject.name.Names;
 
 import edu.ucsf.crosslink.job.quartz.ProcessorControllerJob;
-import edu.ucsf.crosslink.processor.ResearcherProcessor;
 import edu.ucsf.crosslink.processor.controller.ProcessorController;
 import edu.ucsf.crosslink.processor.controller.ProcessorController.Mode;
 

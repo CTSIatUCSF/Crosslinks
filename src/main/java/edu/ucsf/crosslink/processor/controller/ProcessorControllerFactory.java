@@ -20,7 +20,7 @@ import com.google.inject.Singleton;
 
 import edu.ucsf.crosslink.CrosslinksXMLConfiguration;
 import edu.ucsf.crosslink.PropertiesModule;
-import edu.ucsf.crosslink.model.ProcessorModule;
+import edu.ucsf.crosslink.processor.ProcessorModule;
 
 @Singleton
 public class ProcessorControllerFactory {
@@ -43,7 +43,7 @@ public class ProcessorControllerFactory {
 		for (Node n : config.getDefaultedNodes("//Crosslinks/Processors")) {
 			Properties prop = config.getChildrenAsProperties(n);
 			
-			Injector injector = guice.createChildInjector(new ProcessorModule(prop));
+			Injector injector = guice.createChildInjector(new PropertiesModule(prop), new ProcessorModule(prop));
 			ProcessorController processorController = injector.getInstance(ProcessorController.class);
 			injectors.put(processorController.getName(), injector);		
 			processorControllers.put(processorController.getName(), processorController);							

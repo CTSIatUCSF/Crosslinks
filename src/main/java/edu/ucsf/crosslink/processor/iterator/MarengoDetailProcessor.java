@@ -73,15 +73,18 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	private SparqlPersistance store = null;
 	private ProcessorController processorController = null;
 
+	private String[] uriAvoids = null;
+	
 	// remove harvester as required item
 	@Inject
 	public MarengoDetailProcessor(@Named("r2r.fusekiUrl") String sparqlQuery, SparqlPersistance store,
-			@Named("daysConsideredOld") Integer daysConsideredOld) throws Exception {
+			@Named("daysConsideredOld") Integer daysConsideredOld, @Named("avoids") String avoids) throws Exception {
 		super(new SparqlQueryClient(sparqlQuery + "/query"), LIMIT);
 		this.marengoSparqlClient = new SparqlQueryClient("http://marengo.info-science.uiowa.edu:2020/sparql", 600000, 600000);
 		this.doiSparqlClient = new SparqlQueryClient("http://www.pmid2doi.org/sparql", 60000, 60000);
 		this.daysConsideredOld = daysConsideredOld;
 		this.store = store;
+		this.uriAvoids = avoids != null ? avoids.split(",") : new String[]{};
 	}
 	
 	@Inject
@@ -234,6 +237,9 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 			if (allowSkip() && workVerifiedDT != null && workVerifiedDT.getTimeInMillis() > new DateTime().minusDays(daysConsideredOld).getMillis()) {
 				return OutputType.SKIPPED;
 			}
+			else if (avoid()) {
+				return OutputType.AVOIDED;
+			}
 			else {
 				researcher = createResearcher();
 				readResearcherDetails(researcher);
@@ -244,6 +250,15 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 				return OutputType.PROCESSED;
 			}
 		}		
+		
+		private boolean avoid() {
+			for (String prefix : uriAvoids) {
+				if (getResearcherURI().startsWith(prefix)) {
+					return true;
+				}
+			}
+			return false;
+		}
 	}
 
 }

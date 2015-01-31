@@ -1,9 +1,11 @@
 package edu.ucsf.crosslink.processor.iterator;
 
 import java.net.URI;
+import java.util.List;
 import java.util.logging.Logger;
 
 import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import com.hp.cache4guice.Cached;
 import com.hp.hpl.jena.query.QuerySolution;
 
@@ -21,7 +23,9 @@ public class MarengoListProcessor extends SparqlProcessor implements R2RConstant
 	private static final Logger LOG = Logger.getLogger(MarengoListProcessor.class.getName());
 
 	private static final String RESEARCHERS_SELECT = "SELECT ?s ?r WHERE { " +
-			"?s <http://marengo.info-science.uiowa.edu:2020/resource/vocab/Person_URI> ?r . FILTER (!STRENDS(?r, \"Ext\") && !STRSTARTS(?r, \"http://vivo.ufl.edu\")) }";	
+			"?s <http://marengo.info-science.uiowa.edu:2020/resource/vocab/Person_URI> ?r . FILTER (!STRENDS(?r, \"Ext\") %s) }";	
+	
+	private static final String URI_AVOIDS = "&& !STRSTARTS(?r, \"%s\") ";
 	
 	private static final String DELETE_PRIOR_PROCESS = "DELETE {<%1$s> <" + R2R_PROCESSED_BY + "> ?c . ?c ?p ?o} WHERE { " +
 			"<%1$s> <" + R2R_PROCESSED_BY + "> ?c . ?c <" + RDFS_LABEL + "> \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#string>}";
@@ -29,18 +33,25 @@ public class MarengoListProcessor extends SparqlProcessor implements R2RConstant
 	private static final int LIMIT = 1000;
 	private static final int RETRY = 5;
 	
+	private String[] uriAvoids = null;
 	private SparqlPersistance store = null;
 
 	// remove harvester as required item
 	@Inject
-	public MarengoListProcessor(SparqlPersistance store) throws Exception {
+	public MarengoListProcessor(SparqlPersistance store, @Named("avoids") String avoids) throws Exception {
 		super(new SparqlQueryClient("http://marengo.info-science.uiowa.edu:2020/sparql", 60000, 60000), LIMIT, RETRY);
 		this.store = store;
+		this.uriAvoids = avoids != null ? avoids.split(",") : new String[]{};
 	}
 
 	@Override
 	protected String getSparqlQuery(int offset, int limit) {
-		return RESEARCHERS_SELECT + 
+		String avoids = "";
+		for (String uriAvoid : uriAvoids) {
+			avoids += String.format(URI_AVOIDS, uriAvoid);
+		}
+		
+		return String.format(RESEARCHERS_SELECT, avoids) + 
 				(limit > 0 ? String.format(" OFFSET %d LIMIT %d", offset, limit) : "");
 	}
 

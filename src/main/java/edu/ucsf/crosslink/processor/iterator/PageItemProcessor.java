@@ -17,6 +17,7 @@ import com.hp.hpl.jena.query.ResultSet;
 
 import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.io.ThumbnailGenerator;
+import edu.ucsf.crosslink.io.http.SiteReader;
 import edu.ucsf.crosslink.model.Affiliated;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
@@ -24,7 +25,6 @@ import edu.ucsf.crosslink.processor.BasicResearcherProcessor;
 import edu.ucsf.crosslink.processor.ResearcherProcessor;
 import edu.ucsf.crosslink.processor.controller.ProcessorController;
 import edu.ucsf.crosslink.processor.controller.TypedOutputStats.OutputType;
-import edu.ucsf.crosslink.sitereader.SiteReader;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
@@ -184,6 +184,7 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 				
 				store.startTransaction();
 				store.execute(preStatements);
+				store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, getResearcherURI(), getCrawler().getName()));
 				store.update(researcher);
 				store.endTransaction();
 				

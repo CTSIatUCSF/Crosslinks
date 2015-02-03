@@ -7,7 +7,7 @@
 	<!-- administrators = eric.meeks@ucsf.edu -->
 	<administrators></administrators> 
 
-	<thumbnailDir>C:\\Users\\meekse\\Development\\R2R\\workspace\\data\\Crosslinks\\thumbnails</thumbnailDir> 
+	<thumbnailDir>C:\\Users\\meekse\\Development\\Eclipse\\workspace\\data\\Crosslinks\\thumbnails</thumbnailDir> 
 	<thumbnailRootURL>http://stage-r2r.ucsf.edu/thumbnails</thumbnailRootURL>
 	<thumbnailWidth>100</thumbnailWidth>
 	<thumbnailHeight>100</thumbnailHeight>
@@ -43,7 +43,7 @@
 	   <!--  Processors defined in this section do not need an affiliation object -->
 	   <Defaults>
 	   	<!--  Mode can be DISABLED, FORCED or ENABLED.  Enabled is default -->
-	      <executionMode>DISABLED</executionMode>
+	      <executionMode>ENABLED</executionMode>
 	      <!--  How many threads to use in the executor pool, pass in -1 to not use a pool and 
 	      instead run in process -->
 	      <threadCount>1</threadCount>
@@ -56,12 +56,12 @@
 	      <class>edu.ucsf.crosslink.processor.iterator.MarengoListProcessor</class>
 	      <threadCount>-1</threadCount>
 	      <!-- avoids should be comma separated with no whitespace in between -->
-	      <avoids>http://vivo.ufl.edu</avoids>
+	      <avoids>http://vivo.ufl.edu,http://stage-profiles.ucsd.edu,http://profiles.ucsd.edu,http://profiles.jefferson.edu</avoids>
 	   </Processor>
 	   <Processor>
 	      <class>edu.ucsf.crosslink.processor.iterator.MarengoDetailProcessor</class>
 	      <threadCount>2</threadCount>
-	      <avoids>http://stage-profiles.ucsd.edu,http://profiles.ucsd.edu</avoids>
+	      <avoids>http://stage-profiles.ucsd.edu,http://profiles.ucsd.edu,http://profiles.jefferson.edu/</avoids>
 	   </Processor>
 	   <Processor>
 	      <class>edu.ucsf.crosslink.processor.iterator.FloridaListProcessor</class>
@@ -76,7 +76,7 @@
 	         see processors.xml for information about the attributes -->
 	         <Processor>
 	            <class>edu.ucsf.crosslink.processor.iterator.PageItemProcessor</class>
-	            <executionMode>DISABLED</executionMode>
+	            <executionMode>ENABLED</executionMode>
 	            <threadCount>1</threadCount>
 	            <errorsToAbort>5</errorsToAbort>
 	            <pauseOnAbort>60</pauseOnAbort>
@@ -300,6 +300,20 @@
 	      <BaseURL>http://vivo.wustl.edu</BaseURL>
 	      <Name>Washington University</Name>
 	      <Location>38.6511906,-90.3093748</Location>
+	   </Affiliation>
+	   <Affiliation>
+	      <BaseURL>http://profiles.jefferson.edu</BaseURL>
+	      <Name>Thomas Jefferson University</Name>
+	      <Location>39.948289,-75.1582</Location>
+	      <Processors>
+	         <Processor>
+		        <class>edu.ucsf.crosslink.processor.iterator.ProfilesSitemapProcessor</class>
+	            <executionMode>ENABLED</executionMode>
+		        <errorsToAbort>5</errorsToAbort>
+	            <threadCount>-1</threadCount>
+	            <pauseOnAbort>60</pauseOnAbort>
+	         </Processor>
+		  </Processors>
 	   </Affiliation>
 	</Affiliations>
 </Crosslinks>

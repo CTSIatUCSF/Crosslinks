@@ -18,7 +18,7 @@ import edu.ucsf.crosslink.processor.controller.TypedOutputStats.OutputType;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 
-public class MarengoListProcessor extends SparqlProcessor implements R2RConstants {
+public class MarengoListProcessor extends SparqlProcessor {
 
 	private static final Logger LOG = Logger.getLogger(MarengoListProcessor.class.getName());
 
@@ -26,9 +26,6 @@ public class MarengoListProcessor extends SparqlProcessor implements R2RConstant
 			"?s <http://marengo.info-science.uiowa.edu:2020/resource/vocab/Person_URI> ?r . FILTER (!STRENDS(?r, \"Ext\") %s) }";	
 	
 	private static final String URI_AVOIDS = "&& !STRSTARTS(?r, \"%s\") ";
-	
-	private static final String DELETE_PRIOR_PROCESS = "DELETE {<%1$s> <" + R2R_PROCESSED_BY + "> ?c . ?c ?p ?o} WHERE { " +
-			"<%1$s> <" + R2R_PROCESSED_BY + "> ?c . ?c <" + RDFS_LABEL + "> \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#string>}";
 	
 	private static final int LIMIT = 1000;
 	private static final int RETRY = 5;
@@ -107,7 +104,7 @@ public class MarengoListProcessor extends SparqlProcessor implements R2RConstant
 //						?c <http://www.w3.org/2000/01/rdf-schema#label> "MarengoList"^^<http://www.w3.org/2001/XMLSchema#string>}				}
 //				}
 				store.startTransaction();
-				store.execute(String.format(DELETE_PRIOR_PROCESS, getResearcherURI(), getCrawler().getName()));
+				store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, getResearcherURI(), getCrawler().getName()));
 				store.update(researcher);
 				store.endTransaction();
 				return OutputType.PROCESSED;

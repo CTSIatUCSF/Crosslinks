@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink.sitereader;
+package edu.ucsf.crosslink.io.http;
 
 import org.jsoup.nodes.Element;
 

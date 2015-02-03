@@ -19,6 +19,7 @@ import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
 
 import edu.ucsf.crosslink.io.SparqlPersistance;
+import edu.ucsf.crosslink.io.http.DOI2PMIDConverter;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.crosslink.processor.BasicResearcherProcessor;
 import edu.ucsf.crosslink.processor.ResearcherProcessor;
@@ -60,8 +61,6 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	private static final String REMOVE_EXISTING_PUBLICATIONS = "DELETE {<%1$s> <" + FOAF_PUBLICATIONS + 
 			"> ?i } WHERE " + "{  <%1$s> <" + FOAF_PUBLICATIONS + "> ?i }";	
 	
-	private static final String DOI_TO_PMID = "SELECT ?pmid WHERE { ?pmid <http://www.w3.org/2002/07/owl#sameAs> <%s> }";
-	
 	private static final int LIMIT = 0;
 
 	private static final String MARENGO_PREFIX = "http://marengo.info-science.uiowa.edu:2020/resource/";
@@ -69,21 +68,21 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	private Integer daysConsideredOld;
 
 	private SparqlQueryClient marengoSparqlClient = null;
-	private SparqlQueryClient doiSparqlClient = null;
 	private SparqlPersistance store = null;
 	private ProcessorController processorController = null;
+	private DOI2PMIDConverter converter = null;
 
 	private String[] uriAvoids = null;
 	
 	// remove harvester as required item
 	@Inject
-	public MarengoDetailProcessor(@Named("r2r.fusekiUrl") String sparqlQuery, SparqlPersistance store,
+	public MarengoDetailProcessor(@Named("r2r.fusekiUrl") String sparqlQuery, SparqlPersistance store, DOI2PMIDConverter converter,
 			@Named("daysConsideredOld") Integer daysConsideredOld, @Named("avoids") String avoids) throws Exception {
 		super(new SparqlQueryClient(sparqlQuery + "/query"), LIMIT);
 		this.marengoSparqlClient = new SparqlQueryClient("http://marengo.info-science.uiowa.edu:2020/sparql", 600000, 600000);
-		this.doiSparqlClient = new SparqlQueryClient("http://www.pmid2doi.org/sparql", 60000, 60000);
 		this.daysConsideredOld = daysConsideredOld;
 		this.store = store;
+		this.converter = converter;
 		this.uriAvoids = avoids != null ? avoids.split(",") : new String[]{};
 	}
 	
@@ -172,16 +171,17 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 						// as well as a regular doi
 						String doi = qs.getLiteral("?doi").getString();
 						if (Jsoup.isValid(doi, Whitelist.basic())) {
+							doi = Jsoup.parseBodyFragment(doi).text();
 							// see if it can be resolved to a PMID uri
-							String doiUri = DOI_PREFIX + Jsoup.parseBodyFragment(doi).text();
+							String doiUri = DOI_PREFIX + doi;
+							String pmidUri = null;
 							try {
-								String pmidUri = getPMIDUriFromDOIUri(doiUri);
-								publication.append(pmidUri != null ? pmidUri : doiUri);							
+								pmidUri = "http:" + ResearcherProcessor.PUBMED_SECTION + converter.getPMIDFromDOI(doi);
 							}
 							catch (Exception e) {
 								LOG.log(Level.WARNING, "Error converting doi : " + doi + " to PMID", e);
-								// just bail, no need to rethrow
 							}
+							publication.append(pmidUri != null ? pmidUri: doiUri);							
 						}
 						else {
 							LOG.log(Level.WARNING, "Invalid DOI : " + doi);
@@ -194,25 +194,6 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 		return publication.length() > 0 ? publication.toString() : null;
 	}
 	
-	@Cached
-	public String getPMIDUriFromDOIUri(String doiUri) throws Exception {
-		final StringBuilder publication = new StringBuilder();
-		
-		doiSparqlClient.select(String.format(DOI_TO_PMID, doiUri), new ResultSetConsumer() {
-			public void useResultSet(ResultSet rs) {				
-				if (rs.hasNext()) {				
-					QuerySolution qs = rs.next();
-					if (qs.get("?pmid") != null) {
-						publication.append(qs.getResource("?pmid").getURI());
-					}
-					LOG.info("Publication " + publication);
-				}	
-			}
-		});
-		return publication.length() > 0 ? publication.toString() : null;		
-	}
-	
-
 	@Override
 	protected ResearcherProcessor getResearcherProcessor(QuerySolution qs) {
 		return new MarengoDetailResearcherProcessor(qs.getResource("?r").getURI(),
@@ -245,6 +226,7 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 				readResearcherDetails(researcher);
 				store.startTransaction();
 				store.execute(Arrays.asList(String.format(REMOVE_EXISTING_PUBLICATIONS, getResearcherURI())));
+				store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, getResearcherURI(), getCrawler().getName()));
 				store.update(researcher);
 				store.endTransaction();
 				return OutputType.PROCESSED;

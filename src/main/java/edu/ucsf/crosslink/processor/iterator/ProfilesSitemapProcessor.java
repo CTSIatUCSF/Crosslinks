@@ -17,16 +17,21 @@ import net.sourceforge.sitemaps.SitemapParser;
 import net.sourceforge.sitemaps.SitemapUrl;
 
 import com.google.inject.Inject;
+import com.hp.hpl.jena.rdf.model.Model;
+import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.util.FileManager;
 
 import edu.ucsf.crosslink.io.SparqlPersistance;
+import edu.ucsf.crosslink.io.http.SiteReader;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.crosslink.processor.ResearcherProcessor;
 import edu.ucsf.crosslink.processor.controller.ProcessorController;
 import edu.ucsf.crosslink.processor.controller.TypedOutputStats.OutputType;
-import edu.ucsf.crosslink.sitereader.SiteReader;
+import edu.ucsf.ctsi.r2r.R2RConstants;
 
-public class ProfilesSitemapProcessor implements Iterable<ResearcherProcessor> {
+public class ProfilesSitemapProcessor implements Iterable<ResearcherProcessor>, R2RConstants {
 
 	private static final Logger LOG = Logger.getLogger(ProfilesSitemapProcessor.class.getName());
 
@@ -113,7 +118,19 @@ public class ProfilesSitemapProcessor implements Iterable<ResearcherProcessor> {
 			if (processorController != null) {
 				researcher.crawledBy(processorController);
 			}
-			// TODO hunt down old code for figuring out a persons name
+
+			// read the RDF for FOAF information
+			Model model = FileManager.get().loadModel(rdfUrl);
+			Resource resource = model.createResource(researcherURI);
+			Statement label = resource.getProperty(model.createProperty(RDFS_LABEL));
+			Statement firstName = resource.getProperty(model.createProperty(FOAF_FIRST_NAME));
+			Statement lastName = resource.getProperty(model.createProperty(FOAF_LAST_NAME));
+			if (firstName == null) {
+				//not a person
+				return OutputType.AVOIDED;
+			}
+			researcher.setLabel(label.getString());
+			researcher.setFOAFName(firstName.getString(), lastName.getString());
 
 	    	Elements links = doc.select("a[href]");	
 		    for (Element link : links) {
@@ -126,6 +143,7 @@ public class ProfilesSitemapProcessor implements Iterable<ResearcherProcessor> {
 		    		researcher.setOrcidId(orcidId);
 		    	}
 	        }
+			store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, researcherURI, processorController.getName()));
 			store.update(researcher);
 			return OutputType.PROCESSED;
 		}

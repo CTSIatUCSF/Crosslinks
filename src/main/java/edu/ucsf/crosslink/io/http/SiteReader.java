@@ -1,4 +1,4 @@
-package edu.ucsf.crosslink.sitereader;
+package edu.ucsf.crosslink.io.http;
 
 import java.io.IOException;
 import java.net.MalformedURLException;

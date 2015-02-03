@@ -37,7 +37,7 @@ public class ProcessorModule extends AbstractModule {
 		
 		try {
 			bind(new TypeLiteral<Iterable<ResearcherProcessor>>(){}).to((Class<? extends Iterable<ResearcherProcessor>>)Class.forName(prop.getProperty("class"))).asEagerSingleton();
-			bind(ProcessorController.class).asEagerSingleton();;
+			bind(ProcessorController.class).asEagerSingleton();			
 		} 
 		catch (ClassNotFoundException e) {
 			addError(e);

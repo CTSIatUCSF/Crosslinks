@@ -1,6 +1,5 @@
 package edu.ucsf.crosslink.job.quartz;
 
-import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -12,7 +11,6 @@ import org.quartz.spi.JobFactory;
 import org.quartz.spi.TriggerFiredBundle;
 
 import com.google.inject.Inject;
-import com.google.inject.Injector;
 
 import edu.ucsf.crosslink.processor.controller.ProcessorControllerFactory;
 
@@ -20,12 +18,10 @@ public class GuiceJobFactory implements JobFactory {
 
 	private static final Logger LOG = Logger.getLogger(GuiceJobFactory.class.getName());
 
-	private final Injector guice;
 	private final ProcessorControllerFactory processorControllerFactory;
 
 	@Inject
-	public GuiceJobFactory(Injector guice, ProcessorControllerFactory processorControllerFactory) {
-		this.guice = guice;
+	public GuiceJobFactory(ProcessorControllerFactory processorControllerFactory) {
 		this.processorControllerFactory = processorControllerFactory;
 	}
 	
@@ -33,17 +29,12 @@ public class GuiceJobFactory implements JobFactory {
 			throws SchedulerException {
 		JobDetail jobDetail = bundle.getJobDetail();
 		String jobName = jobDetail.getKey().getName();
-		if (Quartz.META_JOB.equals(jobName)) {
-			return guice.getInstance(MetaProcessorControllerJob.class);
-		}
-		else {
-			try {
-				return processorControllerFactory.getInjector(jobName).getInstance(ProcessorControllerJob.class);
-			} 
-			catch (Exception e) {
-				LOG.log(Level.SEVERE, e.getMessage(), e);
-				throw new SchedulerException(e);
-			}
+		try {
+			return processorControllerFactory.getInjector(jobName).getInstance(ProcessorControllerJob.class);
+		} 
+		catch (Exception e) {
+			LOG.log(Level.SEVERE, e.getMessage(), e);
+			throw new SchedulerException(e);
 		}
 	}
 }

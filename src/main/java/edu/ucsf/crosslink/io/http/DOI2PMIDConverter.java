@@ -2,7 +2,10 @@ package edu.ucsf.crosslink.io.http;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -46,6 +49,7 @@ public class DOI2PMIDConverter {
 	public static void main(String[] args) {
 		try {
 			DOI2PMIDConverter c = new DOI2PMIDConverter();
+			System.out.println(new URI("http://dx.doi.org/10.1653/0015-4040(2008)91{[}311:EPOCWI]2.0.CO;2"));
 			System.out.println(c.getPMIDFromDOI("10.1093/nar/gks1195"));
 			System.out.println(c.getPMIDFromDOI("foo/bar"));
 		}

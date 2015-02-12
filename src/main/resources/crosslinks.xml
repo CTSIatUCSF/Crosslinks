@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Crosslinks>
 	<r2r.fusekiUrl>http://localhost:3030/crosslinks</r2r.fusekiUrl> 
-	<uiFusekiUrl>http://localhost:3031/crosslinksui</uiFusekiUrl> 
+	<uiFusekiUrl>http://localhost:3030/crosslinks</uiFusekiUrl> 
+	<!--uiFusekiUrl>http://localhost:3031/crosslinksui</uiFusekiUrl--> 
 
-	<!-- comma separated list of emails with NO white space, or leave blank to let anyone in -->
-	<!-- administrators = eric.meeks@ucsf.edu -->
+	<!-- comma separated list of eppn with NO white space, or leave blank to let anyone in -->
+	<!-- administrators = 569307@ucsf.edu -->
 	<administrators></administrators> 
 
 	<thumbnailDir>C:\\Users\\meekse\\Development\\Eclipse\\workspace\\data\\Crosslinks\\thumbnails</thumbnailDir> 
@@ -17,13 +18,8 @@
 	<getDocumentTimeout>15000</getDocumentTimeout>
 	<getDocumentSleep>1000</getDocumentSleep>
 	
-	<!--  ProcessorController items, options are quartz, executor or leave blank to not crawl -->
-	<execution>quartz</execution>
-	<!--  controllerThreads determines how many controllers will be active at any given time -->
-	<controllerThreads>2</controllerThreads>
-	
 	<!--  crawler quartz items -->
-	<!--  how often to run in seconds, how many to run at once, when to start and when to stop, how long an affiliation is considered stale in days -->
+	<!--  how often to read the crosslinks.xml file for changes -->
 	<scanInterval>60</scanInterval>
 	<!--  how many days to wait between successful crawls -->
 	<staleDays>3</staleDays>
@@ -36,14 +32,14 @@
 	
 	<!--   Standard quartz items -->
 	<org.quartz.scheduler.instanceName>AffiliationCrawlers</org.quartz.scheduler.instanceName>
-	<org.quartz.threadPool.threadCount>2</org.quartz.threadPool.threadCount>
+	<org.quartz.threadPool.threadCount>4</org.quartz.threadPool.threadCount>
 	<org.quartz.jobStore.class>org.quartz.simpl.RAMJobStore</org.quartz.jobStore.class>
 	
 	<Processors>
 	   <!--  Processors defined in this section do not need an affiliation object -->
 	   <Defaults>
 	   	<!--  Mode can be DISABLED, FORCED or ENABLED.  Enabled is default -->
-	      <executionMode>ENABLED</executionMode>
+	      <executionMode>DISABLED</executionMode>
 	      <!--  How many threads to use in the executor pool, pass in -1 to not use a pool and 
 	      instead run in process -->
 	      <threadCount>1</threadCount>

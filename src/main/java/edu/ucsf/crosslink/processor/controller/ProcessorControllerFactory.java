@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerConfigurationException;
@@ -34,19 +35,20 @@ public class ProcessorControllerFactory {
 	@Inject
 	public ProcessorControllerFactory(final Injector guice) throws XPathExpressionException, TransformerConfigurationException, SAXException, IOException, ParserConfigurationException {
 		this.guice = guice;		
-		loadCrawlers();
 	}
 
-	private void loadCrawlers() throws XPathExpressionException, TransformerConfigurationException, SAXException, IOException, ParserConfigurationException {
+	public void loadCrawlers(Set<String> scheduledJobs, Set<String> executingJobs) throws XPathExpressionException, TransformerConfigurationException, SAXException, IOException, ParserConfigurationException {
 		// first load the ones that do not need an affiliation
 		CrosslinksXMLConfiguration config = new CrosslinksXMLConfiguration();
 		for (Node n : config.getDefaultedNodes("//Crosslinks/Processors")) {
 			Properties prop = config.getChildrenAsProperties(n);
-			
 			Injector injector = guice.createChildInjector(new PropertiesModule(prop), new ProcessorModule(prop));
 			ProcessorController processorController = injector.getInstance(ProcessorController.class);
-			injectors.put(processorController.getName(), injector);		
-			processorControllers.put(processorController.getName(), processorController);							
+			// don't add ones that are currently running
+			if (!executingJobs.contains(processorController.getName())) {
+				injectors.put(processorController.getName(), injector);		
+				processorControllers.put(processorController.getName(), processorController);
+			}
 		}
 
 		// now load the ones that do need an affiliation
@@ -61,8 +63,11 @@ public class ProcessorControllerFactory {
 				Injector injector = guice.createChildInjector(new PropertiesModule(affiliationProps), 
 						new ProcessorModule(processorProps));
 				ProcessorController processorController = injector.getInstance(ProcessorController.class);
-				injectors.put(processorController.getName(), injector);		
-				processorControllers.put(processorController.getName(), processorController);							
+				// don't add ones that are currently running
+				if (!executingJobs.contains(processorController.getName())) {
+					injectors.put(processorController.getName(), injector);		
+					processorControllers.put(processorController.getName(), processorController);
+				}
 			}			
 		}
 	}

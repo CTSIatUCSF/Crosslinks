@@ -25,8 +25,12 @@ SELECT * where {?r <http://ucsf.edu/ontology/r2r#hasAffiliation>
 FILTER ((LCASE(?efn) = LCASE(?fn)) || (STRLEN(?efn) = 1 && 
 STRSTARTS(LCASE(?fn), LCASE(?efn))) || (STRLEN(?fn) = 1 && STRSTARTS(LCASE(?efn), LCASE(?fn)))) }
 
+--- rename thumbnail location
+WITH <http://ucsf.edu/ontology/r2r#DerivedData>
 DELETE {?r <http://xmlns.com/foaf/0.1/img> ?i} 
 INSERT {?r <http://xmlns.com/foaf/0.1/img> ?ni}
 WHERE 
 {?r <http://xmlns.com/foaf/0.1/img> ?i BIND(URI(REPLACE(STR(?i), "stage-r2r", "profiles")) AS ?ni)}
+
+
 

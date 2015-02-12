@@ -25,7 +25,6 @@ public class QuartzModule extends AbstractModule {
 		bind(ProcessorControllerFactory.class).asEagerSingleton();
 		
 		bind(Integer.class).annotatedWith(Names.named("scanInterval")).toInstance(Integer.parseInt(prop.getProperty("scanInterval")));
-		bind(Integer.class).annotatedWith(Names.named("controllerThreads")).toInstance(Integer.parseInt(prop.getProperty("controllerThreads")));
 
 		try {
 			bind(SchedulerFactory.class).toInstance(new StdSchedulerFactory(prop));

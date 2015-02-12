@@ -25,7 +25,7 @@ import com.hp.hpl.jena.query.ResultSet;
 import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.sun.jersey.api.view.Viewable;
 
-import edu.ucsf.crosslink.job.quartz.MetaProcessorControllerJob;
+import edu.ucsf.crosslink.job.quartz.Quartz;
 import edu.ucsf.crosslink.model.Affiliated;
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
@@ -35,7 +35,6 @@ import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.jena.JsonLDService;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
-import edu.ucsf.ctsi.r2r.jena.SparqlUpdateClient;
 
 /**
  * Root resource (exposed at "list" path)
@@ -135,7 +134,7 @@ public class FusekiRestMethods implements R2RConstants {
 		// sort them so that the active ones show up at the top
 		Collections.sort(processorControllers);
 		request.setAttribute("crawlers", processorControllers);
-		request.setAttribute("metaHistory", MetaProcessorControllerJob.getMetaControllerHistory());
+		request.setAttribute("metaHistory", Quartz.getMetaControllerHistory());
 		return new Viewable("/jsps/status.jsp", null);
 	}
 

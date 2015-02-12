@@ -1,5 +1,6 @@
 package edu.ucsf.crosslink.processor.iterator;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -181,7 +182,9 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 							catch (Exception e) {
 								LOG.log(Level.WARNING, "Error converting doi : " + doi + " to PMID", e);
 							}
-							publication.append(pmidUri != null ? pmidUri: doiUri);							
+							// make sure it is a valid URI, whatever it is at this point
+							URI pubUri = new URI(pmidUri != null ? pmidUri: doiUri);
+							publication.append(pubUri.toString());							
 						}
 						else {
 							LOG.log(Level.WARNING, "Invalid DOI : " + doi);

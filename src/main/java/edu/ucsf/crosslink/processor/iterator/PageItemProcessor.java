@@ -92,7 +92,6 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 		this.store = store;
 		this.thumbnailGenerator = thumbnailGenerator;
 		this.daysConsideredOld = daysConsideredOld;
-		store.save(affiliation);	
 	}
 	
 	@Inject
@@ -127,7 +126,6 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 	private class PageItemResearcherProcessor extends BasicResearcherProcessor {
 		
 		private Calendar workVerifiedDT = null;
-		private Researcher researcher = null;
 		private String message = null;
 		
 		private PageItemResearcherProcessor(String researcherURI, Calendar workVerifiedDT) {
@@ -135,7 +133,7 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 			this.workVerifiedDT = workVerifiedDT;
 		}
 
-		private boolean generateThumbnail() {
+		private boolean generateThumbnail(Researcher researcher) {
 			return thumbnailGenerator != null ? thumbnailGenerator.generateThumbnail(researcher) : false;
 		}
 		
@@ -156,7 +154,7 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 				return OutputType.SKIPPED;
 			}
 			else {
-				researcher = createResearcher();
+				Researcher researcher = createResearcher();
 				researcher.setAffiliation(affiliation);
 
 				try {
@@ -176,7 +174,7 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 				List<String> preStatements = new ArrayList<String>();
 				preStatements.addAll(Arrays.asList(String.format(REMOVE_DERIVED_DATA, getResearcherURI()), 
 						String.format(ADD_COAUTHORS, getResearcherURI())));
-				if (generateThumbnail()) {
+				if (generateThumbnail(researcher)) {
 					// just drop the triple, not the image or thumbnail
 					preStatements.addAll(Arrays.asList(String.format(REMOVE_EXISTING_IMAGES, getResearcherURI()), 
 						String.format(ADD_THUMBNAIL, getResearcherURI(), researcher.getThumbnailURL())));

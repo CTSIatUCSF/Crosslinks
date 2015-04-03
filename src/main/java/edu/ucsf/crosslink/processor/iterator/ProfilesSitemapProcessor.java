@@ -46,7 +46,6 @@ public class ProfilesSitemapProcessor implements Iterable<ResearcherProcessor>, 
 		this.affiliation = affiliation;
 		this.siteReader = siteReader;
 		this.store = store;
-		store.save(affiliation);	
 	}
 
 	public Iterator<ResearcherProcessor> iterator() {

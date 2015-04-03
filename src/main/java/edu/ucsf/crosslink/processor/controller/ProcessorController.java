@@ -66,6 +66,7 @@ public final class ProcessorController extends R2RResourceObject implements Runn
 	private Thread crawlingThread = null;
 	private ExecutorService executorService = null;
 	private Future<Boolean> currentJob = null;
+	private int threadCount = 0;
 	
 	@Inject
 	public ProcessorController(@Named("crawlerName") String name, Mode mode, SparqlPersistance store, 
@@ -77,11 +78,13 @@ public final class ProcessorController extends R2RResourceObject implements Runn
 		this.researcherIterable = researcherIterable;
 		store.update(this);
 		executorQueue = new ArrayBlockingQueue<Runnable>(MAX_QUEUE_SIZE, true);
-		if (threadCount >= 0) {
-			executorService = new ThreadPoolExecutor(threadCount, threadCount,
-                    5000L, TimeUnit.MILLISECONDS, executorQueue, new ThreadPoolExecutor.CallerRunsPolicy());
-		}
+		this.threadCount = threadCount;
 		clear();
+	}
+	
+	private ExecutorService getNewExecutorService() {
+		return threadCount >= 0 ? new ThreadPoolExecutor(threadCount, threadCount,
+                    5000L, TimeUnit.MILLISECONDS, executorQueue, new ThreadPoolExecutor.CallerRunsPolicy()) : null;
 	}
 	
 	@Inject
@@ -113,7 +116,7 @@ public final class ProcessorController extends R2RResourceObject implements Runn
 		return !Arrays.asList(Status.PAUSED, Status.ERROR).contains(getStatus());
 	}
 	
-	private boolean isForced() {
+	public boolean isForced() {
 		return Arrays.asList(Mode.FORCED_NO_SKIP, Mode.FORCED).contains(getMode());		
 	}
 	
@@ -143,7 +146,7 @@ public final class ProcessorController extends R2RResourceObject implements Runn
 	}
 
 	// called from the UI
-	public void setMode(Mode mode) throws Exception {
+	private void setMode(Mode mode) throws Exception {
 		this.mode = mode;
 	}
 
@@ -253,6 +256,7 @@ public final class ProcessorController extends R2RResourceObject implements Runn
 		for (OutputType type : OutputType.values()) {
 			stats.put(type, new TypedOutputStats(type, 100));
 		}
+		executorService = getNewExecutorService();
 	}
 
 	// TODO use in memory ended if that will work

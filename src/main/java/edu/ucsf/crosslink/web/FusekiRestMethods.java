@@ -44,15 +44,15 @@ public class FusekiRestMethods implements R2RConstants {
 
 	private static final Logger LOG = Logger.getLogger(FusekiRestMethods.class.getName());
 	
-	private static final String ALL_AFFILIATIONS_SPARQL = "SELECT ?l ?a ?lat ?lon (count(?r) as ?rc) WHERE { ?a <" +
-			RDF_TYPE + "> <" + R2R_AFFILIATION + "> . ?a <" + RDFS_LABEL +  "> ?l . ?a <" + 
-			GEO_LATITUDE + "> ?lat . ?a <" + GEO_LONGITUDE + "> ?lon. OPTIONAL {?r <" +
-			R2R_HAS_AFFILIATION + "> ?a} } GROUP BY ?l ?a ?lat ?lon";
+	private static final String ALL_AFFILIATIONS_SPARQL = "SELECT ?l ?a ?icon ?lat ?lon (count(?r) as ?rc) WHERE { ?a <" +
+			RDF_TYPE + "> <" + R2R_AFFILIATION + "> . ?a <" + RDFS_LABEL +  "> ?l . OPTIONAL {?a <" + R2R_HAS_ICON + "> ?icon} . OPTIONAL {?a <" + 
+			GEO_LATITUDE + "> ?lat . ?a <" + GEO_LONGITUDE + "> ?lon} . OPTIONAL {?r <" +
+			R2R_HAS_AFFILIATION + "> ?a} } GROUP BY ?l ?a ?icon ?lat ?lon ORDER BY ?l";
 
-	private static final String AFFILIATION_SPARQL = "SELECT ?a ?lat ?lon (count(distinct(?r)) as ?rc) (count(distinct(?p)) as ?pc) WHERE { ?a <" +
-			RDF_TYPE + "> <" + R2R_AFFILIATION + "> . ?a <" + RDFS_LABEL +  "> ?l . FILTER (?l = \"%s\") . ?a <" + 
-			GEO_LATITUDE + "> ?lat . ?a <" + GEO_LONGITUDE + "> ?lon . OPTIONAL {?r <" +
-			R2R_HAS_AFFILIATION + "> ?a} . OPTIONAL {?r <" + FOAF_PUBLICATIONS + "> ?p}} GROUP BY ?a ?lat ?lon";
+	private static final String AFFILIATION_SPARQL = "SELECT ?a ?icon ?lat ?lon (count(distinct(?r)) as ?rc) (count(distinct(?p)) as ?pc) WHERE { ?a <" +
+			RDF_TYPE + "> <" + R2R_AFFILIATION + "> . ?a <" + RDFS_LABEL +  "> ?l . FILTER (?l = \"%s\") . OPTIONAL {?a <" + R2R_HAS_ICON + "> ?icon} . OPTIONAL {?a <" + 
+			GEO_LATITUDE + "> ?lat . ?a <" + GEO_LONGITUDE + "> ?lon} . OPTIONAL {?r <" +
+			R2R_HAS_AFFILIATION + "> ?a . OPTIONAL {?r <" + FOAF_PUBLICATIONS + "> ?p} } } GROUP BY ?a ?icon ?lat ?lon";
 	
 //	private static final String RESEARCHERS_SPARQL_SLOW = "SELECT ?r ?l ?hp ?i ?t (count(distinct ?er) as ?erc) (count(distinct ?cw) as ?cwc) WHERE {?r <" + 
 //			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + RDFS_LABEL + "> ?l . ?r <" + R2R_WORK_VERIFIED_DT + 
@@ -62,7 +62,7 @@ public class FusekiRestMethods implements R2RConstants {
 //			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != <%1$s>)}} GROUP BY ?r ?l ?hp ?i ?t";
 //	
 	private static final String RESEARCHERS_SPARQL = "SELECT DISTINCT ?r ?l ?hp ?i ?erc ?cwc WHERE {?r <" + 
-			R2R_HAS_AFFILIATION + "> <%1$s>  . ?r <" + RDFS_LABEL + "> ?l . OPTIONAL {?r <" + 
+			R2R_HAS_AFFILIATION + "> <%1$s>  . OPTIONAL {?r <" + RDFS_LABEL + "> ?l} . OPTIONAL {?r <" + 
 			FOAF_HOMEPAGE +	"> ?hp } . OPTIONAL { GRAPH <" + 
 			R2R_DERIVED_GRAPH +	"> {?r <" + FOAF_HAS_IMAGE +"> ?i}} . OPTIONAL { GRAPH <" + 
 			R2R_DERIVED_GRAPH + "> {?r <" + R2R_EXTERNAL_COAUTHOR_CNT + "> ?erc}} . OPTIONAL { GRAPH <" + 
@@ -71,17 +71,18 @@ public class FusekiRestMethods implements R2RConstants {
 	private static final String COAUTHORS_WHERE = "WHERE {<%1$s> <" + R2R_HAS_AFFILIATION + "> ?a . <%1$s> <" +
 			FOAF_PUBLICATIONS + "> ?cw  . ?r <" + FOAF_PUBLICATIONS + "> ?cw  . ?r <" + RDFS_LABEL + 
 			"> ?rl . OPTIONAL {?r <" + FOAF_HOMEPAGE + "> ?hp } . OPTIONAL {?r <" + FOAF_HAS_IMAGE + "> ?tn} . ?r <" + 
-			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + 
-			RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + "> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
+			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + RDFS_LABEL + 
+			"> ?al . OPTIONAL {?ea <" + R2R_HAS_ICON + "> ?eaicon} . ?ea <" + GEO_LATITUDE + "> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
 			
 	private static final String COAUTHORS_SELECT = "SELECT (?r as ?researcherURI) (?hp as ?researcherHomePage) (?rl as ?researcherLabel) (?cw as ?contributedWork) (?tn as ?thumbnail) " +
-			"(?ea as ?researchNetworkingSite) (?al as ?affiliation) (?ealat as ?lat) (?ealon as ?lon) " + COAUTHORS_WHERE;
+			"(?ea as ?researchNetworkingSite) (?al as ?affiliation) (?eaicon as ?icon) (?ealat as ?lat) (?ealon as ?lon) " + COAUTHORS_WHERE;
 	
 	private static final String COAUTHORS_EXTRACT_WHERE = "WHERE {<%1$s> <" + R2R_HAS_AFFILIATION + "> ?a . <%1$s> <" +
 			FOAF_PUBLICATIONS + "> ?cw  . ?r <" + FOAF_PUBLICATIONS + "> ?cw  . ?r <" + RDFS_LABEL + 
 			"> ?rl . OPTIONAL {?r <" + FOAF_HOMEPAGE + "> ?hp } . OPTIONAL { GRAPH <" + R2R_DERIVED_GRAPH + 
 			"> { ?r <" + FOAF_HAS_IMAGE + "> ?tn} } . ?r <" + R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + 
-			RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + "> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
+			RDFS_LABEL + "> ?al . OPTIONAL {?ea <" + R2R_HAS_ICON + "> ?eaicon} . ?ea <" + GEO_LATITUDE + 
+			"> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
 
 	public static final String COAUTHORS_EXTRACT_CONSTRUCT = "CONSTRUCT {?r <" + RDF_TYPE + "> <" + FOAF_PERSON + 
 			"> . ?r <" + FOAF_PUBLICATIONS + "> ?cw . ?r <" +
@@ -90,8 +91,8 @@ public class FusekiRestMethods implements R2RConstants {
 
 	private static final String COAUTHORS_CONSTRUCT = "CONSTRUCT {?r <" + FOAF_PUBLICATIONS + "> ?cw . ?r <" +
 			RDFS_LABEL + "> ?rl . ?r <" + FOAF_HOMEPAGE + "> ?hp . ?r <" + FOAF_HAS_IMAGE + "> ?tn . ?r  <" +
-			R2R_HAS_AFFILIATION + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . ?ea <" + GEO_LATITUDE + 
-			"> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon} " + COAUTHORS_WHERE;
+			R2R_HAS_AFFILIATION + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . OPTIONAL {?ea <" + R2R_HAS_ICON + 
+			"> ?eaicon} . ?ea <" + GEO_LATITUDE + "> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon} " + COAUTHORS_WHERE;
 
 	private static final String COAUTHORS_SAMEAS = "SELECT (?r as ?researcherURI) (?fn as ?firstName) " + 
 			"(?ln as ?lastName) (?er as ?otherResearcherURI) (?efn as ?otherReserarcherFirstName) (?ln as ?otherResearcherLastName) " +
@@ -230,7 +231,8 @@ public class FusekiRestMethods implements R2RConstants {
 					Affiliation affiliationObj;
 					try {
 						affiliationObj = new Affiliation(qs.getLiteral("?l").getString(), qs.getResource("?a").getURI(),
-								qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString(),
+								(qs.contains("?icon") ? qs.getResource("?icon").getURI() : null),
+								(qs.contains("?lat") ? qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString() : "0,0"),
 								qs.getLiteral("?rc").getInt(), 0);
 						affiliations.add(affiliationObj);
 					} 
@@ -253,7 +255,8 @@ public class FusekiRestMethods implements R2RConstants {
 					Affiliation affiliationObj;
 					try {
 						affiliationObj = new Affiliation(affiliation, qs.getResource("?a").getURI(),
-								qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString(),
+								(qs.contains("?icon") ? qs.getResource("?icon").getURI() : null),
+								(qs.contains("?lat") ? qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString() : "0,0"),
 								qs.getLiteral("?rc").getInt(), qs.getLiteral("?pc").getInt());
 						affiliations.add(affiliationObj);
 					} 
@@ -276,7 +279,7 @@ public class FusekiRestMethods implements R2RConstants {
 					if (qs.getResource("?r") != null) {
 						try {
 							researchers.add(new Researcher(qs.getResource("?r").getURI(), affiliation,
-													qs.getLiteral("?l").getString(),
+													qs.get("?l") != null ? qs.getLiteral("?l").getString() : qs.getResource("?r").getURI(),
 													qs.get("?hp") != null ? qs.getResource("?hp").getURI(): null,
 													qs.get("?i") != null ? qs.getResource("?i").getURI(): null,
 													qs.get("?t") != null ? qs.getResource("?t").getURI() : null,

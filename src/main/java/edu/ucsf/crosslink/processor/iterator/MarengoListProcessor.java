@@ -1,21 +1,16 @@
 package edu.ucsf.crosslink.processor.iterator;
 
-import java.net.URI;
-import java.util.List;
 import java.util.logging.Logger;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import com.hp.cache4guice.Cached;
 import com.hp.hpl.jena.query.QuerySolution;
 
 import edu.ucsf.crosslink.io.SparqlPersistance;
-import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.Researcher;
 import edu.ucsf.crosslink.processor.BasicResearcherProcessor;
 import edu.ucsf.crosslink.processor.ResearcherProcessor;
 import edu.ucsf.crosslink.processor.controller.TypedOutputStats.OutputType;
-import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 
 public class MarengoListProcessor extends SparqlProcessor {
@@ -52,20 +47,6 @@ public class MarengoListProcessor extends SparqlProcessor {
 				(limit > 0 ? String.format(" OFFSET %d LIMIT %d", offset, limit) : "");
 	}
 
-	private Affiliation getAffiliationFor(URI uri) throws Exception {
-		Affiliation affiliation = store.findAffiliationFor(uri.toString());
-		return affiliation != null ? affiliation : getAffiliation(uri.getScheme(), uri.getHost());		
-	}
-	
-	@Cached
-	public Affiliation getAffiliation(String scheme, String host) throws Exception {
-		Affiliation affiliation = new Affiliation(host, scheme + "://" + host, "0,0");
-		// this really needs to look for an existing one first, but for now this is OK
-		store.save(affiliation);
-		LOG.info("Saved " + affiliation);
-		return affiliation;
-	}
-	
 	@Override
 	protected ResearcherProcessor getResearcherProcessor(QuerySolution qs) {
 		return new MarengoListResearcherProcessor(qs.getResource("?s").getURI(), qs.getLiteral("?r").getString());
@@ -74,10 +55,10 @@ public class MarengoListProcessor extends SparqlProcessor {
 	private class MarengoListResearcherProcessor extends BasicResearcherProcessor {
 		
 		private String marengoURI = null; 
-		private Researcher researcher = null;
+		private String affiliation = null;
 		
 		public String toString() {
-			return super.toString() + (researcher != null ? " from " + researcher.getAffiliation() : "");
+			return super.toString() + (affiliation != null ? " from " + affiliation : "");
 		}
 		
 		private MarengoListResearcherProcessor(String marengoURI, String researcherURI) {
@@ -87,14 +68,16 @@ public class MarengoListProcessor extends SparqlProcessor {
 
 		public OutputType processResearcher() throws Exception {
 			// this should not be necessary
-			if (marengoURI.endsWith("Ext") || getResearcherURI().endsWith("Ext") || getResearcherURI().startsWith("http://vivo.ufl.edu")) {
+			if (marengoURI.endsWith("Ext") || getResearcherURI().endsWith("Ext")) {
 				return OutputType.SKIPPED;
 			}
 			else {
-				researcher = createResearcher();
-				researcher.setAffiliation(getAffiliationFor(new URI(getResearcherURI())));
+				Researcher researcher = createResearcher();
+				researcher.setAffiliation(store.findAffiliationFor(getResearcherURI()));
 				//researcher.setHarvester(MarengoListCrawler.this);
-				
+				// set this now that we know it
+				String affiliation = researcher.getAffiliation().toString();
+						
 				// TODO lame!
 //				if (getCrawler() != null) {
 //					DELETE {<http://msu.vivo.ctr-in.org/individual/n1793366517> <http://ucsf.edu/ontology/r2r#crawledBy> ?c .

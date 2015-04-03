@@ -206,10 +206,10 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	private class MarengoDetailResearcherProcessor extends BasicResearcherProcessor {
 		
 		private Calendar workVerifiedDT = null;
-		Researcher researcher = null;
+		private int publicationCount = -1;
 		
 		public String toString() {
-			return super.toString() + (researcher != null ? " " + researcher.getPublications().size() + " publications" : "");
+			return super.toString() + (publicationCount >= 0 ? " " + publicationCount + " publications" : "");
 		}
 		
 		private MarengoDetailResearcherProcessor(String researcherURI, Calendar workVerifiedDT) {
@@ -225,8 +225,9 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 				return OutputType.AVOIDED;
 			}
 			else {
-				researcher = createResearcher();
+				Researcher researcher = createResearcher();
 				readResearcherDetails(researcher);
+				publicationCount = researcher.getPublications().size();
 				store.startTransaction();
 				store.execute(Arrays.asList(String.format(REMOVE_EXISTING_PUBLICATIONS, getResearcherURI())));
 				store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, getResearcherURI(), getCrawler().getName()));

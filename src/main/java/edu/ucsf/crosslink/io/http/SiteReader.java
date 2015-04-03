@@ -1,6 +1,7 @@
 package edu.ucsf.crosslink.io.http;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
@@ -160,7 +161,31 @@ public class SiteReader implements R2RConstants {
     	return doc;
 	}
 	
-    public static void print(String msg, Object... args) {
+	public String getFavicon(String url) throws IOException, InterruptedException   {
+		try {
+			URL urlObj = new URL(url);		
+			Document doc = getDocument(urlObj.getProtocol() + "://" + urlObj.getHost());
+			if (doc == null) {
+				return null;
+			}
+			for (Element lnk : doc.head().select("link[href~=.*\\.ico]")) {
+				if (lnk.attr("rel").contains("shortcut")) {
+					return lnk.absUrl("href");
+				}
+			}		
+			// worth a try, see if we can open default favico location
+			String favico = urlObj.getProtocol() + "://" + urlObj.getHost() + "/favicon.ico";
+			InputStream is = new URL(favico).openStream();
+			is.close();
+			return favico;
+		}
+		catch (IOException e) {
+			LOG.log(Level.WARNING, "Tried to load default fabico for " + url + " and failed, oh well!", e.getMessage());
+		}
+		return null;
+	}
+
+	public static void print(String msg, Object... args) {
         System.out.println(String.format(msg, args));
     }
 

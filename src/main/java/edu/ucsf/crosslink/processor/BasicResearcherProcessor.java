@@ -7,6 +7,11 @@ import edu.ucsf.crosslink.processor.controller.ProcessorController;
 
 public abstract class BasicResearcherProcessor implements ResearcherProcessor {
 
+	// DO NOT STORE Researcher in this object or it's descendants!!!!!!!!!!!!!!!!!!!!!!!
+	// If you do, will hog up all the memory and get an out of memory exception
+	// Researcher is a Jena Model object, so it is huge.
+	// these objects need to be lightweight because we generate tons of them
+	
 	private String researcherURI = null;
 	private ProcessorController processorController = null;
 	

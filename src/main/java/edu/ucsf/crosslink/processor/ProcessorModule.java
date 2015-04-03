@@ -8,7 +8,6 @@ import com.google.inject.name.Names;
 
 import edu.ucsf.crosslink.job.quartz.ProcessorControllerJob;
 import edu.ucsf.crosslink.processor.controller.ProcessorController;
-import edu.ucsf.crosslink.processor.controller.ProcessorController.Mode;
 
 public class ProcessorModule extends AbstractModule {
 
@@ -24,8 +23,8 @@ public class ProcessorModule extends AbstractModule {
 		// Crawler items
 		// set the name to be based on the researcher processor class name and affiliation name when present
 		String processorClassName = prop.getProperty("class").substring(prop.getProperty("class").lastIndexOf('.') + 1);
-		if (prop.containsKey("Name")) {
-			bind(String.class).annotatedWith(Names.named("crawlerName")).toInstance(prop.getProperty("Name").replaceAll("[^A-Za-z0-9]", "") + "." + processorClassName);
+		if (prop.containsKey("label")) {
+			bind(String.class).annotatedWith(Names.named("crawlerName")).toInstance(prop.getProperty("label").replaceAll("[^A-Za-z0-9]", "") + "." + processorClassName);
 		}
 		else {
 			bind(String.class).annotatedWith(Names.named("crawlerName")).toInstance(processorClassName);

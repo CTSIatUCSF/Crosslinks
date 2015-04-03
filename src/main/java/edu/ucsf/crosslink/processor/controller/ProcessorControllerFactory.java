@@ -5,7 +5,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerConfigurationException;
@@ -21,13 +22,14 @@ import com.google.inject.Singleton;
 
 import edu.ucsf.crosslink.CrosslinksXMLConfiguration;
 import edu.ucsf.crosslink.PropertiesModule;
+import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.processor.ProcessorModule;
 
 @Singleton
 public class ProcessorControllerFactory {
 
-	public static final String AFFILIATION = "AFFILIATION";
-	
+	private static final Logger LOG = Logger.getLogger(ProcessorControllerFactory.class.getName());
+
 	private Injector guice;
 	private Map<String, ProcessorController> processorControllers = new HashMap<String, ProcessorController>();
 	private Map<String, Injector> injectors = new HashMap<String, Injector>(); 
@@ -37,21 +39,11 @@ public class ProcessorControllerFactory {
 		this.guice = guice;		
 	}
 
-	public void loadCrawlers(Set<String> scheduledJobs, Set<String> executingJobs) throws XPathExpressionException, TransformerConfigurationException, SAXException, IOException, ParserConfigurationException {
+	public void loadNewCrawlers() throws XPathExpressionException, TransformerConfigurationException, SAXException, IOException, ParserConfigurationException {
 		// first load the ones that do not need an affiliation
 		CrosslinksXMLConfiguration config = new CrosslinksXMLConfiguration();
-		for (Node n : config.getDefaultedNodes("//Crosslinks/Processors")) {
-			Properties prop = config.getChildrenAsProperties(n);
-			Injector injector = guice.createChildInjector(new PropertiesModule(prop), new ProcessorModule(prop));
-			ProcessorController processorController = injector.getInstance(ProcessorController.class);
-			// don't add ones that are currently running
-			if (!executingJobs.contains(processorController.getName())) {
-				injectors.put(processorController.getName(), injector);		
-				processorControllers.put(processorController.getName(), processorController);
-			}
-		}
 
-		// now load the ones that do need an affiliation
+		// first load the ones that do need an affiliation
 		for (Node n : config.getDefaultedNodes("//Crosslinks/Affiliations")) {
 			Properties affiliationProps = config.getChildrenAsProperties(n);
 			NodeList processors = config.evaluate(n, "*/Processor");
@@ -63,13 +55,31 @@ public class ProcessorControllerFactory {
 				Injector injector = guice.createChildInjector(new PropertiesModule(affiliationProps), 
 						new ProcessorModule(processorProps));
 				ProcessorController processorController = injector.getInstance(ProcessorController.class);
-				// don't add ones that are currently running
-				if (!executingJobs.contains(processorController.getName())) {
+				
+				LOG.info("Loaded controller " + processorController.getName());
+				
+				// don't add ones that are already present
+				if (!processorControllers.containsKey(processorController.getName())) {
 					injectors.put(processorController.getName(), injector);		
 					processorControllers.put(processorController.getName(), processorController);
 				}
 			}			
 		}
+		LOG.info("Loaded all affiliation level process controllers");
+		
+		// now load the others
+		for (Node n : config.getDefaultedNodes("//Crosslinks/Processors")) {
+			Properties prop = config.getChildrenAsProperties(n);
+			Injector injector = guice.createChildInjector(new PropertiesModule(prop), new ProcessorModule(prop));
+			ProcessorController processorController = injector.getInstance(ProcessorController.class);
+			
+			// don't add ones that are already present
+			if (!processorControllers.containsKey(processorController.getName())) {
+				injectors.put(processorController.getName(), injector);		
+				processorControllers.put(processorController.getName(), processorController);
+			}
+		}
+		LOG.info("Loaded all process controllers");
 	}
 	
 	public Collection<ProcessorController> getCrawlers() {

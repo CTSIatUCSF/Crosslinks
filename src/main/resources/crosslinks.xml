@@ -72,7 +72,7 @@
 	         see processors.xml for information about the attributes -->
 	         <Processor>
 	            <class>edu.ucsf.crosslink.processor.iterator.PageItemProcessor</class>
-	            <executionMode>ENABLED</executionMode>
+	            <executionMode>DISABLED</executionMode>
 	            <threadCount>1</threadCount>
 	            <errorsToAbort>5</errorsToAbort>
 	            <pauseOnAbort>60</pauseOnAbort>
@@ -80,162 +80,149 @@
 	      </Processors>
 	   </Defaults>
 	   <Affiliation>
+	      <BaseURL>http://profiles.ucsf.edu</BaseURL>
+	      <label>UCSF</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_California,_San_Francisco</DbpediaURI>
+	   </Affiliation>
+	   <Affiliation>
 	      <BaseURL>http://profiles.viictr.org</BaseURL>
-	      <Name>Baylor</Name>
-	      <Location>31.5520554,-97.1449557</Location>
+	      <label>Baylor</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Baylor_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.brown.edu</BaseURL>
-	      <Name>Brown</Name>
-	      <Location>41.826777,-71.402556</Location>
+	      <label>Brown</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Brown_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://profiles.bu.edu</BaseURL>
-	      <Name>BU</Name>
-	      <Location>42.3505,-71.105399</Location>
+	      <label>BU</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Boston_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.experts.scival.com/chicagowomeninstem</BaseURL>
-	      <Name>Chicago Collaboration For Women In Stem</Name>
+	      <label>Chicago Collaboration For Women In Stem</label>
+	      <icon>http://womeninstem.drupalgardens.com/profiles/gardens/modules/acquia/gardens_misc/images/gardens.ico</icon>
 	      <Location>41.7895545,-87.597941</Location>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.colorado.edu</BaseURL>
-	      <Name>University of Colorado Boulder</Name>
-	      <Location>40.007581,-105.265942</Location>
+	      <label>University of Colorado Boulder</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Colorado_Boulder</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.colpos.mx</BaseURL>
-	      <Name>Colpos</Name>
+	      <label>Colpos</label>
 	      <Location>19.465415,-98.905219</Location>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.cornell.edu</BaseURL>
-	      <Name>Cornell</Name>
-	      <Location>42.4548963,-76.4694009</Location>
+	      <label>Cornell</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Cornell_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.med.cornell.edu</BaseURL>
-	      <Name>Weill Cornell Medical College</Name>
-	      <Location>42.4548963,-76.4694009</Location>
+	      <label>Weill Cornell Medical College</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Weill_Cornell_Medical_College</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://profiles.dartmouth.edu</BaseURL>
-	      <Name>Dartmouth</Name>
-	      <Location>43.704441,-72.288693</Location>
+	      <label>Dartmouth</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Dartmouth_College</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>https://scholars.duke.edu</BaseURL>
-	      <Name>Duke</Name>
-	      <Location>36.0024071,-78.9344783</Location>
-	   </Affiliation>
-	   <Affiliation>
-	      <BaseURL>http://profiles.ucsf.edu</BaseURL>
-	      <Name>UCSF</Name>
-	      <Location>37.763371,-122.4581302</Location>
-	      <Processors>
-	         <Processor>
-	            <class>edu.ucsf.crosslink.processor.iterator.ExtractProcessor</class>
-	            <executionMode>DISABLED</executionMode>
-		        <errorsToAbort>5</errorsToAbort>
-	            <threadCount>-1</threadCount>
-	            <pauseOnAbort>60</pauseOnAbort>
-	         </Processor>
-		  </Processors>         
+	      <label>Duke</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Duke_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://profiles.sc-ctsi.org</BaseURL>
-	      <Name>USC</Name>
-	      <Location>34.0801968,-118.2109442</Location>
+	      <label>USC</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Southern_California</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>https://connects.catalyst.harvard.edu/Profiles</BaseURL>
-	      <Name>Harvard</Name>
-	      <Location>42.3922695,-71.2391152</Location>
+	      <label>Harvard</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Harvard_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://hawaii.vivo.ctr-in.org</BaseURL>
-	      <Name>The University of Hawai'i</Name>
-	      <Location>19.9207622,-156.1349345</Location>
+	      <label>The University of Hawai'i</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Hawaii</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.experts.scival.com/indiana</BaseURL>
-	      <Name>Indiana University</Name>
-	      <Location>39.781656,-86.164952</Location>
+	      <label>Indiana University</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Indiana_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>https://www.icts.uiowa.edu/Loki</BaseURL>
-	      <Name>University of Iowa</Name>
-	      <Location>41.6724910,-91.5689658</Location>
+	      <label>University of Iowa</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Iowa</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://www.findanexpert.unimelb.edu.au</BaseURL>
-	      <Name>University of Melbourne</Name>
-	      <Location>-37.7987091,144.9610523</Location>
+	      <label>University of Melbourne</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Melbourne</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>https://profiles.healthsciencessc.org/profiles</BaseURL>
-	      <Name>MUSC</Name>
-	      <Location>32.7858296,-79.9473213</Location>
+	      <label>MUSC</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Medical_University_of_South_Carolina</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.scholars.northwestern.edu</BaseURL>
-	      <Name>Northwestern University</Name>
-	      <Location>42.0556036,-87.6764299</Location>
+	      <label>Northwestern University</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Northwestern_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://www.experts.scival.com/ohsu</BaseURL>
-	      <Name>Oregon Health &amp; Science University</Name>
-	      <Location>45.523697,-122.875773</Location>
+	      <label>Oregon Health &amp; Science University</label>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>https://profiles.psu.edu/profiles</BaseURL>
-	      <Name>PennState</Name>
-	      <Location>40.8074327,-77.8463540</Location>
+	      <label>PennState</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Pennsylvania_State_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.scripps.edu</BaseURL>
-	      <Name>SCRIPPS</Name>
+	      <label>SCRIPPS</label>
 	      <Location>32.8957125,-117.2399184</Location>
+	      <DbpediaURI>http://dbpedia.org/resource/Scripps_Research_Institute</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>https://med.stanford.edu/profiles</BaseURL>
-	      <Name>Stanford</Name>
-	      <Location>37.4282632,-122.1712400</Location>
+	      <label>Stanford</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Stanford_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://reach.suny.edu</BaseURL>
-	      <Name>SUNY</Name>
-	      <Location>40.7543504,-73.9909572</Location>
+	      <label>SUNY</label>
+	      <DbpediaURI>http://dbpedia.org/resource/State_University_of_New_York</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.library.tamu.edu</BaseURL>
-	      <Name>Texas A&amp;M University</Name>
-	      <Location>30.6085519,-96.3531441</Location>
+	      <label>Texas A&amp;M University</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Texas_A&amp;M_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.experts.scival.com/ucdavis</BaseURL>
-	      <Name>UC Davis</Name>
-	      <Location>38.5379091,-121.755919</Location>
+	      <label>UC Davis</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_California,_Davis</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>https://profiles.ucdenver.edu</BaseURL>
-	      <Name>UC Denver</Name>
-	      <Location>39.7440350,-105.0057466</Location>
+	      <label>UC Denver</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Colorado_Denver</DbpediaURI>
 	   </Affiliation>
-	   <!-- Affiliation>
-	      <BaseURL>http://stage-profiles.ucsd.edu</BaseURL>
-	      <Name>UCSD</Name>
-	      <Location>32.7542653,-117.1651532</Location>
-	   </Affiliation-->
 	   <Affiliation>
 	      <BaseURL>http://profiles.ucsd.edu</BaseURL>
-	      <Name>UCSD</Name>
-	      <Location>32.7542653,-117.1651532</Location>
+	      <label>UCSD</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_California,_San_Diego</DbpediaURI>
 	      <Processors>
 	         <Processor>
 		        <class>edu.ucsf.crosslink.processor.iterator.ProfilesSitemapProcessor</class>
-	            <executionMode>ENABLED</executionMode>
+	            <executionMode>DISABLED</executionMode>
 		        <errorsToAbort>5</errorsToAbort>
 	            <threadCount>-1</threadCount>
 	            <pauseOnAbort>60</pauseOnAbort>
@@ -243,68 +230,59 @@
 		</Processors>
 	   </Affiliation>
 	   <Affiliation>
-	      <BaseURL>http://profiles.ucsf.edu</BaseURL>
-	      <Name>UCSF</Name>
-	      <Location>37.763371,-122.4581302</Location>
-	   </Affiliation>
-	   <Affiliation>
 	      <BaseURL>http://vivo.ufl.edu</BaseURL>
-	      <Name>University of Florida</Name>
-	      <Location>29.6455038,-82.3560346</Location>
+	      <label>University of Florida</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Florida</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://profiles.uky.edu/profiles</BaseURL>
-	      <Name>University of Kentucky</Name>
-	      <Location>38.0313112,-84.5036755</Location>
+	      <label>University of Kentucky</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Kentucky</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://profiles.umassmed.edu/Profiles</BaseURL>
-	      <Name>UMass</Name>
-	      <Location>42.3832387,-72.5301738</Location>
+	      <label>UMass</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Massachusetts</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.experts.scival.com/umn</BaseURL>
-	      <Name>University of Minnesota</Name>
-	      <Location>44.9715565,-93.2152401</Location>
+	      <label>University of Minnesota</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Minnesota</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.unl.edu/vivo</BaseURL>
-	      <Name>University of Nebraska-Lincoln</Name>
+	      <label>University of Nebraska-Lincoln</label>
 	      <Location>40.8214873,-96.7000655</Location>
+	      <!-- DbpediaURI>http://dbpedia.org/resource/University_of_Nebraska–Lincoln</DbpediaURI-->
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.upenn.edu</BaseURL>
-	      <Name>University of Pennsylvania</Name>
-	      <Location>39.9516054,-75.193764</Location>
+	      <label>University of Pennsylvania</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Pennsylvania</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://www.urmc.rochester.edu/profiles</BaseURL>
-	      <Name>URMC</Name>
-	      <Location>43.1231185,-77.6249056</Location>
-	   </Affiliation>
-	   <Affiliation>
-	      <BaseURL>http://profiles.sc-ctsi.org</BaseURL>
-	      <Name>USC</Name>
-	      <Location>34.0801968,-118.2109442</Location>
+	      <label>URMC</label>
+	      <DbpediaURI>http://dbpedia.org/resource/University_of_Rochester</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://profiles.tsi.wakehealth.edu</BaseURL>
-	      <Name>Wake Forest</Name>
-	      <Location>36.1277903,-80.2669525</Location>
+	      <label>Wake Forest</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Wake_Forest_University</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.wustl.edu</BaseURL>
-	      <Name>Washington University</Name>
-	      <Location>38.6511906,-90.3093748</Location>
+	      <label>Washington University</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Washington_University_in_St._Louis</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://profiles.jefferson.edu</BaseURL>
-	      <Name>Thomas Jefferson University</Name>
-	      <Location>39.948289,-75.1582</Location>
+	      <label>Thomas Jefferson University</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Thomas_Jefferson_University</DbpediaURI>
 	      <Processors>
 	         <Processor>
 		        <class>edu.ucsf.crosslink.processor.iterator.ProfilesSitemapProcessor</class>
-	            <executionMode>ENABLED</executionMode>
+	            <executionMode>DISABLED</executionMode>
 		        <errorsToAbort>5</errorsToAbort>
 	            <threadCount>-1</threadCount>
 	            <pauseOnAbort>60</pauseOnAbort>

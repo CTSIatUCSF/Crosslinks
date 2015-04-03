@@ -55,7 +55,6 @@ public class DeleteProcessor extends SparqlProcessor implements Affiliated, R2RC
 		this.affiliation = affiliation;
 		this.store = store;
 		this.daysConsideredOld = daysConsideredOld;
-		store.save(affiliation);	
 	}
 	
 	@Inject

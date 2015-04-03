@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -14,7 +15,6 @@ import java.util.logging.Logger;
 
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
-import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
@@ -24,7 +24,6 @@ import org.quartz.UnableToInterruptJobException;
 import org.quartz.impl.matchers.GroupMatcher;
 
 import static org.quartz.JobBuilder.newJob;
-import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
 import static org.quartz.TriggerBuilder.newTrigger;
 
 import com.google.inject.Inject;
@@ -45,6 +44,8 @@ public class Quartz implements Runnable, Stoppable {
 	private static int historyMaxSize = 100;
 
 	private ScheduledExecutorService configRefreshExecutors;
+	private ExecutorService forcedExecutors;
+	private Set<String> forcedProcessorControllers = new HashSet<String>();
 	private final Scheduler scheduler;
 	private ProcessorControllerFactory controllerFactory;
 
@@ -66,7 +67,8 @@ public class Quartz implements Runnable, Stoppable {
 		// this thing should only ever need one thread
 		// we run the config refresh outside of quartz so that it won't be blocked
 		configRefreshExecutors = Executors.newSingleThreadScheduledExecutor();
-		configRefreshExecutors.scheduleAtFixedRate(this, 0, scanInterval, TimeUnit.SECONDS);    			
+		configRefreshExecutors.scheduleAtFixedRate(this, 0, scanInterval, TimeUnit.SECONDS);    	
+		forcedExecutors = Executors.newCachedThreadPool();
 	}
 
 	public final Scheduler getScheduler() {
@@ -81,6 +83,7 @@ public class Quartz implements Runnable, Stoppable {
 		try {
 			configRefreshExecutors.shutdownNow();
 			scheduler.shutdown();		
+			forcedExecutors.shutdown();
 		} catch (SchedulerException e) {
 			// ... handle it
 			LOG.log(Level.SEVERE, e.getMessage(), e);
@@ -125,7 +128,23 @@ public class Quartz implements Runnable, Stoppable {
 		try {
 			// pause all triggering of jobs
 			getScheduler().pauseAll();
-			controllerFactory.loadCrawlers(getScheduledJobNames(), getExecutingJobNames());
+			
+			// see if any are forced and not yet running and if so run those now
+			// this is ugly with the set, fix that
+		    for (ProcessorController processorController : controllerFactory.getCrawlers()) {
+		    	if (processorController.isForced() && !forcedProcessorControllers.contains(processorController.getName())) {
+		    		forcedExecutors.execute(processorController);
+		    		forcedProcessorControllers.add(processorController.getName());
+		    	}
+		    	else {
+		    		// they will eventually finish and go into unforced mode. 
+		    		// this should clear them out
+		    		forcedProcessorControllers.remove(processorController.getName());
+		    	}
+		    }			
+		    
+		    // now reload
+			controllerFactory.loadNewCrawlers();
 		    for (ProcessorController processorController : controllerFactory.getCrawlers()) {
 		    	if (isScheduled(processorController) || isExecuting(processorController)) {
 		    		continue;

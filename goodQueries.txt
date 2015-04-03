@@ -32,5 +32,20 @@ INSERT {?r <http://xmlns.com/foaf/0.1/img> ?ni}
 WHERE 
 {?r <http://xmlns.com/foaf/0.1/img> ?i BIND(URI(REPLACE(STR(?i), "stage-r2r", "profiles")) AS ?ni)}
 
+--- rename affiliate
+DELETE {?r ?p <old>} 
+INSERT {?r ?p <new>}
+WHERE {?r ?p <old>} 
+-- then
+DELETE WHERE {<old> ?r ?o}
+
+-- just to clear up an affiliation
+DESCRIBE <http://vivo.apa.org> 
+-- then
+DELETE WHERE {<http://vivo.apa.org> ?r ?o} 
+
+
+
+
 
 

@@ -1,5 +1,6 @@
 package edu.ucsf.crosslink.io;
 
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -16,6 +17,7 @@ import org.joda.time.DateTime;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import com.hp.cache4guice.Cached;
 import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
@@ -48,8 +50,7 @@ public class SparqlPersistance implements R2RConstants {
 
 	private SparqlQueryClient sparqlQuery;
 	private SparqlPostClient sparqlClient;
-	private List<Affiliation> knownAffiliations = new ArrayList<Affiliation>();
-	
+	private List<Affiliation> knownAffiliations = null;
 	private static final String SKIP_RESEARCHERS_SPARQL = "SELECT ?r ?ts WHERE {?r <" + R2R_PROCESSED_BY + "> ?c . ?c <" + 
 			RDFS_LABEL + "> \"%s\" . ?c <" + R2R_PROCESSED_ON + "> ?ts . FILTER (?ts > \"%s\")}";
 	
@@ -76,16 +77,17 @@ public class SparqlPersistance implements R2RConstants {
 		sparqlClient.add(R2ROntology.createR2ROntModel());
 		sparqlClient.update("CREATE GRAPH <" + R2R_DERIVED_GRAPH + ">");
 		// by loading these now, we make sure that we do not collide with calls to upsertAffiliation
-		loadAffiliations();
+		knownAffiliations = loadAffiliations();
 	}
 	
-	private void loadAffiliations() throws Exception {
+	private List<Affiliation> loadAffiliations() throws Exception {
+		final List<Affiliation> affiliations = new ArrayList<Affiliation>();
 		sparqlQuery.select(LOAD_AFFILIATIONS, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
 					try {
-						knownAffiliations.add(new Affiliation(qs.getLiteral("?l").getString(), 
+						affiliations.add(new Affiliation(qs.getLiteral("?l").getString(), 
 								qs.getResource("?r").getURI(), null));
 					} 
 					catch (URISyntaxException e) {
@@ -95,11 +97,17 @@ public class SparqlPersistance implements R2RConstants {
 			}
 		});		
 		// start with longer URI first so that we match http://profiles.somewhere.edu/profile before http://profiles.somewhere.edu
-		Collections.sort(knownAffiliations, new Comparator<Affiliation>() {
+		Collections.sort(affiliations, new Comparator<Affiliation>() {
 			public int compare(Affiliation o1, Affiliation o2) {
 				return o2.getURI().length() - o1.getURI().length();
 			}			
 		});
+		return affiliations;
+	}
+	
+	// TODO remove this ugliness
+	public boolean ask(String sparql) {
+		return sparqlQuery.ask(sparql);
 	}
 
 	public void save(R2RResourceObject robj) throws Exception {
@@ -152,16 +160,28 @@ public class SparqlPersistance implements R2RConstants {
 		endTransaction();
 	}
 	
-	public Affiliation findAffiliationFor(String uri) {
-		for (Affiliation affiliation : knownAffiliations) {
-			if (uri.toLowerCase().startsWith(affiliation.getURI().toLowerCase())) {
-				return affiliation;
+	public Affiliation findAffiliationFor(String uri) throws Exception {
+		int retries = 0;
+		do {
+			for (Affiliation affiliation : knownAffiliations) {
+				if (uri.toLowerCase().startsWith(affiliation.getURI().toLowerCase())) {
+					return affiliation;
+				}
 			}
-		}
-		return null;
+			// if we are here, we did not find it. Try again with a fresh copy but just ONCE
+			knownAffiliations = loadAffiliations();
+		} while(retries++ < 1);
+		
+		// make a new one with an ugly name
+		URI uriObj = new URI(uri);
+		Affiliation affiliation = new Affiliation(uriObj.getHost(), uriObj.getScheme()+ "://" + uriObj.getHost(), null);
+		save(affiliation);
+		LOG.info("Saved " + affiliation);
+		
+		return affiliation;
 	}
 
-	public Calendar startCrawl(ProcessorController processorController) throws Exception {
+    public Calendar startCrawl(ProcessorController processorController) throws Exception {
 		return updateTimestampFieldFor(processorController.getURI(), R2R_PROCESSOR_START_DT);
 	}
 

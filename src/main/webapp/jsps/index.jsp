@@ -6,9 +6,12 @@
 	<c:if test="${not empty administrator}">
 	   <a href='status'>Status</a><p>
 	</c:if><p>    
-	<ul>
+	<ul style="list-style: none;">
 	<c:forEach var="i" items="${affiliations}">
 		<li>
+		<c:if test="${i.icon != null}">
+			<img src='<c:out value="${i.icon}"/>'  width='20'/>&nbsp;
+		</c:if>
 		<a href = '<c:out value="${i.name}"/>'><c:out value="${i.name}"/></a>
 		<c:out value="${i.researcherCount}"/> indexed researchers
 		</li>

@@ -45,10 +45,10 @@ public class FloridaListProcessor extends SparqlProcessor implements R2RConstant
 
 	private class FloridaListResearcherProcessor extends BasicResearcherProcessor {
 		
-		private Researcher researcher = null;
+		private String affiliation = null;
 		
 		public String toString() {
-			return super.toString() + (researcher != null ? " from " + researcher.getAffiliation() : "");
+			return super.toString() + (affiliation != null ? " from " + affiliation : "");
 		}
 		
 		private FloridaListResearcherProcessor(String uri) {
@@ -56,8 +56,9 @@ public class FloridaListProcessor extends SparqlProcessor implements R2RConstant
 		}
 
 		public OutputType processResearcher() throws Exception {
-			researcher = createResearcher();
+			Researcher researcher = createResearcher();
 			researcher.setAffiliation(store.findAffiliationFor(getResearcherURI()));
+			affiliation = researcher.getAffiliation().toString();
 			store.update(researcher);				
 			return OutputType.PROCESSED;
 		}		

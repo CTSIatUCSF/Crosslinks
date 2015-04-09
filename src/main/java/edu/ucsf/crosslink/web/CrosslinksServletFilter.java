@@ -19,6 +19,8 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 
+import edu.ucsf.crosslink.model.R2RResourceObject;
+
 /**
  * Servlet Filter implementation class CrosslinksServletFilter
  */
@@ -97,7 +99,8 @@ public class CrosslinksServletFilter implements Filter {
 	    sb.append("free memory: " + format.format(freeMemory / 1024) + "<br/>");
 	    sb.append("allocated memory: " + format.format(allocatedMemory / 1024) + "<br/>");
 	    sb.append("max memory: " + format.format(maxMemory / 1024) + "<br/>");
-	    sb.append("total free memory: " + format.format((freeMemory + (maxMemory - allocatedMemory)) / 1024) + "<br/>");		
+	    sb.append("total free memory: " + format.format((freeMemory + (maxMemory - allocatedMemory)) / 1024) + "<br/>");
+	    sb.append("R2RResourceObject count: " + R2RResourceObject.getObjectCount() + "<br/>");
 	    return sb.toString();
 	}
 

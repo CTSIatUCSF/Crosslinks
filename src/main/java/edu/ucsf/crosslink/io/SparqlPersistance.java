@@ -87,8 +87,8 @@ public class SparqlPersistance implements R2RConstants {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
 					try {
-						affiliations.add(new Affiliation(qs.getLiteral("?l").getString(), 
-								qs.getResource("?r").getURI(), null));
+						affiliations.add(new Affiliation(qs.getResource("?r").getURI(), 
+								qs.getLiteral("?l").getString()));
 					} 
 					catch (URISyntaxException e) {
 						LOG.log(Level.SEVERE, e.getMessage(), e);
@@ -174,7 +174,7 @@ public class SparqlPersistance implements R2RConstants {
 		
 		// make a new one with an ugly name
 		URI uriObj = new URI(uri);
-		Affiliation affiliation = new Affiliation(uriObj.getHost(), uriObj.getScheme()+ "://" + uriObj.getHost(), null);
+		Affiliation affiliation = new Affiliation(uriObj.getScheme()+ "://" + uriObj.getHost(), uriObj.getHost());
 		save(affiliation);
 		LOG.info("Saved " + affiliation);
 		

@@ -30,6 +30,7 @@ import org.xml.sax.SAXException;
 public class CrosslinksXMLConfiguration {
 
 	private static final String CONFIGURATION_FILE = "/crosslinks.xml";
+	//private static final String CONFIGURATION_FILE = "Z:\\Program Files\\Apache Software Foundation\\Tomcat 7.0\\webapps\\crosslinks\\WEB-INF\\classes\\crosslinks.xml";
 	
 	private Document doc = null;
 	private XPath xpath = null;	

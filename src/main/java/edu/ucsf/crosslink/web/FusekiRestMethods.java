@@ -230,7 +230,7 @@ public class FusekiRestMethods implements R2RConstants {
 					QuerySolution qs = rs.next();
 					Affiliation affiliationObj;
 					try {
-						affiliationObj = new Affiliation(qs.getLiteral("?l").getString(), qs.getResource("?a").getURI(),
+						affiliationObj = new Affiliation(qs.getResource("?a").getURI(), qs.getLiteral("?l").getString(),
 								(qs.contains("?icon") ? qs.getResource("?icon").getURI() : null),
 								(qs.contains("?lat") ? qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString() : "0,0"),
 								qs.getLiteral("?rc").getInt(), 0);
@@ -254,7 +254,7 @@ public class FusekiRestMethods implements R2RConstants {
 					QuerySolution qs = rs.next();
 					Affiliation affiliationObj;
 					try {
-						affiliationObj = new Affiliation(affiliation, qs.getResource("?a").getURI(),
+						affiliationObj = new Affiliation(qs.getResource("?a").getURI(), affiliation,
 								(qs.contains("?icon") ? qs.getResource("?icon").getURI() : null),
 								(qs.contains("?lat") ? qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString() : "0,0"),
 								qs.getLiteral("?rc").getInt(), qs.getLiteral("?pc").getInt());

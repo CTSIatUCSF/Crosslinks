@@ -30,7 +30,6 @@ import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
-import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
 
 public class MarengoDetailProcessor extends SparqlProcessor implements R2RConstants {
 
@@ -148,53 +147,64 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 		}		
 	}
 	
+	// need to make public for the Cache to work!
 	@Cached
-	public String getPublication(String lir) throws Exception {
+	public String getPublication(String lir) {
 		final StringBuilder publication = new StringBuilder();
 		
-		marengoSparqlClient.select(String.format(LIR_DETAIL, lir), new ResultSetConsumer() {
-			public void useResultSet(ResultSet rs) throws Exception {				
-				if (rs.hasNext()) {				
-					QuerySolution qs = rs.next();
-					// use pmid if they have it AND it works
-					if (qs.get("?pmid") != null) {
-						try {
-							publication.append("http:" + ResearcherProcessor.PUBMED_SECTION + qs.getLiteral("?pmid").getInt());
-							return;
-						}
-						catch (Exception e) {
-							LOG.log(Level.WARNING, "Unexepected literal for PMID : " + qs.getLiteral("?pmid").toString(), e);							
-							// don't re-throw, hope DOI works out
-						}
-					}
-					if (qs.get("?doi") != null){
-						// this handles things like <a href=\"http://psycnet.apa.org/doi/10.1037/a0016478\">10.1037/a0016478</a> 
-						// as well as a regular doi
-						String doi = qs.getLiteral("?doi").getString();
-						if (Jsoup.isValid(doi, Whitelist.basic())) {
-							doi = Jsoup.parseBodyFragment(doi).text();
-							// see if it can be resolved to a PMID uri
-							String doiUri = DOI_PREFIX + doi;
-							String pmidUri = null;
+		try {
+			marengoSparqlClient.select(String.format(LIR_DETAIL, lir), new ResultSetConsumer() {
+				public void useResultSet(ResultSet rs) throws Exception {				
+					if (rs.hasNext()) {				
+						QuerySolution qs = rs.next();
+						// use pmid if they have it AND it works
+						if (qs.get("?pmid") != null) {
 							try {
-								pmidUri = "http:" + ResearcherProcessor.PUBMED_SECTION + converter.getPMIDFromDOI(doi);
+								publication.append("http:" + ResearcherProcessor.PUBMED_SECTION + qs.getLiteral("?pmid").getInt());
+								return;
 							}
 							catch (Exception e) {
-								LOG.log(Level.WARNING, "Error converting doi : " + doi + " to PMID", e);
+								LOG.log(Level.WARNING, "Unexepected literal for PMID : " + qs.getLiteral("?pmid").toString(), e);							
+								// don't re-throw, hope DOI works out
 							}
-							// make sure it is a valid URI, whatever it is at this point
-							URI pubUri = new URI(pmidUri != null ? pmidUri: doiUri);
-							publication.append(pubUri.toString());							
 						}
-						else {
-							LOG.log(Level.WARNING, "Invalid DOI : " + doi);
+						if (qs.get("?doi") != null){
+							// this handles things like <a href=\"http://psycnet.apa.org/doi/10.1037/a0016478\">10.1037/a0016478</a> 
+							// as well as a regular doi
+							String doi = qs.getLiteral("?doi").getString();
+							if (!doi.isEmpty() && Jsoup.isValid(doi, Whitelist.basic())) {
+								doi = Jsoup.parseBodyFragment(doi).text();
+								// see if it can be resolved to a PMID uri
+								String doiUri = DOI_PREFIX + doi;
+								String pmidUri = null;
+								try {
+									pmidUri = "http:" + ResearcherProcessor.PUBMED_SECTION + converter.getPMIDFromDOI(doi);
+								}
+								catch (Exception e) {
+									LOG.log(Level.WARNING, "Error converting doi : " + doi + " to PMID", e);
+								}
+								// make sure it is a valid URI, whatever it is at this point
+								URI pubUri = new URI(pmidUri != null ? pmidUri: doiUri);
+								publication.append(pubUri.toString());							
+							}
+							else {
+								LOG.log(Level.WARNING, "Invalid DOI : " + doi);
+							}
 						}
-					}
-					LOG.info("Publication " + publication);
-				}	
-			}
-		});
-		return publication.length() > 0 ? publication.toString() : null;
+						LOG.info("Publication " + publication);
+					}	
+				}
+			});
+		}
+		catch (Exception e) {
+			LOG.log(Level.WARNING, "Error trying to find publication for linked information resource " + lir, e);
+			return null;
+		}
+		if (publication.length() <= 0) {
+			LOG.log(Level.WARNING, "Unable to find publication for linked information resource " + lir);
+			return null;
+		}
+		return publication.toString();
 	}
 	
 	@Override

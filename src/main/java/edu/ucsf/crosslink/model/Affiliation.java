@@ -48,28 +48,23 @@ public class Affiliation extends R2RResourceObject {
 
 	private static final Logger LOG = Logger.getLogger(Affiliation.class.getName());
 
-	public Affiliation(String name, String baseURL, String location) throws URISyntaxException {
-		super(baseURL, Arrays.asList(R2R_AFFILIATION, GEO_SPATIALTHING));
-		setLabel(name);
-		rnsType = getRNSType(baseURL.toLowerCase());
-		if (location != null) {
-			String [] geoCodes = location.split(",");
-			setLiteral(GEO_LATITUDE, geoCodes[0]);
-			setLiteral(GEO_LONGITUDE, geoCodes[1]);
-		}
-	}
-	
 	@Inject
 	public Affiliation(@Named("BaseURL") String uri, @Named("label") String label) throws URISyntaxException {
 		super(uri, Arrays.asList(R2R_AFFILIATION, GEO_SPATIALTHING));
 		setLabel(label);				
+		rnsType = getRNSType(uri.toLowerCase());
 	}
 	
-	// used for the UIR
-	public Affiliation(String name, String baseURL, String iconUri, String location, int researcherCount, int publicationCount) throws URISyntaxException {
-		this(name, baseURL, location);
+	// used for the UI
+	public Affiliation(String baseURL, String name, String iconUri, String location, int researcherCount, int publicationCount) throws URISyntaxException {
+		this(baseURL, name);
 		if (iconUri != null) {
 			setIcon(iconUri);
+		}
+		if (location != null) {
+			String [] geoCodes = location.split(",");
+			setLiteral(GEO_LATITUDE, geoCodes[0]);
+			setLiteral(GEO_LONGITUDE, geoCodes[1]);
 		}
 		this.researcherCount = researcherCount;		
 		this.publicationCount = publicationCount;

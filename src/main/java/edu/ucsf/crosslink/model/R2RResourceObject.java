@@ -6,6 +6,8 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -20,6 +22,7 @@ import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
+import edu.ucsf.crosslink.processor.iterator.MarengoListProcessor;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 
@@ -28,12 +31,32 @@ public abstract class R2RResourceObject implements R2RConstants {
 	private Resource resource = null;
 	private URI uriObj;
 	
+	// for debugging
+	private static final Logger LOG = Logger.getLogger(R2RResourceObject.class.getName());
+	private static AtomicLong objectCount = new AtomicLong();
+	
 	private R2RResourceObject(String uri, boolean ontModel) throws URISyntaxException {
 		this.uriObj = new URI(uri);
 		Model model = ontModel ? R2ROntology.createR2ROntModel() : R2ROntology.createDefaultModel();
 		resource = model.createResource(uri);			
+		if (objectCount.incrementAndGet() % 100 == 0) {
+			LOG.info("Object count at " + objectCount.get() + ", just added " + uri + " ontModel " + ontModel);
+		}
 	}
 
+	protected void finalize() throws Throwable {
+	     try {
+	         objectCount.decrementAndGet();
+	     } 
+	     finally {
+	         super.finalize();
+	     }
+	}
+	
+	public static long getObjectCount() {
+		return objectCount.get();
+	}
+	
 	protected R2RResourceObject(String uri) throws URISyntaxException {
 		this(uri, false);
 	}

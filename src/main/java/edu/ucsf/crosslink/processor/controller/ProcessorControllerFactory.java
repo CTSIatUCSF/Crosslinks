@@ -55,13 +55,12 @@ public class ProcessorControllerFactory {
 				Injector injector = guice.createChildInjector(new PropertiesModule(affiliationProps), 
 						new ProcessorModule(processorProps));
 				ProcessorController processorController = injector.getInstance(ProcessorController.class);
-				
-				LOG.info("Loaded controller " + processorController.getName());
-				
+								
 				// don't add ones that are already present
 				if (!processorControllers.containsKey(processorController.getName())) {
 					injectors.put(processorController.getName(), injector);		
 					processorControllers.put(processorController.getName(), processorController);
+					LOG.info("Loaded controller " + processorController.getName());
 				}
 			}			
 		}
@@ -77,6 +76,7 @@ public class ProcessorControllerFactory {
 			if (!processorControllers.containsKey(processorController.getName())) {
 				injectors.put(processorController.getName(), injector);		
 				processorControllers.put(processorController.getName(), processorController);
+				LOG.info("Loaded controller " + processorController.getName());
 			}
 		}
 		LOG.info("Loaded all process controllers");

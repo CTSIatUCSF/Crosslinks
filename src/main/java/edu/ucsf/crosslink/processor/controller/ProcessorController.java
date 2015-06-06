@@ -76,7 +76,6 @@ public final class ProcessorController extends R2RResourceObject implements Runn
 		this.mode = mode;	
 		this.store = store;
 		this.researcherIterable = researcherIterable;
-		store.update(this);
 		executorQueue = new ArrayBlockingQueue<Runnable>(MAX_QUEUE_SIZE, true);
 		this.threadCount = threadCount;
 		clear();
@@ -258,7 +257,12 @@ public final class ProcessorController extends R2RResourceObject implements Runn
 		}
 		executorService = getNewExecutorService();
 	}
-
+	
+	// all this store stuff is ugly
+	void update() throws Exception {
+		store.update(this);
+	}
+	
 	// TODO use in memory ended if that will work
 	public Calendar getDateLastCrawled() {
 		if (dateOfLastRun != null) {

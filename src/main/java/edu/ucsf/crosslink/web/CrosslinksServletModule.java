@@ -6,6 +6,9 @@ import com.google.inject.name.Names;
 import com.sun.jersey.guice.JerseyServletModule;
 import com.sun.jersey.guice.spi.container.servlet.GuiceContainer;
 
+import edu.ucsf.crosslink.web.FusekiRestMethods.RawFusekiRestMethods;
+import edu.ucsf.crosslink.web.FusekiRestMethods.UiFusekiRestMethods;
+
 public class CrosslinksServletModule extends JerseyServletModule {
 
 	Properties prop;
@@ -25,7 +28,8 @@ public class CrosslinksServletModule extends JerseyServletModule {
 		}
 		bind(String.class).annotatedWith(Names.named("r2r.fusekiUrl")).toInstance(prop.getProperty("r2r.fusekiUrl"));
 		bind(String.class).annotatedWith(Names.named("uiFusekiUrl")).toInstance(prop.getProperty("uiFusekiUrl"));
-		bind(FusekiRestMethods.class).asEagerSingleton();
+		bind(RawFusekiRestMethods.class).asEagerSingleton();
+		bind(UiFusekiRestMethods.class).asEagerSingleton();
 		serve("/*").with(GuiceContainer.class);
 		filter("/*").through(CrosslinksServletFilter.class);
 	}

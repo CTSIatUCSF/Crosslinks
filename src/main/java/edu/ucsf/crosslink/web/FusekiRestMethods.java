@@ -36,10 +36,6 @@ import edu.ucsf.ctsi.r2r.jena.JsonLDService;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 
-/**
- * Root resource (exposed at "list" path)
- */
-@Path("")
 public class FusekiRestMethods implements R2RConstants {
 
 	private static final Logger LOG = Logger.getLogger(FusekiRestMethods.class.getName());
@@ -77,22 +73,10 @@ public class FusekiRestMethods implements R2RConstants {
 	private static final String COAUTHORS_SELECT = "SELECT (?r as ?researcherURI) (?hp as ?researcherHomePage) (?rl as ?researcherLabel) (?cw as ?contributedWork) (?tn as ?thumbnail) " +
 			"(?ea as ?researchNetworkingSite) (?al as ?affiliation) (?eaicon as ?icon) (?ealat as ?lat) (?ealon as ?lon) " + COAUTHORS_WHERE;
 	
-	private static final String COAUTHORS_EXTRACT_WHERE = "WHERE {<%1$s> <" + R2R_HAS_AFFILIATION + "> ?a . <%1$s> <" +
-			FOAF_PUBLICATIONS + "> ?cw  . ?r <" + FOAF_PUBLICATIONS + "> ?cw  . ?r <" + RDFS_LABEL + 
-			"> ?rl . OPTIONAL {?r <" + FOAF_HOMEPAGE + "> ?hp } . OPTIONAL { GRAPH <" + R2R_DERIVED_GRAPH + 
-			"> { ?r <" + FOAF_HAS_IMAGE + "> ?tn} } . ?r <" + R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + 
-			RDFS_LABEL + "> ?al . OPTIONAL {?ea <" + R2R_HAS_ICON + "> ?eaicon} . ?ea <" + GEO_LATITUDE + 
-			"> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
-
-	public static final String COAUTHORS_EXTRACT_CONSTRUCT = "CONSTRUCT {?r <" + RDF_TYPE + "> <" + FOAF_PERSON + 
-			"> . ?r <" + FOAF_PUBLICATIONS + "> ?cw . ?r <" +
-			RDFS_LABEL + "> ?rl . ?r <" + FOAF_HOMEPAGE + "> ?hp . ?r <" + FOAF_HAS_IMAGE + "> ?tn . ?r  <" +
-			R2R_HAS_AFFILIATION + "> ?ea} " + COAUTHORS_EXTRACT_WHERE;
-
 	private static final String COAUTHORS_CONSTRUCT = "CONSTRUCT {?r <" + FOAF_PUBLICATIONS + "> ?cw . ?r <" +
 			RDFS_LABEL + "> ?rl . ?r <" + FOAF_HOMEPAGE + "> ?hp . ?r <" + FOAF_HAS_IMAGE + "> ?tn . ?r  <" +
-			R2R_HAS_AFFILIATION + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . OPTIONAL {?ea <" + R2R_HAS_ICON + 
-			"> ?eaicon} . ?ea <" + GEO_LATITUDE + "> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon} " + COAUTHORS_WHERE;
+			R2R_HAS_AFFILIATION + "> ?ea . ?ea  <" + RDFS_LABEL + "> ?al . ?ea <" + R2R_HAS_ICON + 
+			"> ?eaicon . ?ea <" + GEO_LATITUDE + "> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon} " + COAUTHORS_WHERE;
 
 	private static final String COAUTHORS_SAMEAS = "SELECT (?r as ?researcherURI) (?fn as ?firstName) " + 
 			"(?ln as ?lastName) (?er as ?otherResearcherURI) (?efn as ?otherReserarcherFirstName) (?ln as ?otherResearcherLastName) " +
@@ -105,14 +89,12 @@ public class FusekiRestMethods implements R2RConstants {
 			"(STRLEN(?fn) = 1 && STRSTARTS(LCASE(?efn), LCASE(?fn)))) }";
 
 	private ProcessorControllerFactory factory;
-	private SparqlQueryClient sparqlQueryClient;
 	private JsonLDService jsonLDService;
 	private SparqlQueryClient uiSparqlClient;
 	
 	@Inject
-	public FusekiRestMethods(@Named("r2r.fusekiUrl") String sparqlQuery, JsonLDService jsonLDService,
+	public FusekiRestMethods(JsonLDService jsonLDService,
 			ProcessorControllerFactory factory, @Named("uiFusekiUrl") String uiFusekiUrl) {
-		this.sparqlQueryClient = new SparqlQueryClient(sparqlQuery + "/sparql");
 		this.uiSparqlClient = new SparqlQueryClient(uiFusekiUrl + "/sparql", 10000, 20000);
 		this.factory = factory;
 		this.jsonLDService = jsonLDService;
@@ -191,7 +173,7 @@ public class FusekiRestMethods implements R2RConstants {
     @Path("{affiliation}/possibleSamePeople")
     @Produces({MediaType.TEXT_PLAIN, MediaType.APPLICATION_JSON})
     public String getSamePeople(@PathParam("affiliation") String affiliation, @QueryParam("format") String format) throws Exception {
-		return getFormattedResults(sparqlQueryClient, String.format(COAUTHORS_SAMEAS, getAffiliation(affiliation).getURI()), format).toString();
+		return getFormattedResults(uiSparqlClient, String.format(COAUTHORS_SAMEAS, getAffiliation(affiliation).getURI()), format).toString();
     }
 
     @GET
@@ -224,7 +206,7 @@ public class FusekiRestMethods implements R2RConstants {
     
     private List<Affiliation> getAffiliations() throws Exception {
     	final List<Affiliation> affiliations = new ArrayList<Affiliation>();
-    	sparqlQueryClient.select(ALL_AFFILIATIONS_SPARQL, new ResultSetConsumer() {
+    	uiSparqlClient.select(ALL_AFFILIATIONS_SPARQL, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
@@ -248,7 +230,7 @@ public class FusekiRestMethods implements R2RConstants {
     public Affiliation getAffiliation(final String affiliation) throws Exception {
     	String sparql = String.format(AFFILIATION_SPARQL, affiliation);
     	final List<Affiliation> affiliations = new ArrayList<Affiliation>();
-    	sparqlQueryClient.select(sparql, new ResultSetConsumer() {
+    	uiSparqlClient.select(sparql, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				if (rs.hasNext()) {		
 					QuerySolution qs = rs.next();
@@ -272,7 +254,7 @@ public class FusekiRestMethods implements R2RConstants {
     public List<Researcher> getResearchers(final Affiliation affiliation) throws Exception {
 		String sparql = String.format(RESEARCHERS_SPARQL, affiliation.getURI()); 
     	final List<Researcher> researchers = new ArrayList<Researcher>();
-    	sparqlQueryClient.select(sparql, new ResultSetConsumer() {
+    	uiSparqlClient.select(sparql, new ResultSetConsumer() {
 			public void useResultSet(ResultSet rs) {
 				while (rs.hasNext()) {				
 					QuerySolution qs = rs.next();
@@ -295,5 +277,25 @@ public class FusekiRestMethods implements R2RConstants {
 		});
 		Collections.sort(researchers);
 		return researchers;
+    }
+    
+    @Path("raw")
+    public static class RawFusekiRestMethods extends FusekiRestMethods {
+
+    	@Inject
+    	public RawFusekiRestMethods(JsonLDService jsonLDService,
+    			ProcessorControllerFactory factory, @Named("r2r.fusekiUrl") String fusekiUrl) {
+    		super(jsonLDService, factory, fusekiUrl);
+    	}
+    }
+
+    @Path("")
+    public static class UiFusekiRestMethods extends FusekiRestMethods {
+
+    	@Inject
+    	public UiFusekiRestMethods(JsonLDService jsonLDService,
+    			ProcessorControllerFactory factory, @Named("uiFusekiUrl") String fusekiUrl) {
+    		super(jsonLDService, factory, fusekiUrl);
+    	}
     }
 }

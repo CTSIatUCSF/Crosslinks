@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Crosslinks>
 	<r2r.fusekiUrl>http://localhost:3030/crosslinks</r2r.fusekiUrl> 
-	<uiFusekiUrl>http://localhost:3030/crosslinks</uiFusekiUrl> 
-	<!--uiFusekiUrl>http://localhost:3031/crosslinksui</uiFusekiUrl--> 
+	<!--uiFusekiUrl>http://localhost:3030/crosslinks</uiFusekiUrl--> 
+	<uiFusekiUrl>http://localhost:3030/crosslinksui</uiFusekiUrl> 
 
 	<!-- comma separated list of eppn with NO white space, or leave blank to let anyone in -->
 	<!-- administrators = 569307@ucsf.edu -->
@@ -21,9 +21,9 @@
 	<!--  crawler quartz items -->
 	<!--  how often to read the crosslinks.xml file for changes -->
 	<scanInterval>60</scanInterval>
-	<!--  how many days to wait between successful crawls -->
+	<!--  how many days to wait between successful crawls MAKE THIS A Quartz Managed thing-->
 	<staleDays>3</staleDays>
-	<!--   how long to wait before crawling a particular author -->
+	<!--   how long to wait before crawling a particular author. RENAME this as skipIfProcessedWithinDays -->
 	<daysConsideredOld>6</daysConsideredOld>
 	<!--   how many times to try and read an authorURL before giving up on its particular URL -->
 	<authorReadErrorThreshold>3</authorReadErrorThreshold>
@@ -52,15 +52,21 @@
 	      <class>edu.ucsf.crosslink.processor.iterator.MarengoListProcessor</class>
 	      <threadCount>-1</threadCount>
 	      <!-- avoids should be comma separated with no whitespace in between -->
-	      <avoids>http://vivo.ufl.edu,http://stage-profiles.ucsd.edu,http://profiles.ucsd.edu,http://profiles.jefferson.edu</avoids>
+	      <!-- have an includes section as well that trumps avoids, and list one to ONLY include -->
+	      <avoids>http://vivo.ufl.edu,http://stage-profiles.ucsd.edu,http://profiles.ucsd.edu,http://profiles.jefferson.edu,https://profiles.med.tufts.edu</avoids>
 	   </Processor>
 	   <Processor>
 	      <class>edu.ucsf.crosslink.processor.iterator.MarengoDetailProcessor</class>
 	      <threadCount>2</threadCount>
-	      <avoids>http://stage-profiles.ucsd.edu,http://profiles.ucsd.edu,http://profiles.jefferson.edu/</avoids>
+	      <avoids>http://stage-profiles.ucsd.edu,http://profiles.ucsd.edu,http://profiles.jefferson.edu,https://profiles.med.tufts.edu</avoids>
 	   </Processor>
 	   <Processor>
 	      <class>edu.ucsf.crosslink.processor.iterator.FloridaListProcessor</class>
+	      <threadCount>-1</threadCount>
+	   </Processor>
+	   <Processor>
+	      <class>edu.ucsf.crosslink.processor.iterator.ExtractProcessor</class>
+	      <executionMode>DISABLED</executionMode>
 	      <threadCount>-1</threadCount>
 	   </Processor>
 	</Processors>
@@ -169,6 +175,15 @@
 	      <BaseURL>https://profiles.healthsciencessc.org/profiles</BaseURL>
 	      <label>MUSC</label>
 	      <DbpediaURI>http://dbpedia.org/resource/Medical_University_of_South_Carolina</DbpediaURI>
+	      <Processors>
+	         <Processor>
+		        <class>edu.ucsf.crosslink.processor.iterator.ProfilesSitemapProcessor</class>
+	            <executionMode>ENABLED</executionMode>
+		        <errorsToAbort>5</errorsToAbort>
+	            <threadCount>-1</threadCount>
+	            <pauseOnAbort>60</pauseOnAbort>
+	         </Processor>
+		  </Processors>
 	   </Affiliation>
 	   <Affiliation>
 	      <BaseURL>http://vivo.scholars.northwestern.edu</BaseURL>
@@ -285,6 +300,27 @@
 	            <executionMode>DISABLED</executionMode>
 		        <errorsToAbort>5</errorsToAbort>
 	            <threadCount>-1</threadCount>
+	            <pauseOnAbort>60</pauseOnAbort>
+	         </Processor>
+		  </Processors>
+	   </Affiliation>
+	   <Affiliation>
+	      <BaseURL>https://profiles.med.tufts.edu/profiles</BaseURL>
+	      <label>Tufts</label>
+	      <DbpediaURI>http://dbpedia.org/resource/Tufts_University</DbpediaURI>
+	      <Processors>
+	         <Processor>
+		        <class>edu.ucsf.crosslink.processor.iterator.ProfilesSitemapProcessor</class>
+	            <executionMode>ENABLED</executionMode>
+		        <errorsToAbort>5</errorsToAbort>
+	            <threadCount>-1</threadCount>
+	            <pauseOnAbort>60</pauseOnAbort>
+	         </Processor>
+	         <Processor>
+	            <class>edu.ucsf.crosslink.processor.iterator.PageItemProcessor</class>
+	            <executionMode>DISABLED</executionMode>
+	            <threadCount>1</threadCount>
+	            <errorsToAbort>5</errorsToAbort>
 	            <pauseOnAbort>60</pauseOnAbort>
 	         </Processor>
 		  </Processors>

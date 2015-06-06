@@ -74,7 +74,8 @@ public class SparqlPersistance implements R2RConstants {
 		HttpOp.setDefaultHttpClient(new DefaultHttpClient(cm, params));
 
 		// make sure we have the latest model
-		sparqlClient.add(R2ROntology.createR2ROntModel());
+		// for some reason we need to do post to capture the prefixes
+		sparqlClient.post(R2ROntology.createR2ROntModel());
 		sparqlClient.update("CREATE GRAPH <" + R2R_DERIVED_GRAPH + ">");
 		// by loading these now, we make sure that we do not collide with calls to upsertAffiliation
 		knownAffiliations = loadAffiliations();

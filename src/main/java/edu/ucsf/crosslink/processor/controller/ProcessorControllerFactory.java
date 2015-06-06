@@ -39,7 +39,7 @@ public class ProcessorControllerFactory {
 		this.guice = guice;		
 	}
 
-	public void loadNewCrawlers() throws XPathExpressionException, TransformerConfigurationException, SAXException, IOException, ParserConfigurationException {
+	public void loadNewCrawlers() throws Exception {
 		// first load the ones that do not need an affiliation
 		CrosslinksXMLConfiguration config = new CrosslinksXMLConfiguration();
 
@@ -61,6 +61,8 @@ public class ProcessorControllerFactory {
 					injectors.put(processorController.getName(), injector);		
 					processorControllers.put(processorController.getName(), processorController);
 					LOG.info("Loaded controller " + processorController.getName());
+					// update it
+					processorController.update();
 				}
 			}			
 		}
@@ -77,6 +79,8 @@ public class ProcessorControllerFactory {
 				injectors.put(processorController.getName(), injector);		
 				processorControllers.put(processorController.getName(), processorController);
 				LOG.info("Loaded controller " + processorController.getName());
+				// update it
+				processorController.update();
 			}
 		}
 		LOG.info("Loaded all process controllers");

@@ -1,5 +1,6 @@
 package edu.ucsf.crosslink.processor.iterator;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -11,10 +12,6 @@ import java.util.logging.Logger;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-
-import net.sourceforge.sitemaps.Sitemap;
-import net.sourceforge.sitemaps.SitemapParser;
-import net.sourceforge.sitemaps.SitemapUrl;
 
 import com.google.inject.Inject;
 import com.hp.hpl.jena.rdf.model.Model;
@@ -49,29 +46,25 @@ public class ProfilesSitemapProcessor implements Iterable<ResearcherProcessor>, 
 	}
 
 	public Iterator<ResearcherProcessor> iterator() {
-		SitemapParser smp = new SitemapParser();
+		List<ResearcherProcessor> retval = new ArrayList<ResearcherProcessor>();
 		try {
-			smp.processSitemap(new URL(affiliation.getURI() + "/sitemap.xml"));
+			Document doc = siteReader.getDocument(affiliation.getURI() + "/sitemap.xml");
+			for (Element loc : doc.select("loc")) {
+				System.out.println(loc.html());
+				// actually these aren't URI's!!!
+				try {
+					String url = loc.html();
+					retval.add(new ProfilesPageProcessor(url));				
+				} 
+				catch (Exception e) {
+					LOG.log(Level.WARNING, e.getMessage(), e);
+				}				
+			}
 		} 
 		catch (Exception e) {
-			LOG.log(Level.SEVERE, e.getMessage(), e);
+			LOG.log(Level.WARNING, e.getMessage(), e);
 		}
-		Sitemap sitemap = smp.getSitemap();
-		
-		Collection<SitemapUrl> urls = sitemap.getUrlList();
-		List<ResearcherProcessor> retval = new ArrayList<ResearcherProcessor>();
 
-		for (SitemapUrl urlObj : urls) {
-			// actually these aren't URI's!!!
-			try {
-				String url = urlObj.getUrl().toString();
-				retval.add(new ProfilesPageProcessor(url));				
-			} 
-			catch (Exception e) {
-				LOG.log(Level.WARNING, e.getMessage(), e);
-			}
-			
-		}
 		return retval.iterator();
 	}
 

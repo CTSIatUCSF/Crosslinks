@@ -3,6 +3,7 @@
 <html>
 <body>
     <a href='.'>Home</a><p>
+    <a href='./raw/index'>Raw data</a><p>
     <h2>Scheduled and running crawlers</h2>
     Administrator = <c:out value="${administrator}"/><p>
     <c:out value="${memoryStats}" escapeXml="false"/><p>

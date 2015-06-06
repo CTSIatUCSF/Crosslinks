@@ -44,8 +44,23 @@ DESCRIBE <http://vivo.apa.org>
 -- then
 DELETE WHERE {<http://vivo.apa.org> ?r ?o} 
 
+-- how many have been crawled by processor 
+SELECT count(?rl) WHERE
+{?rl <http://ucsf.edu/ontology/r2r#processedBy> ?c .
+?c  <http://www.w3.org/2000/01/rdf-schema#label> "MarengoDetailProcessor"^^<http://www.w3.org/2001/XMLSchema#string>}
 
+-- list of people
+SELECT count(?r) WHERE 
+{?r <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person>}
 
+-- both above as one query
+SELECT count(?r) count(?c) WHERE
+{?r <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://xmlns.com/foaf/0.1/Person> . OPTIONAL 
+{?r <http://ucsf.edu/ontology/r2r#processedBy> ?c .
+?c  <http://www.w3.org/2000/01/rdf-schema#label> "MarengoDetailProcessor"^^<http://www.w3.org/2001/XMLSchema#string>}}
 
+-- test UI
+CONSTRUCT {<http://vivo.scholars.northwestern.edu/individual/n2276> ?p ?o} WHERE
+ {<http://vivo.scholars.northwestern.edu/individual/n2276> ?p ?o . FILTER(?p != <http://ucsf.edu/ontology/r2r#processedBy>) }
 
 

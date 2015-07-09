@@ -17,7 +17,6 @@ import org.joda.time.DateTime;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import com.hp.cache4guice.Cached;
 import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
@@ -33,7 +32,6 @@ import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
 import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
 import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
-import edu.ucsf.ctsi.r2r.jena.SparqlUpdateClient;
 import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 
 import org.apache.http.impl.client.DefaultHttpClient;

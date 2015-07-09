@@ -13,6 +13,19 @@ public class ExtractAffiliationProcessor extends ExtractProcessor implements Aff
 	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r WHERE { " +
 			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s>}";	
 
+	private static final String COAUTHORS_EXTRACT_WHERE = "WHERE {<%1$s> <" + R2R_HAS_AFFILIATION + "> ?a . <%1$s> <" +
+			FOAF_PUBLICATIONS + "> ?cw  . ?r <" + FOAF_PUBLICATIONS + "> ?cw  . ?r <" + RDFS_LABEL + 
+			"> ?rl . OPTIONAL {?r <" + FOAF_HOMEPAGE + "> ?hp } . OPTIONAL { GRAPH <" + R2R_DERIVED_GRAPH + 
+			"> { ?r <" + FOAF_HAS_IMAGE + "> ?tn} } . ?r <" + R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + 
+			RDFS_LABEL + "> ?al . OPTIONAL {?ea <" + R2R_HAS_ICON + "> ?eaicon} . ?ea <" + GEO_LATITUDE + 
+			"> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
+
+	private static final String COAUTHORS_EXTRACT_CONSTRUCT = "CONSTRUCT {?r <" + RDF_TYPE + "> <" + FOAF_PERSON + 
+			"> . ?r <" + FOAF_PUBLICATIONS + "> ?cw . ?r <" +
+			RDFS_LABEL + "> ?rl . ?r <" + FOAF_HOMEPAGE + "> ?hp . ?r <" + FOAF_HAS_IMAGE + "> ?tn . ?r  <" +
+			R2R_HAS_AFFILIATION + "> ?ea} " + COAUTHORS_EXTRACT_WHERE;
+
+
 	private Affiliation affiliation = null;
 
 	@Inject

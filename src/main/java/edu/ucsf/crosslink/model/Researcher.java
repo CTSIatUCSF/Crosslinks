@@ -21,7 +21,6 @@ import com.hp.hpl.jena.rdf.model.NodeIterator;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.ResIterator;
 import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
 
 import edu.ucsf.crosslink.processor.controller.ProcessorController;
@@ -177,7 +176,7 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 	// can handle it in URL form, or just the pmid
 	public void addPublication(String publication) {
 		Model model = getModel();
-		model.add(getResource(), model.createProperty(FOAF_PUBLICATIONS), model.createResource(publication));    			
+		model.add(getResource(), model.createProperty(FOAF_PUBLICATIONS), model.createResource(publication.replace("https:", "http:")));    			
 	}
 
 	public void registerReadException(Exception e) {

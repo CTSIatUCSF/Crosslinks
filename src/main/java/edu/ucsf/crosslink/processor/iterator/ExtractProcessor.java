@@ -31,33 +31,19 @@ public class ExtractProcessor extends SparqlProcessor implements R2RConstants {
 	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r WHERE { " +
 			"?r <" + R2R_HAS_AFFILIATION + "> ?a}";	
 		
-	private static final String RESEARCHER_DETAIL = "CONSTRUCT {<%1$s> ?p ?o} WHERE " +
-			"{<%1$s> ?p ?o . FILTER(?p != <http://ucsf.edu/ontology/r2r#processedBy>) }";	
-
-/* Sometime try...
- * CONSTRUCT {<http://profiles.ucsf.edu/profile/368698> ?p ?o . 
-<http://profiles.ucsf.edu/profile/368698> <http://xmlns.com/foaf/0.1/img> ?i} 
-WHERE {<http://profiles.ucsf.edu/profile/368698> ?p ?o . 
- FILTER(?p != <http://ucsf.edu/ontology/r2r#processedBy>)
-. FILTER(?p != <http://xmlns.com/foaf/0.1/img>)
-. FILTER(?p != <http://xmlns.com/foaf/0.1/depiction>)
-. OPTIONAL 
-{ GRAPH <http://ucsf.edu/ontology/r2r#DerivedData> {<http://profiles.ucsf.edu/profile/368698><http://xmlns.com/foaf/0.1/img> ?i} }}
-
- */
+//	private static final String RESEARCHER_DETAIL = "CONSTRUCT {<%1$s> ?p ?o} WHERE " +
+//			"{<%1$s> ?p ?o . FILTER(?p != <http://ucsf.edu/ontology/r2r#processedBy>) }";	
 	
-	private static final String COAUTHORS_EXTRACT_WHERE = "WHERE {<%1$s> <" + R2R_HAS_AFFILIATION + "> ?a . <%1$s> <" +
-			FOAF_PUBLICATIONS + "> ?cw  . ?r <" + FOAF_PUBLICATIONS + "> ?cw  . ?r <" + RDFS_LABEL + 
-			"> ?rl . OPTIONAL {?r <" + FOAF_HOMEPAGE + "> ?hp } . OPTIONAL { GRAPH <" + R2R_DERIVED_GRAPH + 
-			"> { ?r <" + FOAF_HAS_IMAGE + "> ?tn} } . ?r <" + R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a) . ?ea <" + 
-			RDFS_LABEL + "> ?al . OPTIONAL {?ea <" + R2R_HAS_ICON + "> ?eaicon} . ?ea <" + GEO_LATITUDE + 
-			"> ?ealat . ?ea <" + GEO_LONGITUDE + "> ?ealon}";
+	private static final String RESEARCHER_CONSTRUCT = "CONSTRUCT {<%1$s> ?p ?o . " + 
+			"<%1$s> <" + FOAF_HAS_IMAGE + "> ?i} " + 
+			"WHERE {<%1$s> ?p ?o . " +
+			"FILTER(?p != <" + R2R_PROCESSED_BY + ">) " +
+			". FILTER(?p != <" + FOAF_HAS_IMAGE + ">) " + 
+			". FILTER(?p != <" + FOAF + "depiction>) . OPTIONAL " + 
+			"{ GRAPH <" + R2R + "DerivedData> " + 
+			"{<%1$s> <" + FOAF_HAS_IMAGE + "> ?i} }}";
 
-	protected static final String COAUTHORS_EXTRACT_CONSTRUCT = "CONSTRUCT {?r <" + RDF_TYPE + "> <" + FOAF_PERSON + 
-			"> . ?r <" + FOAF_PUBLICATIONS + "> ?cw . ?r <" +
-			RDFS_LABEL + "> ?rl . ?r <" + FOAF_HOMEPAGE + "> ?hp . ?r <" + FOAF_HAS_IMAGE + "> ?tn . ?r  <" +
-			R2R_HAS_AFFILIATION + "> ?ea} " + COAUTHORS_EXTRACT_WHERE;
-
+ 	
 	private static final String AFFILIATIONS = "CONSTRUCT {?a ?p ?o } WHERE { ?a <" + RDF_TYPE + 
 			"> <" + R2R_AFFILIATION + "> . ?a ?p ?o}";	
 
@@ -146,7 +132,7 @@ WHERE {<http://profiles.ucsf.edu/profile/368698> ?p ?o .
 	}
 	
 	protected void addDataToResearcherModel(Researcher researcher) {
-		researcher.addFrom(getSparqlClient().construct(String.format(COAUTHORS_EXTRACT_CONSTRUCT, researcher.getURI())));
+		researcher.addFrom(getSparqlClient().construct(String.format(RESEARCHER_CONSTRUCT, researcher.getURI())));
 	}
 	
 	private class ExtractResearcherProcessor extends BasicResearcherProcessor {

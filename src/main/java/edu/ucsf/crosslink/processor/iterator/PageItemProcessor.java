@@ -6,14 +6,13 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.logging.Logger;
 
+import org.apache.jena.datatypes.xsd.XSDDateTime;
+import org.apache.jena.query.QuerySolution;
 import org.joda.time.DateTime;
 import org.jsoup.HttpStatusException;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
-import com.hp.hpl.jena.query.QuerySolution;
-import com.hp.hpl.jena.query.ResultSet;
 
 import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.io.ThumbnailGenerator;
@@ -27,7 +26,6 @@ import edu.ucsf.crosslink.processor.controller.ProcessorController;
 import edu.ucsf.crosslink.processor.controller.TypedOutputStats.OutputType;
 import edu.ucsf.ctsi.r2r.R2RConstants;
 import edu.ucsf.ctsi.r2r.R2ROntology;
-import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
 import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 
@@ -38,43 +36,29 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 	private static final Logger LOG = Logger.getLogger(PageItemProcessor.class.getName());
 
 	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
-			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_PROCESSED_BY + "> ?c . ?c <" + 
-			RDFS_LABEL + "> \"%2$s\" . ?c <" + R2R_PROCESSED_ON +  
+			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_PROCESSED + "> ?c . ?c <" + 
+			R2R_PROCESSED_BY + "> <%2$s> . ?c <" + R2R_PROCESSED_ON +  
 			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%3$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
 
 	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r WHERE { " +
 			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s>}";	
 		
-	private static final String REMOVE_DERIVED_DATA = "WITH <" + R2R_DERIVED_GRAPH + 
-			"> DELETE { <%1$s> ?p ?o } WHERE { <%1$s> ?p ?o }";	
-
-	private static final String ADD_COAUTHORS = "INSERT {GRAPH <" + R2R_DERIVED_GRAPH + 
-			"> {<%1$s> <" + FOAF_KNOWS + "> ?r} }  WHERE { <%1$s> <" + FOAF_PUBLICATIONS + 
-			"> ?pub . <%1$s> <" + R2R_HAS_AFFILIATION + "> ?a . ?r <" + FOAF_PUBLICATIONS + 
-			"> ?pub . ?r <" + R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != ?a)}";	
-	
 	private static final String REMOVE_EXISTING_IMAGES = "DELETE {<%1$s> <" + FOAF_HAS_IMAGE + 
 			"> ?i } WHERE " + "{  <%1$s> <" + FOAF_HAS_IMAGE + "> ?i }";	
 
-	private static final String ADD_THUMBNAIL = "INSERT DATA { GRAPH <" + R2R_DERIVED_GRAPH + 
+	private static final String ADD_THUMBNAIL = "INSERT DATA { GRAPH <" + R2R_THUMBNAIL_GRAPH + 
 			"> {<%s> <" + FOAF_HAS_IMAGE + "> <%s> }}";	
 
-	private static final String GET_COAUTHOR_CNTS = "SELECT (count(distinct ?er) as ?erc) (count(distinct ?cw) as ?cwc) WHERE { {<%1$s> <" +
-			FOAF_PUBLICATIONS + "> ?cw} . GRAPH <" + R2R_DERIVED_GRAPH + "> {<%1$s> <" + FOAF_KNOWS + "> ?er } . ?er <" +
-			R2R_HAS_AFFILIATION + "> ?ea FILTER (?ea != <%2$s>) . ?er <" + FOAF_PUBLICATIONS + "> ?cw }";
-
-	private static final String ADD_COAUTHOR_CNTS = "INSERT DATA {GRAPH <" + R2R_DERIVED_GRAPH + 
-			"> {<%1$s> <" + R2R_EXTERNAL_COAUTHOR_CNT + "> %2$d . <%1$s> <" + R2R_SHARED_PUB_CNT + "> %3$d}}";
-
-	private static final String DELETE_RESEARCHER = "DELETE WHERE {<%1$s> ?p ?o }; DELETE WHERE {?s ?p <%1$s>}";	
-	private static final String DELETE_RESEARCHER_DERIVED = "DELETE WHERE { GRAPH <" + R2R_DERIVED_GRAPH
-			+ "> {<%1$s> ?p ?o }}; DELETE WHERE { GRAPH <" + R2R_DERIVED_GRAPH + "> {?s ?p <%1$s>}}";	
+	private static final String DELETE_RESEARCHER = "DELETE WHERE {<%1$s> ?p ?o }; DELETE WHERE {?s ?p <%1$s>}; WITH <" + 
+			R2R_THUMBNAIL_GRAPH + "> DELETE { <%1$s> ?p ?o } WHERE { <%1$s> ?p ?o }; WITH " +
+			R2R_DERIVED_GRAPH + "> DELETE { <%1$s> ?p ?o } WHERE { <%1$s> ?p ?o };";	
+	private static final String DELETE_RESEARCHER_THUMBNAIL = "WITH <" + R2R_THUMBNAIL_GRAPH + 
+			"> DELETE { <%1$s> ?p ?o } WHERE { <%1$s> ?p ?o }";	
 
 	private Integer daysConsideredOld;
 
 	private SiteReader reader = null;
 	private Affiliation affiliation = null;
-	private SparqlPostClient sparqlClient = null;
 	private SparqlPersistance store = null;
 	private ThumbnailGenerator thumbnailGenerator = null;
 	private ProcessorController processorController = null;
@@ -88,7 +72,6 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 		super(new SparqlQueryClient(sparqlQuery + "/query"), LIMIT);
 		this.affiliation = affiliation;
 		this.reader = reader;
-		this.sparqlClient = sparqlClient;
 		this.store = store;
 		this.thumbnailGenerator = thumbnailGenerator;
 		this.daysConsideredOld = daysConsideredOld;
@@ -108,7 +91,7 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 		if (processorController != null && processorController.allowSkip()) {
 			Calendar threshold = Calendar.getInstance();
 			threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
-			return String.format(RESEARCHERS_SELECT_SKIP, getAffiliation().getURI(), processorController.getName(),
+			return String.format(RESEARCHERS_SELECT_SKIP, getAffiliation().getURI(), processorController.getURI(),
 					R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
 		}
 		else {			
@@ -145,7 +128,6 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 			// should probably have delete be a function in store, but this is OK for now
 			store.startTransaction();
 			store.execute(Arrays.asList(String.format(DELETE_RESEARCHER, getResearcherURI())));
-			store.execute(Arrays.asList(String.format(DELETE_RESEARCHER_DERIVED, getResearcherURI())));
 			store.endTransaction();
 		}
 		
@@ -172,8 +154,7 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 				}
 
 				List<String> preStatements = new ArrayList<String>();
-				preStatements.addAll(Arrays.asList(String.format(REMOVE_DERIVED_DATA, getResearcherURI()), 
-						String.format(ADD_COAUTHORS, getResearcherURI())));
+				preStatements.add(String.format(DELETE_RESEARCHER_THUMBNAIL, getResearcherURI()));
 				if (generateThumbnail(researcher)) {
 					// just drop the triple, not the image or thumbnail
 					preStatements.addAll(Arrays.asList(String.format(REMOVE_EXISTING_IMAGES, getResearcherURI()), 
@@ -182,25 +163,10 @@ public class PageItemProcessor extends SparqlProcessor implements Affiliated, R2
 				
 				store.startTransaction();
 				store.execute(preStatements);
-				store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, getResearcherURI(), getCrawler().getName()));
+				store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, getResearcherURI(), getCrawler().getURI()));
 				store.update(researcher);
 				store.endTransaction();
 				
-				// we intentionally add this later in a different transaction
-				String getCnts = String.format(GET_COAUTHOR_CNTS, getResearcherURI(), researcher.getAffiliation().getURI());								
-				getSparqlClient().select(getCnts, new ResultSetConsumer() {
-					public void useResultSet(ResultSet rs) throws Exception {
-						if (rs.hasNext() ) {				
-							QuerySolution qs = rs.next();
-							if (qs.getLiteral("?erc").getInt() > 0 && qs.getLiteral("?cwc").getInt() > 0) {
-								String update = String.format(ADD_COAUTHOR_CNTS, getResearcherURI(), 
-									qs.getLiteral("?erc").getInt(), qs.getLiteral("?cwc").getInt());
-								sparqlClient.update(update);
-							}
-						}						
-					}	
-				});
-
 				return OutputType.PROCESSED;
 			}
 		}		

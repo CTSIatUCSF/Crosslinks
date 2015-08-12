@@ -8,8 +8,8 @@ public interface ResearcherProcessor extends R2RConstants {
 	
 	public static final String PUBMED_SECTION = "//www.ncbi.nlm.nih.gov/pubmed/";
 	
-	public static final String DELETE_PRIOR_PROCESS_LOG = "DELETE {<%1$s> <" + R2R_PROCESSED_BY + "> ?c . ?c ?p ?o} WHERE { " +
-			"<%1$s> <" + R2R_PROCESSED_BY + "> ?c . ?c <" + RDFS_LABEL + "> \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#string>}";
+	public static final String DELETE_PRIOR_PROCESS_LOG = "DELETE {<%1$s> <" + R2R_PROCESSED + "> ?c . ?c ?p ?o} WHERE { " +
+			"<%1$s> <" + R2R_PROCESSED + "> ?c . ?c <" + R2R_PROCESSED_BY + "> <%2$s>}";
 	
 	void setCrawler(ProcessorController processorController);
 	

@@ -2,9 +2,10 @@ package edu.ucsf.crosslink.processor.iterator;
 
 import java.util.logging.Logger;
 
+import org.apache.jena.query.QuerySolution;
+
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import com.hp.hpl.jena.query.QuerySolution;
 
 import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.model.Researcher;
@@ -87,7 +88,7 @@ public class MarengoListProcessor extends SparqlProcessor {
 //						?c <http://www.w3.org/2000/01/rdf-schema#label> "MarengoList"^^<http://www.w3.org/2001/XMLSchema#string>}				}
 //				}
 				store.startTransaction();
-				store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, getResearcherURI(), getCrawler().getName()));
+				store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, getResearcherURI(), getCrawler().getURI()));
 				store.update(researcher);
 				store.endTransaction();
 				return OutputType.PROCESSED;

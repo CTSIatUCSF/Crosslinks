@@ -17,13 +17,8 @@ import org.joda.time.DateTime;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
-import com.hp.hpl.jena.query.QuerySolution;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.StmtIterator;
+
+import org.apache.jena.datatypes.xsd.XSDDateTime;
 
 import edu.ucsf.crosslink.model.Affiliation;
 import edu.ucsf.crosslink.model.R2RResourceObject;
@@ -39,6 +34,12 @@ import org.apache.http.impl.conn.PoolingClientConnectionManager;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.riot.web.HttpOp;
 
 
@@ -49,8 +50,6 @@ public class SparqlPersistance implements R2RConstants {
 	private SparqlQueryClient sparqlQuery;
 	private SparqlPostClient sparqlClient;
 	private List<Affiliation> knownAffiliations = null;
-	private static final String SKIP_RESEARCHERS_SPARQL = "SELECT ?r ?ts WHERE {?r <" + R2R_PROCESSED_BY + "> ?c . ?c <" + 
-			RDFS_LABEL + "> \"%s\" . ?c <" + R2R_PROCESSED_ON + "> ?ts . FILTER (?ts > \"%s\")}";
 	
 	private static final String LOAD_AFFILIATIONS = "SELECT ?r ?l WHERE  {?r <" + RDF_TYPE + "> <" +
 			R2R_AFFILIATION + "> . ?r <" + RDFS_LABEL + "> ?l}";

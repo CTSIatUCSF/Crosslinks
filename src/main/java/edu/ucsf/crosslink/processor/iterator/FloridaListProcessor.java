@@ -2,8 +2,9 @@ package edu.ucsf.crosslink.processor.iterator;
 
 import java.util.logging.Logger;
 
+import org.apache.jena.query.QuerySolution;
+
 import com.google.inject.Inject;
-import com.hp.hpl.jena.query.QuerySolution;
 
 import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.model.Researcher;

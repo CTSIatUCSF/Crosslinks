@@ -216,7 +216,7 @@ public class SiteReader implements R2RConstants {
     	
     	// hacks to fix bad URI's
     	if (Affiliation.RNSType.SCIVAL.equals(researcher.getAffiliation().getRNSType()) && !researcher.getURI().contains("www.")) {
-    		// little hack from Eichman
+    		// little hack from Eichmann
     		uri = getScivalHTMLUrlFromUri(researcher.getURI());
     	}
     	else if (researcher.getURI().contains("upenn.edu")) {

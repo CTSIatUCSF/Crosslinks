@@ -10,18 +10,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.jena.datatypes.xsd.XSDDateTime;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.NodeIterator;
+import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.ResIterator;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.StmtIterator;
 import org.joda.time.DateTime;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.safety.Whitelist;
-
-import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.NodeIterator;
-import com.hp.hpl.jena.rdf.model.Property;
-import com.hp.hpl.jena.rdf.model.ResIterator;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.StmtIterator;
 
 import edu.ucsf.crosslink.processor.controller.ProcessorController;
 import edu.ucsf.ctsi.r2r.R2RConstants;
@@ -75,12 +74,12 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 	public void crawledBy(ProcessorController processorController) {
 		Model model = getModel();
 		// see if we have already been crawled by this crawler
-		StmtIterator si = getStatements(R2R_PROCESSED_BY);
+		StmtIterator si = getStatements(R2R_PROCESSED);
 		while (si.hasNext()) {
 			Resource crawl = si.next().getResource();
-			if (processorController.getName().equals(crawl.getProperty(model.createProperty(RDFS_LABEL)).getString())) {
+			if (processorController.getURI().equals(crawl.getProperty(model.createProperty(R2R_PROCESSED_BY)).getResource().getURI())) {
 				// update the time stamp
-				model.removeAll(getResource(), model.createProperty(R2R_PROCESSED_ON), null);
+				model.removeAll(crawl, model.createProperty(R2R_PROCESSED_ON), null);
 				crawl.addLiteral(model.createProperty(R2R_PROCESSED_ON), model.createTypedLiteral(Calendar.getInstance()));
 				si.close();
 				return;
@@ -89,10 +88,10 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 		si.close();
 		// create a blank node
 		Resource crawl = model.createResource();
-		crawl.addLiteral(model.createProperty(RDFS_LABEL), processorController.getName());
+		crawl.addProperty(model.createProperty(R2R_PROCESSED_BY), processorController.getResource());
 		crawl.addLiteral(model.createProperty(R2R_PROCESSED_ON), model.createTypedLiteral(Calendar.getInstance()));
 		
-		model.add(getResource(), model.createProperty(R2R_PROCESSED_BY), crawl);
+		model.add(getResource(), model.createProperty(R2R_PROCESSED), crawl);
 	}
 	
 	public Affiliation getAffiliation() {
@@ -209,10 +208,10 @@ public class Researcher extends R2RResourceObject implements Comparable<Research
 	
 	public Calendar getCrawlTime(ProcessorController processorController) {
 		Model model = getModel();
-		ResIterator ri = getModel().listResourcesWithProperty(model.createProperty(R2R_PROCESSED_BY));
+		ResIterator ri = getModel().listResourcesWithProperty(model.createProperty(R2R_PROCESSED));
 		while (ri.hasNext()) {
 			Resource crawl = ri.next();
-			if (processorController.getName().equals(crawl.getProperty(model.createProperty(RDFS_LABEL)).getString())) {
+			if (processorController.getURI().equals(crawl.getProperty(model.createProperty(R2R_PROCESSED_BY)).getResource().getURI())) {
 				return ((XSDDateTime)crawl.getProperty(model.createProperty(R2R_PROCESSED_ON)).getLiteral().getValue()).asCalendar();
 			}
 		}

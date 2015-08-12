@@ -18,11 +18,12 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.ResultSetFormatter;
+
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import com.hp.hpl.jena.query.QuerySolution;
-import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.query.ResultSetFormatter;
 import com.sun.jersey.api.view.Viewable;
 
 import edu.ucsf.crosslink.job.quartz.Quartz;
@@ -60,7 +61,7 @@ public class FusekiRestMethods implements R2RConstants {
 	private static final String RESEARCHERS_SPARQL = "SELECT DISTINCT ?r ?l ?hp ?i ?erc ?cwc WHERE {?r <" + 
 			R2R_HAS_AFFILIATION + "> <%1$s>  . OPTIONAL {?r <" + RDFS_LABEL + "> ?l} . OPTIONAL {?r <" + 
 			FOAF_HOMEPAGE +	"> ?hp } . OPTIONAL { GRAPH <" + 
-			R2R_DERIVED_GRAPH +	"> {?r <" + FOAF_HAS_IMAGE +"> ?i}} . OPTIONAL { GRAPH <" + 
+			R2R_THUMBNAIL_GRAPH +	"> {?r <" + FOAF_HAS_IMAGE +"> ?i}} . OPTIONAL { GRAPH <" + 
 			R2R_DERIVED_GRAPH + "> {?r <" + R2R_EXTERNAL_COAUTHOR_CNT + "> ?erc}} . OPTIONAL { GRAPH <" + 
 			R2R_DERIVED_GRAPH + "> {?r <" + R2R_SHARED_PUB_CNT + "> ?cwc}}}";
 	
@@ -80,13 +81,12 @@ public class FusekiRestMethods implements R2RConstants {
 
 	private static final String COAUTHORS_SAMEAS = "SELECT (?r as ?researcherURI) (?fn as ?firstName) " + 
 			"(?ln as ?lastName) (?er as ?otherResearcherURI) (?efn as ?otherReserarcherFirstName) (?ln as ?otherResearcherLastName) " +
-			"WHERE {?r <" +
-			R2R_HAS_AFFILIATION + "> <%s> . ?r <" + FOAF_LAST_NAME + "> ?ln . ?r <" + FOAF_FIRST_NAME +
-			"> ?fn . { ?r <" + FOAF_KNOWS + "> ?er}. ?er <" + 
-			FOAF_LAST_NAME + "> ?ln . ?er <" + FOAF_FIRST_NAME + "> ?efn " +
-			"FILTER ((LCASE(?efn) = LCASE(?fn)) || " + 
+			"WHERE {?r <" +	R2R_HAS_AFFILIATION + "> <%1$s> . ?r <" + FOAF_LAST_NAME + "> ?ln . ?r <" + FOAF_FIRST_NAME +
+			"> ?fn . ?r <" + FOAF_PUBLICATIONS + "> ?cw . ?er <" + FOAF_PUBLICATIONS + "> ?cw . ?er <" + 
+			R2R_HAS_AFFILIATION + "> ?ea . ?er <" + FOAF_LAST_NAME + "> ?ln . ?er <" + FOAF_FIRST_NAME + "> ?efn " +
+			"FILTER (?ea != <%1$s>) && (FILTER ((LCASE(?efn) = LCASE(?fn)) || " + 
 			"(STRLEN(?efn) = 1 && STRSTARTS(LCASE(?fn), LCASE(?efn))) || " + 
-			"(STRLEN(?fn) = 1 && STRSTARTS(LCASE(?efn), LCASE(?fn)))) }";
+			"(STRLEN(?fn) = 1 && STRSTARTS(LCASE(?efn), LCASE(?fn))))) }";
 
 	private ProcessorControllerFactory factory;
 	private JsonLDService jsonLDService;

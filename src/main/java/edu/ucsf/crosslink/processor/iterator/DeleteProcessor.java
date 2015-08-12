@@ -6,11 +6,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.jena.query.QuerySolution;
 import org.joda.time.DateTime;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import com.hp.hpl.jena.query.QuerySolution;
 
 import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.model.Affiliated;
@@ -28,8 +28,8 @@ public class DeleteProcessor extends SparqlProcessor implements Affiliated, R2RC
 	private static final Logger LOG = Logger.getLogger(DeleteProcessor.class.getName());
 
 	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
-			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_PROCESSED_BY + "> ?c . ?c <" + RDFS_LABEL + 
-			"\"%2$s\" . ?c <" + R2R_PROCESSED_ON + 
+			"?r <" + R2R_HAS_AFFILIATION + "> <%1$s> . OPTIONAL {?r <" + R2R_PROCESSED + "> ?c . ?c <" + R2R_PROCESSED_BY + 
+			"<%2$s> . ?c <" + R2R_PROCESSED_ON + 
 			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%3$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
 
 	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r WHERE { " +
@@ -71,7 +71,7 @@ public class DeleteProcessor extends SparqlProcessor implements Affiliated, R2RC
 		if (processorController != null && processorController.allowSkip()) {
 			Calendar threshold = Calendar.getInstance();
 			threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
-			return String.format(RESEARCHERS_SELECT_SKIP, getAffiliation().getURI(), processorController.getName(),
+			return String.format(RESEARCHERS_SELECT_SKIP, getAffiliation().getURI(), processorController.getURI(),
 					R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
 		}
 		else {

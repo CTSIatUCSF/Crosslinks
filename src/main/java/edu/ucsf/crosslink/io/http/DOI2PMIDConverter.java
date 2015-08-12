@@ -21,10 +21,6 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.hp.cache4guice.Cached;
-import com.hp.hpl.jena.query.QuerySolution;
-import com.hp.hpl.jena.query.ResultSet;
-
-import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 
 public class DOI2PMIDConverter {
 

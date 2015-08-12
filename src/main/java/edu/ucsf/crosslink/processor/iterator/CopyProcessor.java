@@ -25,32 +25,27 @@ import edu.ucsf.ctsi.r2r.jena.ResultSetConsumer;
 import edu.ucsf.ctsi.r2r.jena.SparqlQueryClient;
 import edu.ucsf.ctsi.r2r.jena.SparqlPostClient;
 
-public class ExtractProcessor extends SparqlProcessor implements R2RConstants {
+public class CopyProcessor extends SparqlProcessor implements R2RConstants {
 
-	private static final Logger LOG = Logger.getLogger(ExtractProcessor.class.getName());
+	private static final Logger LOG = Logger.getLogger(CopyProcessor.class.getName());
 
-	private static final String RESEARCHERS_WITH_EXTERNAL_COAUTHORS = "SELECT ?r WHERE { ?r <" +
-			R2R_HAS_AFFILIATION + "> ?a . ?r <" + FOAF_PUBLICATIONS + "> ?cw . ?er <" + FOAF_PUBLICATIONS +
-			"> ?cw . ?er <" + R2R_HAS_AFFILIATION + "> ?ea FILTER(?ea != ?a)}";	
-	
-	private static final String RESEARCHERS_WITH_EXTERNAL_COAUTHORS_CNT = "SELECT ?r WHERE { GRAPH <" +
-			R2R_DERIVED_GRAPH + "> { ?r <" + R2R_EXTERNAL_COAUTHOR_CNT + "> ?cw }}";	
-	
-	private static final int LIMIT = 1000;
-	
-	private static final String RESEARCHER_CONSTRUCT = "CONSTRUCT {<%1$s> ?p ?o . " + 
-			"<%1$s> <" + FOAF_HAS_IMAGE + "> ?i} " + 
-			"WHERE {<%1$s> ?p ?o . " +
-			"FILTER(?p != <" + R2R_PROCESSED + ">) " +
-			". FILTER(?p != <" + FOAF_HAS_IMAGE + ">) " + 
-			". FILTER(?p != <" + FOAF + "depiction>) . OPTIONAL " + 
-			"{ GRAPH <" + R2R_THUMBNAIL_GRAPH + "> " + 
-			"{<%1$s> <" + FOAF_HAS_IMAGE + "> ?i} }}";
-
- 	
 	private static final String AFFILIATIONS = "CONSTRUCT {?a ?p ?o } WHERE { ?a <" + RDF_TYPE + 
 			"> <" + R2R_AFFILIATION + "> . ?a ?p ?o}";	
 
+	public static final String RESEARCHERS = "SELECT ?r WHERE { ?r <" +
+			R2R_HAS_AFFILIATION + "> ?a}";	
+	
+	private static final int LIMIT = 1000;
+	
+	private static final String RESEARCHER_CONSTRUCT = "CONSTRUCT {<%1$s> ?p ?o . ?o ?op ?oo} WHERE {<%1$s> ?p ?o FILTER(?p != <" +
+			R2R_PROCESSED_BY + ">) . OPTIONAL {?o ?op ?oo}}";	
+
+	private static final String GET_THUMBNAIL = "SELECT ?t WHERE { GRAPH <" + R2R_THUMBNAIL_GRAPH + 
+			"> {<%s> <" + FOAF_HAS_IMAGE + "> ?t }}";	
+
+	private static final String ADD_THUMBNAIL = "INSERT DATA { GRAPH <" + R2R_THUMBNAIL_GRAPH + 
+			"> {<%s> <" + FOAF_HAS_IMAGE + "> <%s> }}";	
+	
 	private SparqlPostClient uiSparqlPostClient = null;
 	private SparqlQueryClient uiSparqlQueryClient = null;
 	private List<String> skipList = new ArrayList<String>();
@@ -62,12 +57,12 @@ public class ExtractProcessor extends SparqlProcessor implements R2RConstants {
 	
 	// Will copy all researchers into the UI fuseki instance.  
 	@Inject
-	public ExtractProcessor(@Named("r2r.fusekiUrl") String sparqlQuery, @Named("uiFusekiUrl") String uiFusekiUrl) throws Exception {
+	public CopyProcessor(@Named("r2r.fusekiUrl") String sparqlQuery, @Named("uiFusekiUrl") String uiFusekiUrl) throws Exception {
 		super(new SparqlQueryClient(sparqlQuery + "/query"), LIMIT);
 		uiSparqlPostClient = new SparqlPostClient(uiFusekiUrl + "/update", uiFusekiUrl +  "/data?default");
 		uiSparqlQueryClient = new SparqlQueryClient(uiFusekiUrl + "/query");
-		addToStore(R2ROntology.createR2ROntModel());
-		addToStore(getSparqlClient().construct(AFFILIATIONS));
+		addToUIStore(R2ROntology.createR2ROntModel());
+		addToUIStore(getSparqlClient().construct(AFFILIATIONS));
 	}
 	
 	@Inject
@@ -87,7 +82,7 @@ public class ExtractProcessor extends SparqlProcessor implements R2RConstants {
 		}
 	}
 	
-	private synchronized void addToStore(Model model) throws Exception {
+	private synchronized void addToUIStore(Model model) throws Exception {
 		if (buffer == null) {
 			buffer = model;
 		}
@@ -127,21 +122,21 @@ public class ExtractProcessor extends SparqlProcessor implements R2RConstants {
 	}
 	
 	protected String getFormattedQueryString(int offset, int limit) {
-		return RESEARCHERS_WITH_EXTERNAL_COAUTHORS_CNT + 
+		return RESEARCHERS + 
 				(limit > 0 ? String.format(" OFFSET %d LIMIT %d", offset, limit) : "");	}
 	
 	@Override
 	protected ResearcherProcessor getResearcherProcessor(QuerySolution qs) {
-		return new ExtractResearcherProcessor(qs.getResource("?r").getURI());
+		return new CopyResearcherProcessor(qs.getResource("?r").getURI());
 	}
 	
 	protected void addDataToResearcherModel(Researcher researcher) {
 		researcher.addFrom(getSparqlClient().construct(String.format(RESEARCHER_CONSTRUCT, researcher.getURI())));
 	}
 	
-	private class ExtractResearcherProcessor extends BasicResearcherProcessor {
+	private class CopyResearcherProcessor extends BasicResearcherProcessor {
 		
-		private ExtractResearcherProcessor(String researcherURI) {
+		private CopyResearcherProcessor(String researcherURI) {
 			super(researcherURI);
 		}
 
@@ -150,13 +145,19 @@ public class ExtractProcessor extends SparqlProcessor implements R2RConstants {
 				return OutputType.SKIPPED;
 			}
 			else {
-				Researcher researcher =  new Researcher(getResearcherURI());
-				// Do not call createResearcher(); because it will add the processor, and we don't want that
+				Researcher researcher =  createResearcher();
 				addDataToResearcherModel(researcher);
-				addToStore(researcher.getModel());
+				addToUIStore(researcher.getModel());
 				//Thread.sleep(5000);
-				// add to skip list because the query returns the same people
-				skipList.add(getResearcherURI());
+				// add thumbnail if it is present
+				getSparqlClient().select(String.format(GET_THUMBNAIL, getResearcherURI()), new ResultSetConsumer() {
+					public void useResultSet(ResultSet rs) throws Exception {
+						if (rs.hasNext() ) {				
+							QuerySolution qs = rs.next();
+							uiSparqlPostClient.update(String.format(ADD_THUMBNAIL, getResearcherURI(), qs.getResource("?t").getURI()));
+						}						
+					}	
+				});
 				return OutputType.PROCESSED;
 			}			
 		}

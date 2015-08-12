@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.jena.datatypes.xsd.XSDDateTime;
+import org.apache.jena.query.QuerySolution;
+import org.apache.jena.query.ResultSet;
 import org.joda.time.DateTime;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Whitelist;
@@ -15,9 +18,6 @@ import org.jsoup.safety.Whitelist;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.hp.cache4guice.Cached;
-import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
-import com.hp.hpl.jena.query.QuerySolution;
-import com.hp.hpl.jena.query.ResultSet;
 
 import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.io.http.DOI2PMIDConverter;
@@ -38,8 +38,8 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 	public static final String DOI_PREFIX = "http://dx.doi.org/";
 
 	private static final String RESEARCHERS_SELECT_SKIP = "SELECT ?r ?ts WHERE { " +
-			"?r <" + RDF_TYPE + "> <" + FOAF_PERSON + "> . OPTIONAL {?r <" + R2R_PROCESSED_BY + "> ?c . ?c <" + RDFS_LABEL + 
-			"> \"%1$s\"^^<http://www.w3.org/2001/XMLSchema#string> . ?c <" + R2R_PROCESSED_ON + 
+			"?r <" + RDF_TYPE + "> <" + FOAF_PERSON + "> . OPTIONAL {?r <" + R2R_PROCESSED + "> ?c . ?c <" + R2R_PROCESSED_BY + 
+			"> <%1$s> . ?c <" + R2R_PROCESSED_ON + 
 			"> ?ts} FILTER (!bound(?ts) || ?ts < \"%2$s\"^^<http://www.w3.org/2001/XMLSchema#dateTime>)} ORDER BY (?ts)";	
 
 	private static final String RESEARCHERS_SELECT_NO_SKIP = "SELECT ?r ?ts WHERE { " +
@@ -96,7 +96,7 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 		if (processorController != null && processorController.allowSkip()) {
 			Calendar threshold = Calendar.getInstance();
 			threshold.setTimeInMillis(new DateTime().minusDays(daysConsideredOld).getMillis());
-			return String.format(RESEARCHERS_SELECT_SKIP, processorController.getName(), 
+			return String.format(RESEARCHERS_SELECT_SKIP, processorController.getURI(), 
 					R2ROntology.createDefaultModel().createTypedLiteral(threshold).getString());
 		}
 		else {
@@ -240,7 +240,7 @@ public class MarengoDetailProcessor extends SparqlProcessor implements R2RConsta
 				publicationCount = researcher.getPublications().size();
 				store.startTransaction();
 				store.execute(Arrays.asList(String.format(REMOVE_EXISTING_PUBLICATIONS, getResearcherURI())));
-				store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, getResearcherURI(), getCrawler().getName()));
+				store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, getResearcherURI(), getCrawler().getURI()));
 				store.update(researcher);
 				store.endTransaction();
 				return OutputType.PROCESSED;

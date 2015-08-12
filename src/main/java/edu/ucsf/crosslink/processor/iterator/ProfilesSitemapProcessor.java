@@ -9,15 +9,15 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.util.FileManager;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.google.inject.Inject;
-import com.hp.hpl.jena.rdf.model.Model;
-import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.Statement;
-import com.hp.hpl.jena.util.FileManager;
 
 import edu.ucsf.crosslink.io.SparqlPersistance;
 import edu.ucsf.crosslink.io.http.SiteReader;
@@ -135,7 +135,7 @@ public class ProfilesSitemapProcessor implements Iterable<ResearcherProcessor>, 
 		    		researcher.setOrcidId(orcidId);
 		    	}
 	        }
-			store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, researcherURI, processorController.getName()));
+			store.execute(String.format(DELETE_PRIOR_PROCESS_LOG, researcherURI, processorController.getURI()));
 			store.update(researcher);
 			return OutputType.PROCESSED;
 		}

@@ -65,6 +65,11 @@
 	      <threadCount>-1</threadCount>
 	   </Processor>
 	   <Processor>
+	      <class>edu.ucsf.crosslink.processor.iterator.CalculateCoauthorsProcessor</class>
+	      <executionMode>DISABLED</executionMode>
+	      <threadCount>-1</threadCount>
+	   </Processor>
+	   <Processor>
 	      <class>edu.ucsf.crosslink.processor.iterator.ExtractProcessor</class>
 	      <executionMode>DISABLED</executionMode>
 	      <threadCount>-1</threadCount>

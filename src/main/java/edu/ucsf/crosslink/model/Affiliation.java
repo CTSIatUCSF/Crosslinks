@@ -24,6 +24,7 @@ import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
+import org.apache.jena.riot.RiotException;
 import org.apache.jena.util.FileManager;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -87,13 +88,15 @@ public class Affiliation extends R2RResourceObject {
 			iconUri = reader.getFavicon("http://" + getURIObject().getHost().substring(getURIObject().getHost().indexOf('.') + 1));
 		}
 		if (iconUri == null) {
-			// we do this second because we don't want the VIVO or Profiels icon
+			// we do this second because we don't want the VIVO or Profiles icon
 			iconUri = reader.getFavicon(getURI());			
 		}
 		if (iconUri != null) {
 			saveIcon(store, thumbnailGenerator, iconUri);
 			return true;
 		}
+		// still should update triple store
+		store.update(this);
 		return false;
 	}
 	
@@ -123,7 +126,13 @@ public class Affiliation extends R2RResourceObject {
 		}
 		Model dbPediaModel = null;
 		try {
-			dbPediaModel = FileManager.get().loadModel(dbPediauri);			
+			try {
+				dbPediaModel = FileManager.get().loadModel(dbPediauri);			
+			}
+			catch (RiotException re) {
+				LOG.log(Level.WARNING, "Unable to read " + dbPediauri + " for " + getName() + " trying to read RDF/XML directly", re);
+				dbPediaModel = FileManager.get().loadModel(dbPediauri.replace("/resource/", "/data/") + ".rdf");			
+			}
 		}
 		catch (Exception e) {
 			LOG.log(Level.SEVERE, "Unable to read " + dbPediauri + " for " + getName(), e);

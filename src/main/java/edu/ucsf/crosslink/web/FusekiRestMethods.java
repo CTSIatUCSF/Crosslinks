@@ -1,6 +1,8 @@
 package edu.ucsf.crosslink.web;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.StringWriter;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,10 +19,25 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.TransformerFactoryConfigurationError;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.ResultSet;
 import org.apache.jena.query.ResultSetFormatter;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.w3c.dom.DOMException;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
@@ -92,12 +109,22 @@ public class FusekiRestMethods implements R2RConstants {
 	private JsonLDService jsonLDService;
 	private SparqlQueryClient uiSparqlClient;
 	
+	// XML bs
+	private DocumentBuilderFactory docFactory;
+	private DocumentBuilder docBuilder;
+    private Transformer transformer;
+
 	@Inject
 	public FusekiRestMethods(JsonLDService jsonLDService,
-			ProcessorControllerFactory factory, @Named("uiFusekiUrl") String uiFusekiUrl) {
+			ProcessorControllerFactory factory, @Named("uiFusekiUrl") String uiFusekiUrl) throws ParserConfigurationException, TransformerConfigurationException, TransformerFactoryConfigurationError {
 		this.uiSparqlClient = new SparqlQueryClient(uiFusekiUrl + "/sparql", 10000, 20000);
 		this.factory = factory;
 		this.jsonLDService = jsonLDService;
+
+		// XML bs
+		docFactory = DocumentBuilderFactory.newInstance();
+		docBuilder = docFactory.newDocumentBuilder();
+		transformer = TransformerFactory.newInstance().newTransformer();
 	}
 
 	@GET
@@ -186,6 +213,31 @@ public class FusekiRestMethods implements R2RConstants {
 		return getFormattedResults(uiSparqlClient, String.format(COAUTHORS_SELECT, researcherURI), format).toString();
     }
     
+    @GET
+    @Path("ctsaSearchCoauthors")
+    @Produces(MediaType.APPLICATION_XML)
+    public String ctsaSearchCoauthors(@QueryParam("PMID") String pmid) throws IOException, DOMException, ParserConfigurationException, TransformerFactoryConfigurationError, TransformerException  {
+		Document doc = Jsoup.connect("http://research.icts.uiowa.edu/polyglot/service/person_by_pub.jsp")
+			    .data("mode", "PMID")
+			    .data("sort", "rank")
+			    .data("value", pmid)
+			    .post();    	
+		//System.out.println(doc.select("th").first().parent().parent());  
+
+		// root elements
+		org.w3c.dom.Document document = docBuilder.newDocument();
+		org.w3c.dom.Element rootElement = document.createElement("coauthors");
+		document.appendChild(rootElement);
+		
+		for (Element tr : doc.select("th").first().parent().parent().select("tr")) {
+			//System.out.println(tr);
+			rootElement.appendChild(getAuthor(document, tr));
+		}		
+        StringWriter writer = new StringWriter();
+        transformer.transform(new DOMSource(document), new StreamResult(writer));
+        return writer.getBuffer().toString().replaceAll("\n|\r", "");
+    }
+
     private static ByteArrayOutputStream getFormattedResults(final SparqlQueryClient client, final String sparql, final String format) throws Exception {
     	final ByteArrayOutputStream outStream = new ByteArrayOutputStream();
     	client.select(sparql, new ResultSetConsumer() {
@@ -212,11 +264,14 @@ public class FusekiRestMethods implements R2RConstants {
 					QuerySolution qs = rs.next();
 					Affiliation affiliationObj;
 					try {
-						affiliationObj = new Affiliation(qs.getResource("?a").getURI(), qs.getLiteral("?l").getString(),
-								(qs.contains("?icon") ? qs.getResource("?icon").getURI() : null),
-								(qs.contains("?lat") ? qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString() : "0,0"),
-								qs.getLiteral("?rc").getInt(), 0);
-						affiliations.add(affiliationObj);
+						// because we have an aggregate clause, we can return one row even if no data is present. This if prevents that use case from throwing a NPE..
+						if (qs.contains("?a")) {
+							affiliationObj = new Affiliation(qs.getResource("?a").getURI(), qs.getLiteral("?l").getString(),
+									(qs.contains("?icon") ? qs.getResource("?icon").getURI() : null),
+									(qs.contains("?lat") ? qs.getLiteral("?lat").getString() + "," + qs.getLiteral("?lon").getString() : "0,0"),
+									qs.getLiteral("?rc").getInt(), 0);
+							affiliations.add(affiliationObj);
+						}
 					} 
 					catch (URISyntaxException e) {
 						LOG.log(Level.WARNING, e.getMessage(), e);
@@ -284,7 +339,7 @@ public class FusekiRestMethods implements R2RConstants {
 
     	@Inject
     	public RawFusekiRestMethods(JsonLDService jsonLDService,
-    			ProcessorControllerFactory factory, @Named("r2r.fusekiUrl") String fusekiUrl) {
+    			ProcessorControllerFactory factory, @Named("r2r.fusekiUrl") String fusekiUrl) throws ParserConfigurationException, TransformerConfigurationException, TransformerFactoryConfigurationError {
     		super(jsonLDService, factory, fusekiUrl);
     	}
     }
@@ -294,8 +349,42 @@ public class FusekiRestMethods implements R2RConstants {
 
     	@Inject
     	public UiFusekiRestMethods(JsonLDService jsonLDService,
-    			ProcessorControllerFactory factory, @Named("uiFusekiUrl") String fusekiUrl) {
+    			ProcessorControllerFactory factory, @Named("uiFusekiUrl") String fusekiUrl) throws ParserConfigurationException, TransformerConfigurationException, TransformerFactoryConfigurationError {
     		super(jsonLDService, factory, fusekiUrl);
     	}
     }
+    
+    private org.w3c.dom.Element getAuthor(org.w3c.dom.Document doc, Element tr) throws ParserConfigurationException, TransformerFactoryConfigurationError, TransformerException {
+		org.w3c.dom.Element rootElement = doc.createElement("coauthor");
+		
+		if (!tr.select("a[href]").isEmpty()) {
+			// position elements
+			org.w3c.dom.Element position = doc.createElement("position");
+			position.appendChild(doc.createTextNode(tr.select("td").get(0).text()));
+			rootElement.appendChild(position);
+
+			// firstname elements
+			org.w3c.dom.Element firstname = doc.createElement("firstname");
+			firstname.appendChild(doc.createTextNode(tr.select("td").get(2).text()));
+			rootElement.appendChild(firstname);
+			
+			// lastname elements
+			org.w3c.dom.Element lastname = doc.createElement("lastname");
+			lastname.appendChild(doc.createTextNode(tr.select("td").get(1).text()));
+			rootElement.appendChild(lastname);
+
+			// URI
+			org.w3c.dom.Element uri = doc.createElement("uri");
+			uri.appendChild(doc.createTextNode(tr.select("td").get(3).text()));
+			rootElement.appendChild(uri);
+			//rootElement.appendChild(doc.createElement("firstname").appendChild(doc.createTextNode(tr.select(":nth-child(3)").first().text())));	
+			//rootElement.appendChild(doc.createElement("lastname").appendChild(doc.createTextNode(tr.select(":nth-child(2)").first().text())));
+			//rootElement.appendChild(doc.createElement("URI").appendChild(doc.createTextNode(tr.select("a[href]").first().attr("abs:href"))));
+    	}
+
+		return rootElement;
+    }
+    
+    
+    
 }

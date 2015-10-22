@@ -85,9 +85,15 @@ public class ThumbnailGenerator {
 	
 			File thumbnail = new File(thumbnailDir + "/" + loc );
 			new File(thumbnail.getParent()).mkdirs();
-			Thumbnails.of(new URL(imageURL))
-	        	.size(thumbnailWidth, thumbnailHeight)
-	        	.toFile(thumbnail);
+			try {
+				Thumbnails.of(new URL(imageURL))
+		        	.size(thumbnailWidth, thumbnailHeight)
+		        	.toFile(thumbnail);
+			}
+			catch (IOException e) {
+				LOG.log(Level.WARNING, e.getMessage(), e);
+				throw e;
+			}
 			// if we made it here, we are good
 			return thumbnailRootURL + "/" + loc;
 		}

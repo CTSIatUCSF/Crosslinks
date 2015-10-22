@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Crosslinks>
 	<r2r.fusekiUrl>http://localhost:3030/crosslinks</r2r.fusekiUrl> 
-	<!--uiFusekiUrl>http://localhost:3030/crosslinks</uiFusekiUrl--> 
-	<uiFusekiUrl>http://localhost:3030/crosslinksui</uiFusekiUrl> 
+	<uiFusekiUrl>http://localhost:3030/crosslinks</uiFusekiUrl> 
+	<!--uiFusekiUrl>http://localhost:3030/crosslinksui</uiFusekiUrl--> 
 
 	<!-- comma separated list of eppn with NO white space, or leave blank to let anyone in -->
 	<!-- administrators = 569307@ucsf.edu -->
@@ -121,11 +121,11 @@
 	      <label>University of Colorado Boulder</label>
 	      <DbpediaURI>http://dbpedia.org/resource/University_of_Colorado_Boulder</DbpediaURI>
 	   </Affiliation>
-	   <Affiliation>
+	   <!-- Affiliation>
 	      <BaseURL>http://vivo.colpos.mx</BaseURL>
 	      <label>Colpos</label>
 	      <Location>19.465415,-98.905219</Location>
-	   </Affiliation>
+	   </Affiliation-->
 	   <Affiliation>
 	      <BaseURL>http://vivo.cornell.edu</BaseURL>
 	      <label>Cornell</label>
@@ -183,7 +183,7 @@
 	      <Processors>
 	         <Processor>
 		        <class>edu.ucsf.crosslink.processor.iterator.ProfilesSitemapProcessor</class>
-	            <executionMode>ENABLED</executionMode>
+	            <executionMode>DISABLED</executionMode>
 		        <errorsToAbort>5</errorsToAbort>
 	            <threadCount>-1</threadCount>
 	            <pauseOnAbort>60</pauseOnAbort>
@@ -257,6 +257,7 @@
 	   <Affiliation>
 	      <BaseURL>http://profiles.uky.edu/profiles</BaseURL>
 	      <label>University of Kentucky</label>
+	      <icon>http://www.highlandmint.com/images/categories/KentuckyWilcatsIcon.jpg</icon>
 	      <DbpediaURI>http://dbpedia.org/resource/University_of_Kentucky</DbpediaURI>
 	   </Affiliation>
 	   <Affiliation>
@@ -316,7 +317,7 @@
 	      <Processors>
 	         <Processor>
 		        <class>edu.ucsf.crosslink.processor.iterator.ProfilesSitemapProcessor</class>
-	            <executionMode>ENABLED</executionMode>
+	            <executionMode>DISABLED</executionMode>
 		        <errorsToAbort>5</errorsToAbort>
 	            <threadCount>-1</threadCount>
 	            <pauseOnAbort>60</pauseOnAbort>

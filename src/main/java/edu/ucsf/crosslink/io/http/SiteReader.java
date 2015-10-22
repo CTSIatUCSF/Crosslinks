@@ -180,7 +180,7 @@ public class SiteReader implements R2RConstants {
 			return favico;
 		}
 		catch (IOException e) {
-			LOG.log(Level.WARNING, "Tried to load default fabico for " + url + " and failed, oh well!", e.getMessage());
+			LOG.log(Level.WARNING, "Tried to load default favico for " + url + " and failed, oh well.", e.getMessage());
 		}
 		return null;
 	}
